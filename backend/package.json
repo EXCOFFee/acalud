@@ -24,7 +24,7 @@
     "migration:revert": "npm run typeorm migration:revert -- -d src/config/database.config.ts",
     "schema:drop": "npm run typeorm schema:drop -- -d src/config/database.config.ts",
     "schema:sync": "npm run typeorm schema:sync -- -d src/config/database.config.ts",
-    "seed": "ts-node src/database/seeds/seed.ts"
+    "seed": "ts-node src/database/seed.ts"
   },
   "dependencies": {
     "@nestjs/cache-manager": "^2.1.1",
@@ -39,6 +39,7 @@
     "@nestjs/typeorm": "^10.0.0",
     "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
     "cache-manager": "^5.2.4",
     "cache-manager-redis-store": "^3.0.1",
