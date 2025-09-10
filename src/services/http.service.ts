@@ -6,7 +6,22 @@
 /**
  * Configuración del cliente HTTP
  */
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api/v1';
+const getApiBaseUrl = () => {
+  // En tests, usar URL fija
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+    return 'http://localhost:3001/api/v1';
+  }
+  
+  // En navegador, usar import.meta
+  if (typeof window !== 'undefined' && (window as any).import && (window as any).import.meta) {
+    return (window as any).import.meta.env?.VITE_API_URL || 'http://localhost:3001/api/v1';
+  }
+  
+  // Fallback para SSR y otros entornos
+  return 'http://localhost:3001/api/v1';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 /**
  * Interfaz para errores de API

@@ -69,7 +69,22 @@ git clone https://github.com/tu-usuario/acalud.git
 cd acalud
 ```
 
-#### 2. Configurar Variables de Entorno
+#### 2. Instalación Automática (Recomendado)
+
+Para Windows:
+```powershell
+# Ejecutar script de instalación
+.\scripts\install-improvements.ps1
+```
+
+Para Linux/macOS:
+```bash
+# Hacer ejecutable y ejecutar script de instalación
+chmod +x scripts/install-improvements.sh
+./scripts/install-improvements.sh
+```
+
+#### 3. Configurar Variables de Entorno
 ```bash
 # Backend
 cp backend/.env.example backend/.env
@@ -80,7 +95,7 @@ cp .env.example .env
 # Editar .env si necesitas configuraciones específicas
 ```
 
-#### 3. Desarrollo con Docker (Recomendado)
+#### 4. Desarrollo con Docker (Recomendado)
 ```bash
 # Levantar todos los servicios
 docker-compose up -d
@@ -92,7 +107,7 @@ docker-compose logs -f
 docker-compose down
 ```
 
-#### 4. Desarrollo Manual
+#### 5. Desarrollo Manual
 
 ##### Backend
 ```bash
@@ -212,6 +227,15 @@ Una vez levantado el backend, la documentación de la API estará disponible en:
 - `GET /api/v1/activities` - Listar actividades
 - `POST /api/v1/activities` - Crear actividad
 - `POST /api/v1/activities/:id/complete` - Completar actividad
+
+## 📖 Documentación Adicional
+
+Para información detallada sobre el proyecto:
+
+- **[📋 Mejoras Implementadas](docs/MEJORAS_IMPLEMENTADAS.md)** - Detalles técnicos de las mejoras implementadas
+- **[🚀 Deploy y Producción](docs/DEPLOY.md)** - Guía completa de deployment
+- **[📝 Instrucciones GitHub](docs/INSTRUCCIONES_GITHUB.md)** - Configuración del repositorio
+- **[📊 Resumen de Implementación](docs/RESUMEN_FINAL_IMPLEMENTACION.md)** - Resumen ejecutivo del proyecto
 
 ## 🧪 Testing
 

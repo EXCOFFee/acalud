@@ -11,6 +11,7 @@ import { ClassroomsModule } from './modules/classrooms/classrooms.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
 import { FilesModule } from './modules/files/files.module';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
 
 import { databaseConfig } from './config/database.config';
 import { appConfig } from './config/app.config';
@@ -79,6 +80,7 @@ import { appConfig } from './config/app.config';
     ActivitiesModule,
     GamificationModule,
     FilesModule,
+    MonitoringModule,
   ],
 })
 export class AppModule {}
