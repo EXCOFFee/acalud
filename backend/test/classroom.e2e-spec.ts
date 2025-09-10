@@ -4,6 +4,7 @@ import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { ClassroomService } from '../src/modules/classrooms/services/classroom.service.refactored';
+import { UserRole } from '../src/modules/users/user.entity';
 
 describe('Classroom API (e2e)', () => {
   let app: INestApplication;
@@ -30,7 +31,7 @@ describe('Classroom API (e2e)', () => {
       firstName: 'Test',
       lastName: 'Teacher',
       name: 'Test Teacher',
-      role: 'teacher' as const,
+      role: UserRole.TEACHER,
     };
 
     const studentData = {
@@ -39,14 +40,14 @@ describe('Classroom API (e2e)', () => {
       firstName: 'Test',
       lastName: 'Student', 
       name: 'Test Student',
-      role: 'student' as const,
+      role: UserRole.STUDENT,
     };
 
     // Registrar y obtener tokens
     const teacherAuth = await authService.register(teacherData);
     const studentAuth = await authService.register(studentData);
     
-    if (teacherAuth.success && studentAuth.success) {
+    if (teacherAuth.success && teacherAuth.data && studentAuth.success && studentAuth.data) {
       teacherToken = teacherAuth.data.token;
       studentToken = studentAuth.data.token;
     }

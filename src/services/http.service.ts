@@ -7,8 +7,9 @@
  * Configuración del cliente HTTP
  */
 const getApiBaseUrl = () => {
-  // En tests, usar URL fija
-  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+  // En tests, usar URL fija (verificar si estamos en un entorno de testing)
+  if (typeof globalThis !== 'undefined' && 
+      (globalThis as any).process?.env?.NODE_ENV === 'test') {
     return 'http://localhost:3001/api/v1';
   }
   

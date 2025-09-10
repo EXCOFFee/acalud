@@ -12,7 +12,10 @@ import { Header } from '../../components/Layout/Header';
 export const ProtectedLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      <Header 
+        onNavigate={(page) => console.log('Navigate to:', page)} 
+        currentPage="dashboard" 
+      />
       <main>
         <Outlet />
       </main>

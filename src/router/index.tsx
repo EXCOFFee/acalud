@@ -1,4 +1,3 @@
-// ============================================================================
 // 🧭 SISTEMA DE RUTAS CON REACT ROUTER - ACALUD
 // ============================================================================
 /**
@@ -17,18 +16,32 @@ import {
   createBrowserRouter,
   createRoutesFromElements,
   Route,
-  Navigate
+  Navigate,
+  useNavigate
 } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { 
+  ClassroomManagementWrapper,
+  CreateClassroomFormWrapper,
+  CreateActivityFormWrapper,
+  StudentClassroomsWrapper,
+  JoinClassroomWrapper,
+  AchievementsWrapper,
+  StoreWrapper,
+  UserProfileWrapper,
+  TeacherDashboardWrapper,
+  StudentDashboardWrapper
+} from './components/NavigationWrappers';
 
 // Layouts
-import { RootLayout } from './layouts/RootLayout';
-import { AuthLayout } from './layouts/AuthLayout';
-import { ProtectedLayout } from './layouts/ProtectedLayout';
+import { RootLayout } from './layouts/RootLayout.tsx';
+import { AuthLayout } from './layouts/AuthLayout.tsx';
+import { ProtectedLayout } from './layouts/ProtectedLayout.tsx';
 
 // Guards
-import { AuthGuard } from './guards/AuthGuard';
-import { RoleGuard } from './guards/RoleGuard';
+import { AuthGuard } from './guards/AuthGuard.tsx';
+import { RoleGuard } from './guards/RoleGuard.tsx';
 
 // Componentes de carga
 const PageLoader = () => (
@@ -52,51 +65,47 @@ const RegisterForm = lazy(() =>
   import('../components/Auth/RegisterForm').then(module => ({ default: module.RegisterForm }))
 );
 
-// Dashboards
-const TeacherDashboard = lazy(() => 
-  import('../components/Dashboard/TeacherDashboard').then(module => ({ default: module.TeacherDashboard }))
-);
-const StudentDashboard = lazy(() => 
-  import('../components/Dashboard/StudentDashboard').then(module => ({ default: module.StudentDashboard }))
-);
-
-// Aulas - Profesor
-const ClassroomManagement = lazy(() => 
-  import('../components/Classroom/ClassroomManagement').then(module => ({ default: module.ClassroomManagement }))
-);
-const CreateClassroomForm = lazy(() => 
-  import('../components/Classroom/CreateClassroomForm').then(module => ({ default: module.CreateClassroomForm }))
-);
-
-// Aulas - Estudiante  
-const StudentClassrooms = lazy(() => 
-  import('../components/Student/StudentClassrooms').then(module => ({ default: module.StudentClassrooms }))
-);
-const JoinClassroom = lazy(() => 
-  import('../components/Classroom/JoinClassroom').then(module => ({ default: module.JoinClassroom }))
-);
-
-// Actividades
-const CreateActivityForm = lazy(() => 
-  import('../components/Activity/CreateActivityForm').then(module => ({ default: module.CreateActivityForm }))
-);
-
-// Gamificación
-const Achievements = lazy(() => 
-  import('../components/Gamification/Achievements').then(module => ({ default: module.Achievements }))
-);
-const Store = lazy(() => 
-  import('../components/Gamification/Store').then(module => ({ default: module.Store }))
-);
-
-// Perfil
-const UserProfile = lazy(() => 
-  import('../components/UserProfile/UserProfile').then(module => ({ default: module.UserProfile }))
-);
-
 // Páginas especiales
-const NotFound = lazy(() => import('./pages/NotFoundPage'));
-const Unauthorized = lazy(() => import('./pages/UnauthorizedPage'));
+const NotFound = lazy(() => import('./pages/NotFoundPage.tsx'));
+const Unauthorized = lazy(() => import('./pages/UnauthorizedPage.tsx'));
+
+// ============================================================================
+// 🧭 COMPONENTE ROUTER PARA DASHBOARD SEGÚN ROL
+// ============================================================================
+
+const DashboardRouter: React.FC = () => {
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+  
+  if (isLoading) return <PageLoader />;
+  
+  if (!user) {
+    navigate('/auth/login');
+    return null;
+  }
+  
+  if (user.role === 'teacher') {
+    return <TeacherDashboardWrapper />;
+  }
+  
+  return <StudentDashboardWrapper />;
+};
+
+// ============================================================================
+// 📄 PÁGINA TEMPORAL PARA REPOSITORIO
+// ============================================================================
+
+const RepositoryPage: React.FC = () => (
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="text-center">
+      <h1 className="text-3xl font-bold text-gray-900 mb-4">Repositorio de Actividades</h1>
+      <p className="text-gray-600">Explora y comparte actividades educativas</p>
+      <div className="mt-8 p-8 bg-white rounded-xl shadow-sm border border-gray-100">
+        <p className="text-gray-500">Funcionalidad en desarrollo...</p>
+      </div>
+    </div>
+  </div>
+);
 
 // ============================================================================
 // 🛡️ COMPONENTE WRAPPER PARA LAZY LOADING
@@ -164,17 +173,17 @@ export const router = createBrowserRouter(
             <Route path="classrooms">
               <Route index element={
                 <LazyWrapper>
-                  <ClassroomManagement />
+                  <ClassroomManagementWrapper />
                 </LazyWrapper>
               } />
               <Route path="create" element={
                 <LazyWrapper>
-                  <CreateClassroomForm />
+                  <CreateClassroomFormWrapper />
                 </LazyWrapper>
               } />
               <Route path=":id/activities/create" element={
                 <LazyWrapper>
-                  <CreateActivityForm />
+                  <CreateActivityFormWrapper />
                 </LazyWrapper>
               } />
             </Route>
@@ -187,12 +196,12 @@ export const router = createBrowserRouter(
             <Route path="my-classrooms">
               <Route index element={
                 <LazyWrapper>
-                  <StudentClassrooms />
+                  <StudentClassroomsWrapper />
                 </LazyWrapper>
               } />
               <Route path="join" element={
                 <LazyWrapper>
-                  <JoinClassroom />
+                  <JoinClassroomWrapper />
                 </LazyWrapper>
               } />
             </Route>
@@ -203,12 +212,12 @@ export const router = createBrowserRouter(
           {/* ============================================================================ */}
           <Route path="achievements" element={
             <LazyWrapper>
-              <Achievements />
+              <AchievementsWrapper />
             </LazyWrapper>
           } />
           <Route path="store" element={
             <LazyWrapper>
-              <Store />
+              <StoreWrapper />
             </LazyWrapper>
           } />
 
@@ -217,7 +226,7 @@ export const router = createBrowserRouter(
           {/* ============================================================================ */}
           <Route path="profile" element={
             <LazyWrapper>
-              <UserProfile />
+              <UserProfileWrapper />
             </LazyWrapper>
           } />
 
@@ -248,39 +257,6 @@ export const router = createBrowserRouter(
       } />
     </Route>
   )
-);
-
-// ============================================================================
-// 🧭 COMPONENTE ROUTER PARA DASHBOARD SEGÚN ROL
-// ============================================================================
-
-const DashboardRouter: React.FC = () => {
-  // Este componente se reemplazará por el hook useAuth
-  const user = null; // Placeholder
-  
-  if (!user) return <PageLoader />;
-  
-  if (user.role === 'teacher') {
-    return <TeacherDashboard />;
-  }
-  
-  return <StudentDashboard />;
-};
-
-// ============================================================================
-// 📄 PÁGINA TEMPORAL PARA REPOSITORIO
-// ============================================================================
-
-const RepositoryPage: React.FC = () => (
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div className="text-center">
-      <h1 className="text-3xl font-bold text-gray-900 mb-4">Repositorio de Actividades</h1>
-      <p className="text-gray-600">Explora y comparte actividades educativas</p>
-      <div className="mt-8 p-8 bg-white rounded-xl shadow-sm border border-gray-100">
-        <p className="text-gray-500">Funcionalidad en desarrollo...</p>
-      </div>
-    </div>
-  </div>
 );
 
 /**

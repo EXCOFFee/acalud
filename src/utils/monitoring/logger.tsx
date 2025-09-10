@@ -14,20 +14,22 @@
  * ✅ Queue de logs para mejor rendimiento
  */
 
+import React from 'react';
+
 interface LogLevel {
-  DEBUG: 'debug';
-  INFO: 'info';
-  WARN: 'warn';
-  ERROR: 'error';
-  FATAL: 'fatal';
+  debug: string;
+  info: string;
+  warn: string;
+  error: string;
+  fatal: string;
 }
 
 export const LOG_LEVELS: LogLevel = {
-  DEBUG: 'debug',
-  INFO: 'info',
-  WARN: 'warn',
-  ERROR: 'error',
-  FATAL: 'fatal'
+  debug: 'debug',
+  info: 'info',
+  warn: 'warn',
+  error: 'error',
+  fatal: 'fatal'
 };
 
 interface LogEntry {
@@ -98,23 +100,23 @@ class Logger {
    * 📝 MÉTODOS DE LOGGING
    */
   public debug(message: string, data?: any, component?: string): void {
-    this.log(LOG_LEVELS.DEBUG, message, data, component);
+    this.log('debug', message, data, component);
   }
 
   public info(message: string, data?: any, component?: string): void {
-    this.log(LOG_LEVELS.INFO, message, data, component);
+    this.log('info', message, data, component);
   }
 
   public warn(message: string, data?: any, component?: string): void {
-    this.log(LOG_LEVELS.WARN, message, data, component);
+    this.log('warn', message, data, component);
   }
 
   public error(message: string, error?: Error, component?: string): void {
-    this.log(LOG_LEVELS.ERROR, message, { error: error?.toString(), stack: error?.stack }, component);
+    this.log('error', message, { error: error?.toString(), stack: error?.stack }, component);
   }
 
   public fatal(message: string, error?: Error, component?: string): void {
-    this.log(LOG_LEVELS.FATAL, message, { error: error?.toString(), stack: error?.stack }, component);
+    this.log('fatal', message, { error: error?.toString(), stack: error?.stack }, component);
     this.flushLogs(); // Enviar inmediatamente
   }
 
@@ -140,7 +142,7 @@ class Logger {
     }
 
     // Si es error crítico, enviar inmediatamente
-    if (level === LOG_LEVELS.ERROR || level === LOG_LEVELS.FATAL) {
+    if (level === 'error' || level === 'fatal') {
       this.flushLogs();
     }
   }
@@ -213,8 +215,8 @@ class Logger {
       setTimeout(() => {
         const perfData = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
         if (perfData) {
-          this.trackPerformance('page_load_time', perfData.loadEventEnd - perfData.navigationStart);
-          this.trackPerformance('dom_content_loaded', perfData.domContentLoadedEventEnd - perfData.navigationStart);
+          this.trackPerformance('page_load_time', perfData.loadEventEnd - perfData.startTime);
+          this.trackPerformance('dom_content_loaded', perfData.domContentLoadedEventEnd - perfData.startTime);
           this.trackPerformance('first_byte', perfData.responseStart - perfData.requestStart);
         }
       }, 0);
@@ -372,17 +374,20 @@ export const withErrorTracking = <P extends object>(
   Component: React.ComponentType<P>,
   componentName?: string
 ) => {
-  return React.forwardRef<any, P>((props, ref) => {
+  const WrappedComponent = (props: P) => {
     const handleError = (error: Error, errorInfo: any) => {
       logger.reportError(error, errorInfo, componentName || Component.name, 'medium');
     };
 
     return (
       <ErrorBoundaryWithTracking onError={handleError}>
-        <Component {...props} ref={ref} />
+        <Component {...props} />
       </ErrorBoundaryWithTracking>
     );
-  });
+  };
+  
+  WrappedComponent.displayName = `withErrorTracking(${componentName || Component.name})`;
+  return WrappedComponent;
 };
 
 // Error Boundary que integra con el sistema de logging
