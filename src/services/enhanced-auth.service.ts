@@ -475,10 +475,13 @@ export class EnhancedAuthService implements IAuthService {
       }
 
       // Realizar login
-      const response = await httpClient.post<AuthResponse>('/auth/login', {
+      const apiResponse = await httpClient.post<{data: AuthResponse}>('/auth/login', {
         email: credentials.email.trim().toLowerCase(),
         password: credentials.password
       });
+
+      // Extraer datos de la respuesta anidada
+      const response = apiResponse.data;
 
       // Guardar tokens y usuario
       this.tokenStorage.setToken(response.token);
@@ -511,11 +514,14 @@ export class EnhancedAuthService implements IAuthService {
       }
 
       // Realizar registro
-      const response = await httpClient.post<AuthResponse>('/auth/register', {
+      const apiResponse = await httpClient.post<{data: AuthResponse}>('/auth/register', {
         ...userData,
         email: userData.email.trim().toLowerCase(),
         name: userData.name.trim()
       });
+
+      // Extraer datos de la respuesta anidada
+      const response = apiResponse.data;
 
       // Guardar tokens y usuario
       this.tokenStorage.setToken(response.token);

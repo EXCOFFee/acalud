@@ -50,6 +50,9 @@ import { Store } from './components/Gamification/Store';
 // 👤 COMPONENTE DE PERFIL
 import { UserProfile } from './components/UserProfile/UserProfile';
 
+// 🎮 COMPONENTES DE JUEGOS EDUCATIVOS
+import { GameDemo } from './components/GameDemo';
+
 /**
  * 🧠 COMPONENTE PRINCIPAL DE CONTENIDO
  * 
@@ -225,6 +228,10 @@ function AppContent() {
       // Perfil de usuario
       case 'profile':
         return <UserProfile onBack={() => handleNavigate('dashboard')} />;
+
+      // 🎮 JUEGOS EDUCATIVOS
+      case 'games':
+        return <GameDemo onBack={() => handleNavigate('dashboard')} />;
 
       default:
         // Página no encontrada - redirigir al dashboard

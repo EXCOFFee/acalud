@@ -23,6 +23,11 @@ backend/.env.development
 backend/.env.test
 backend/.env.production
 
+# Archivos de respaldo
+README_BACKUP.md
+*.backup
+*.bak
+
 # Build outputs
 dist/
 build/

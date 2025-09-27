@@ -136,4 +136,11 @@ export class User {
 
   @OneToMany(() => UserInventory, (inventory) => inventory.user)
   inventory: UserInventory[];
+
+  // Relaciones con juegos educativos
+  @OneToMany('Game', (game: any) => game.createdBy)
+  createdGames: any[];
+
+  @OneToMany('GameResult', (result: any) => result.user)
+  gameResults: any[];
 }

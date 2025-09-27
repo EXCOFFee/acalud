@@ -1,283 +1,562 @@
-# 🎓 AcaLud - Plataforma Académica Lúdica
+# 🎓 AcaLud - Plataforma Educativa# 🎓 AcaLud - Plataforma Académica Lúdica
 
-![AcaLud Logo](https://via.placeholder.com/800x200/6366f1/ffffff?text=AcaLud+-+Plataforma+Académica+Lúdica)
 
-## 📋 Descripción
 
-AcaLud es una plataforma académica lúdica innovadora que conecta docentes, estudiantes y familias para mejorar el aprendizaje extraescolar mediante actividades gamificadas. La plataforma combina educación y entretenimiento para crear experiencias de aprendizaje atractivas y efectivas.
+**AcaLud** es una plataforma educativa completa que combina gestión de aulas, actividades interactivas, juegos educativos y gamificación para crear una experiencia de aprendizaje moderna y atractiva.![AcaLud Logo](https://via.placeholder.com/800x200/6366f1/ffffff?text=AcaLud+-+Plataforma+Académica+Lúdica)
 
-## 🏗️ Arquitectura
+
+
+## 🚀 Inicio Rápido (Solo 3 pasos)## 📋 Descripción
+
+
+
+### PrerrequisitosAcaLud es una plataforma académica lúdica innovadora que conecta docentes, estudiantes y familias para mejorar el aprendizaje extraescolar mediante actividades gamificadas. La plataforma combina educación y entretenimiento para crear experiencias de aprendizaje atractivas y efectivas.
+
+- **Docker** y **Docker Compose** instalados en tu sistema
+
+- **Node.js** (versión 18 o superior)## 🏗️ Arquitectura
+
+- **Git** para clonar el repositorio
 
 ### Frontend (React + TypeScript)
-- **Framework**: React 18 con TypeScript
-- **Build Tool**: Vite
-- **Estilos**: Tailwind CSS
-- **Iconos**: Lucide React
-- **Patrones**: Context API, Hooks, Repository Pattern
 
-### Backend (NestJS + TypeScript)
-- **Framework**: NestJS
-- **Base de Datos**: PostgreSQL con TypeORM
-- **Autenticación**: JWT + Passport
-- **Cache**: Redis
+### 1. Clonar el Proyecto- **Framework**: React 18 con TypeScript
+
+```bash- **Build Tool**: Vite
+
+git clone https://github.com/EXCOFFee/acalud.git- **Estilos**: Tailwind CSS
+
+cd acalud- **Iconos**: Lucide React
+
+```- **Patrones**: Context API, Hooks, Repository Pattern
+
+
+
+### 2. Configurar Variables de Entorno### Backend (NestJS + TypeScript)
+
+```bash- **Framework**: NestJS
+
+# Copia el archivo de ejemplo (ya incluye configuración por defecto)- **Base de Datos**: PostgreSQL con TypeORM
+
+cp .env.example .env- **Autenticación**: JWT + Passport
+
+```- **Cache**: Redis
+
 - **Documentación**: Swagger/OpenAPI
-- **Patrones**: Repository, Singleton, Dependency Injection
 
-### Infraestructura
-- **Contenedores**: Docker + Docker Compose
+### 3. Iniciar Todo con un Solo Comando- **Patrones**: Repository, Singleton, Dependency Injection
+
+```bash
+
+# Para Windows PowerShell:### Infraestructura
+
+.\start.ps1- **Contenedores**: Docker + Docker Compose
+
 - **Reverse Proxy**: Nginx
-- **Monitoreo**: Health checks integrados
-- **Seguridad**: Rate limiting, CORS, Headers de seguridad
+
+# Para Linux/Mac:- **Monitoreo**: Health checks integrados
+
+./start.sh- **Seguridad**: Rate limiting, CORS, Headers de seguridad
+
+```
 
 ## 🎯 Funcionalidades Principales
 
-### Para Docentes
-- ✅ Dashboard con estadísticas de aulas y actividades
-- ✅ Gestión de aulas virtuales
+¡Eso es todo! La aplicación estará disponible en:
+
+- **Frontend**: http://localhost:5173### Para Docentes
+
+- **Backend API**: http://localhost:3001- ✅ Dashboard con estadísticas de aulas y actividades
+
+- **Documentación API**: http://localhost:3001/api/docs- ✅ Gestión de aulas virtuales
+
 - ✅ Creación de actividades lúdicas (Quiz, Juegos, Memoria)
-- ✅ Repositorio de actividades compartidas
+
+## 👥 Cuentas de Demo- ✅ Repositorio de actividades compartidas
+
 - ✅ Sistema de invitación por códigos
-- ✅ Seguimiento del progreso de estudiantes
 
-### Para Estudiantes
-- ✅ Dashboard gamificado con progreso
-- ✅ Sistema de niveles y experiencia (XP)
+Una vez que la aplicación esté funcionando, puedes usar estas cuentas para probar:- ✅ Seguimiento del progreso de estudiantes
+
+
+
+### Estudiante Demo### Para Estudiantes
+
+- **Email**: `student@demo.com`- ✅ Dashboard gamificado con progreso
+
+- **Contraseña**: `password123`- ✅ Sistema de niveles y experiencia (XP)
+
 - ✅ Monedas virtuales y recompensas
-- ✅ Acceso a aulas y actividades
-- ✅ Sistema de logros y estadísticas
-- ✅ Tienda virtual para personalización
 
-### Sistema de Gamificación
+### Profesor Demo- ✅ Acceso a aulas y actividades
+
+- **Email**: `teacher@demo.com`- ✅ Sistema de logros y estadísticas
+
+- **Contraseña**: `password123`- ✅ Tienda virtual para personalización
+
+
+
+## 🏗️ Arquitectura del Proyecto### Sistema de Gamificación
+
 - 🏆 Niveles basados en experiencia
-- 💰 Monedas virtuales por completar actividades
-- 🎖️ Sistema de logros y recompensas
-- 🛍️ Tienda virtual para personalización
-- 📊 Estadísticas detalladas de progreso
 
-## 🚀 Instalación y Deploy
+### Backend (NestJS)- 💰 Monedas virtuales por completar actividades
 
-### Prerrequisitos
-- Node.js 18+
-- Docker y Docker Compose
-- Git
+- **Framework**: NestJS con TypeScript- 🎖️ Sistema de logros y recompensas
+
+- **Base de Datos**: PostgreSQL- 🛍️ Tienda virtual para personalización
+
+- **Cache**: Redis- 📊 Estadísticas detalladas de progreso
+
+- **Autenticación**: JWT
+
+- **Documentación**: Swagger/OpenAPI## 🚀 Instalación y Deploy
+
+
+
+### Frontend (React)### Prerrequisitos
+
+- **Framework**: React 18 con TypeScript- Node.js 18+
+
+- **Build Tool**: Vite- Docker y Docker Compose
+
+- **Estilos**: Tailwind CSS- Git
+
+- **Estado**: Context API
 
 ### Desarrollo Local
 
-#### 1. Clonar el Repositorio
-```bash
-git clone https://github.com/tu-usuario/acalud.git
-cd acalud
+### Infraestructura
+
+- **Contenedores**: Docker & Docker Compose#### 1. Clonar el Repositorio
+
+- **Proxy**: Nginx (para producción)```bash
+
+- **Base de Datos**: PostgreSQL 15git clone https://github.com/tu-usuario/acalud.git
+
+- **Cache**: Redis 7cd acalud
+
 ```
+
+## 📁 Estructura del Proyecto
 
 #### 2. Instalación Automática (Recomendado)
 
-Para Windows:
-```powershell
-# Ejecutar script de instalación
-.\scripts\install-improvements.ps1
 ```
 
-Para Linux/macOS:
-```bash
-# Hacer ejecutable y ejecutar script de instalación
-chmod +x scripts/install-improvements.sh
-./scripts/install-improvements.sh
-```
+acalud/Para Windows:
 
-#### 3. Configurar Variables de Entorno
-```bash
-# Backend
-cp backend/.env.example backend/.env
-# Editar backend/.env con tus configuraciones
+├── backend/                 # API Backend (NestJS)```powershell
 
-# Frontend (opcional)
-cp .env.example .env
+│   ├── src/# Ejecutar script de instalación
+
+│   │   ├── modules/        # Módulos de funcionalidad.\scripts\install-improvements.ps1
+
+│   │   │   ├── auth/       # Autenticación```
+
+│   │   │   ├── users/      # Gestión de usuarios
+
+│   │   │   ├── classrooms/ # Aulas virtualesPara Linux/macOS:
+
+│   │   │   ├── activities/ # Actividades```bash
+
+│   │   │   ├── games/      # Juegos educativos# Hacer ejecutable y ejecutar script de instalación
+
+│   │   │   └── gamification/ # Sistema de puntoschmod +x scripts/install-improvements.sh
+
+│   │   └── database/       # Configuración DB./scripts/install-improvements.sh
+
+│   └── Dockerfile```
+
+├── src/                    # Frontend (React)
+
+│   ├── components/         # Componentes React#### 3. Configurar Variables de Entorno
+
+│   ├── services/          # Servicios API```bash
+
+│   ├── contexts/          # Context API# Backend
+
+│   └── types/             # Tipos TypeScriptcp backend/.env.example backend/.env
+
+├── nginx/                 # Configuración Nginx# Editar backend/.env con tus configuraciones
+
+├── docker-compose.yml     # Orquestación Docker
+
+└── scripts/              # Scripts de utilidad# Frontend (opcional)
+
+```cp .env.example .env
+
 # Editar .env si necesitas configuraciones específicas
-```
 
-#### 4. Desarrollo con Docker (Recomendado)
-```bash
-# Levantar todos los servicios
-docker-compose up -d
+## 🎮 Funcionalidades Principales```
 
-# Ver logs
+
+
+### Para Profesores#### 4. Desarrollo con Docker (Recomendado)
+
+- ✅ Crear y gestionar aulas virtuales```bash
+
+- ✅ Diseñar actividades interactivas# Levantar todos los servicios
+
+- ✅ Configurar juegos educativos (Crucigrama, Simulación)docker-compose up -d
+
+- ✅ Sistema de gamificación con puntos y logros
+
+- ✅ Monitoreo del progreso estudiantil# Ver logs
+
 docker-compose logs -f
 
-# Detener servicios
-docker-compose down
+### Para Estudiantes
+
+- ✅ Unirse a aulas con códigos de acceso# Detener servicios
+
+- ✅ Participar en actividadesdocker-compose down
+
+- ✅ Jugar juegos educativos```
+
+- ✅ Ganar puntos y desbloquear logros
+
+- ✅ Dashboard personalizado#### 5. Desarrollo Manual
+
+
+
+### Juegos Incluidos##### Backend
+
+- 🧩 **Crucigrama**: Juego de palabras educativo```bash
+
+- 🎯 **Simulación**: Escenarios interactivos de aprendizajecd backend
+
+npm install
+
+## 🛠️ Comandos de Desarrollonpm run start:dev
+
 ```
 
-#### 5. Desarrollo Manual
+### Inicio Rápido
 
-##### Backend
-```bash
-cd backend
-npm install
-npm run start:dev
-```
+```bash##### Frontend
 
-##### Frontend
-```bash
-npm install
+# Iniciar todo el stack```bash
+
+docker-compose up -dnpm install
+
 npm run dev
-```
+
+# Ver logs en tiempo real```
+
+docker-compose logs -f
 
 ### Producción
 
-#### Deploy con Docker Compose
-```bash
-# Configurar variables de entorno para producción
-cp .env.example .env
-# Editar .env con valores de producción
+# Detener todo
 
-# Deploy
+docker-compose down#### Deploy con Docker Compose
+
+``````bash
+
+# Configurar variables de entorno para producción
+
+### Desarrollo Frontendcp .env.example .env
+
+```bash# Editar .env con valores de producción
+
+# Instalar dependencias
+
+npm install# Deploy
+
 docker-compose -f docker-compose.yml up -d
 
-# Verificar estado
+# Modo desarrollo con hot reload
+
+npm run dev# Verificar estado
+
 docker-compose ps
-```
 
-#### Deploy en Servicios Cloud
+# Build para producción```
 
-##### AWS (ECS + RDS + ElastiCache)
-1. Crear RDS PostgreSQL instance
-2. Crear ElastiCache Redis cluster
+npm run build
+
+```#### Deploy en Servicios Cloud
+
+
+
+### Desarrollo Backend##### AWS (ECS + RDS + ElastiCache)
+
+```bash1. Crear RDS PostgreSQL instance
+
+cd backend2. Crear ElastiCache Redis cluster
+
 3. Configurar ECS con las imágenes Docker
-4. Configurar ALB para load balancing
-5. Configurar Route 53 para DNS
 
-##### DigitalOcean (App Platform)
-1. Conectar repositorio de GitHub
+# Instalar dependencias4. Configurar ALB para load balancing
+
+npm install5. Configurar Route 53 para DNS
+
+
+
+# Modo desarrollo##### DigitalOcean (App Platform)
+
+npm run start:dev1. Conectar repositorio de GitHub
+
 2. Configurar build commands:
-   ```yaml
-   name: acalud
-   services:
+
+# Build para producción   ```yaml
+
+npm run build   name: acalud
+
+```   services:
+
    - name: frontend
-     source_dir: /
+
+## 🔧 Configuración Avanzada     source_dir: /
+
      build_command: npm run build
-     run_command: serve -s dist
+
+### Variables de Entorno Importantes     run_command: serve -s dist
+
    - name: backend
-     source_dir: /backend
-     build_command: npm run build
-     run_command: npm run start:prod
-   databases:
-   - name: acalud-postgres
+
+```env     source_dir: /backend
+
+# Base de Datos     build_command: npm run build
+
+POSTGRES_DB=acalud     run_command: npm run start:prod
+
+POSTGRES_USER=acalud_user   databases:
+
+POSTGRES_PASSWORD=acalud_password   - name: acalud-postgres
+
      engine: PG
-     version: "15"
-   ```
+
+# JWT     version: "15"
+
+JWT_SECRET=tu_secreto_super_seguro_aqui   ```
+
+JWT_EXPIRES_IN=24h
 
 ##### Vercel (Frontend) + Railway (Backend)
-1. **Frontend en Vercel**:
-   ```bash
-   vercel --prod
+
+# URLs1. **Frontend en Vercel**:
+
+FRONTEND_URL=http://localhost:5173   ```bash
+
+BACKEND_URL=http://localhost:3001   vercel --prod
+
    ```
 
-2. **Backend en Railway**:
-   - Conectar repositorio
-   - Configurar variables de entorno
+# Redis
+
+REDIS_HOST=redis2. **Backend en Railway**:
+
+REDIS_PORT=6379   - Conectar repositorio
+
+```   - Configurar variables de entorno
+
    - Deploy automático
 
-### Variables de Entorno de Producción
+### Puertos Utilizados
 
-#### Backend (.env)
-```env
+- **5173**: Frontend (Vite)### Variables de Entorno de Producción
+
+- **3001**: Backend API
+
+- **5432**: PostgreSQL#### Backend (.env)
+
+- **6379**: Redis```env
+
 NODE_ENV=production
-PORT=3000
+
+## 🧪 TestingPORT=3000
+
 DB_HOST=your-db-host
-DB_PORT=5432
-DB_USERNAME=your-db-user
-DB_PASSWORD=your-secure-password
+
+```bashDB_PORT=5432
+
+# Frontend testsDB_USERNAME=your-db-user
+
+npm run testDB_PASSWORD=your-secure-password
+
 DB_NAME=acalud_production
-REDIS_HOST=your-redis-host
-REDIS_PORT=6379
+
+# Backend testsREDIS_HOST=your-redis-host
+
+cd backend && npm run testREDIS_PORT=6379
+
 JWT_SECRET=your-super-secure-jwt-secret-256-bits
-FRONTEND_URL=https://your-domain.com
+
+# E2E testsFRONTEND_URL=https://your-domain.com
+
+npm run test:e2e```
+
 ```
 
 #### Frontend (.env)
-```env
+
+## 📦 Despliegue en Producción```env
+
 VITE_API_URL=https://api.your-domain.com/api/v1
-VITE_APP_NAME=AcaLud
+
+### Docker Compose (Recomendado)VITE_APP_NAME=AcaLud
+
+```bash```
+
+# Build y deploy
+
+docker-compose -f docker-compose.prod.yml up -d## 📚 API Documentation
+
+
+
+# Con SSL y dominio personalizadoUna vez levantado el backend, la documentación de la API estará disponible en:
+
+docker-compose -f docker-compose.prod.yml -f docker-compose.ssl.yml up -d- **Desarrollo**: http://localhost:3001/api/docs
+
+```- **Producción**: https://api.your-domain.com/api/docs
+
+
+
+### Variables para Producción### Endpoints Principales
+
+```env
+
+NODE_ENV=production#### Autenticación
+
+JWT_SECRET=un_secreto_muy_seguro_para_produccion- `POST /api/v1/auth/register` - Registrar usuario
+
+FRONTEND_URL=https://tu-dominio.com- `POST /api/v1/auth/login` - Iniciar sesión
+
+BACKEND_URL=https://api.tu-dominio.com- `GET /api/v1/auth/profile` - Obtener perfil
+
 ```
 
-## 📚 API Documentation
-
-Una vez levantado el backend, la documentación de la API estará disponible en:
-- **Desarrollo**: http://localhost:3001/api/docs
-- **Producción**: https://api.your-domain.com/api/docs
-
-### Endpoints Principales
-
-#### Autenticación
-- `POST /api/v1/auth/register` - Registrar usuario
-- `POST /api/v1/auth/login` - Iniciar sesión
-- `GET /api/v1/auth/profile` - Obtener perfil
-
 #### Usuarios
-- `GET /api/v1/users/:id` - Obtener usuario
-- `PATCH /api/v1/users/:id` - Actualizar usuario
-- `GET /api/v1/users/:id/stats` - Estadísticas del usuario
 
-#### Aulas
-- `GET /api/v1/classrooms` - Listar aulas
-- `POST /api/v1/classrooms` - Crear aula
+## 🤝 Contribuir- `GET /api/v1/users/:id` - Obtener usuario
+
+- `PATCH /api/v1/users/:id` - Actualizar usuario
+
+1. Fork el proyecto- `GET /api/v1/users/:id/stats` - Estadísticas del usuario
+
+2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
+
+3. Commit tus cambios (`git commit -am 'Añadir nueva funcionalidad'`)#### Aulas
+
+4. Push a la rama (`git push origin feature/nueva-funcionalidad`)- `GET /api/v1/classrooms` - Listar aulas
+
+5. Crea un Pull Request- `POST /api/v1/classrooms` - Crear aula
+
 - `POST /api/v1/classrooms/:id/join` - Unirse a aula
 
+## 📋 Solución de Problemas
+
 #### Actividades
-- `GET /api/v1/activities` - Listar actividades
-- `POST /api/v1/activities` - Crear actividad
-- `POST /api/v1/activities/:id/complete` - Completar actividad
+
+### Problema: "Cannot connect to database"- `GET /api/v1/activities` - Listar actividades
+
+```bash- `POST /api/v1/activities` - Crear actividad
+
+# Verificar que PostgreSQL esté corriendo- `POST /api/v1/activities/:id/complete` - Completar actividad
+
+docker-compose ps
 
 ## 📖 Documentación Adicional
 
-Para información detallada sobre el proyecto:
+# Reiniciar servicios
+
+docker-compose restart postgres backendPara información detallada sobre el proyecto:
+
+```
 
 - **[📋 Mejoras Implementadas](docs/MEJORAS_IMPLEMENTADAS.md)** - Detalles técnicos de las mejoras implementadas
-- **[🚀 Deploy y Producción](docs/DEPLOY.md)** - Guía completa de deployment
-- **[📝 Instrucciones GitHub](docs/INSTRUCCIONES_GITHUB.md)** - Configuración del repositorio
-- **[📊 Resumen de Implementación](docs/RESUMEN_FINAL_IMPLEMENTACION.md)** - Resumen ejecutivo del proyecto
 
-## 🧪 Testing
+### Problema: "CORS Error"- **[🚀 Deploy y Producción](docs/DEPLOY.md)** - Guía completa de deployment
 
-### Backend
+- Verificar que `FRONTEND_URL` en `.env` sea correcto- **[📝 Instrucciones GitHub](docs/INSTRUCCIONES_GITHUB.md)** - Configuración del repositorio
+
+- Asegurarse de que ambos servicios estén corriendo- **[📊 Resumen de Implementación](docs/RESUMEN_FINAL_IMPLEMENTACION.md)** - Resumen ejecutivo del proyecto
+
+
+
+### Problema: "Port already in use"## 🧪 Testing
+
 ```bash
-cd backend
-npm run test
+
+# Encontrar y matar proceso en puerto 3001### Backend
+
+netstat -ano | findstr :3001```bash
+
+taskkill /PID <numero_pid> /Fcd backend
+
+```npm run test
+
 npm run test:e2e
-npm run test:cov
-```
 
-### Frontend
+### Limpiar Todo y Empezar de Nuevonpm run test:cov
+
+```bash```
+
+# Detener todo
+
+docker-compose down### Frontend
+
 ```bash
-npm run test
-npm run test:coverage
+
+# Eliminar volúmenes (¡Cuidado! Esto borra la DB)npm run test
+
+docker-compose down -vnpm run test:coverage
+
 ```
 
-## 📊 Monitoreo
+# Limpiar imágenes
 
-### Health Checks
-- **Frontend**: http://localhost:3000/health
-- **Backend**: http://localhost:3001/api/v1/health
+docker system prune -f## 📊 Monitoreo
+
+
+
+# Volver a iniciar### Health Checks
+
+docker-compose up -d- **Frontend**: http://localhost:3000/health
+
+```- **Backend**: http://localhost:3001/api/v1/health
+
 - **Database**: Incluido en Docker health checks
 
+## 📄 Licencia
+
 ### Logs
-```bash
+
+Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.```bash
+
 # Ver logs de todos los servicios
-docker-compose logs -f
 
-# Ver logs de un servicio específico
+## 👥 Equipodocker-compose logs -f
+
+
+
+Desarrollado con ❤️ para la educación digital.# Ver logs de un servicio específico
+
 docker-compose logs -f backend
-```
 
-## 🔒 Seguridad
+---```
 
-### Medidas Implementadas
-- ✅ Autenticación JWT
-- ✅ Validación de entrada con class-validator
-- ✅ Rate limiting
-- ✅ CORS configurado
+
+
+## 🆘 ¿Necesitas Ayuda?## 🔒 Seguridad
+
+
+
+Si tienes problemas:### Medidas Implementadas
+
+1. Revisa la sección de **Solución de Problemas** arriba- ✅ Autenticación JWT
+
+2. Verifica que Docker esté corriendo- ✅ Validación de entrada con class-validator
+
+3. Asegúrate de que los puertos no estén ocupados- ✅ Rate limiting
+
+4. Revisa los logs: `docker-compose logs -f`- ✅ CORS configurado
+
 - ✅ Headers de seguridad
-- ✅ Sanitización de datos
+
+**¡Listo para empezar tu experiencia educativa con AcaLud!** 🎓- ✅ Sanitización de datos
 - ✅ Encriptación de contraseñas
 
 ### Para Producción

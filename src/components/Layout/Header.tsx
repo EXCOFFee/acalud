@@ -16,8 +16,8 @@ import {
   Home,
   Users,
   Library,
-  Award,
-  ShoppingBag
+  ShoppingBag,
+  Gamepad2
 } from 'lucide-react';
 
 /**
@@ -42,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
   const teacherNavigation = [
     { name: 'Dashboard', key: 'dashboard', icon: Home },
     { name: 'Mis Aulas', key: 'classrooms', icon: Users },
+    { name: 'Juegos', key: 'games', icon: Gamepad2 },
     { name: 'Repositorio', key: 'repository', icon: Library },
     { name: 'Perfil', key: 'profile', icon: User }
   ];
@@ -52,6 +53,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
   const studentNavigation = [
     { name: 'Dashboard', key: 'dashboard', icon: Home },
     { name: 'Mis Aulas', key: 'student-classrooms', icon: Users },
+    { name: 'Juegos', key: 'games', icon: Gamepad2 },
     { name: 'Logros', key: 'achievements', icon: Trophy },
     { name: 'Tienda', key: 'store', icon: ShoppingBag },
     { name: 'Perfil', key: 'profile', icon: User }
