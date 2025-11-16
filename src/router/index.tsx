@@ -16,11 +16,14 @@ import {
   createBrowserRouter,
   createRoutesFromElements,
   Route,
-  Navigate,
-  useNavigate
+  Navigate
 } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { lazy } from 'react';
+import {
+  DashboardRouter,
+  LazyWrapper,
+  RepositoryPage,
+} from './RouterComponents';
 import { 
   ClassroomManagementWrapper,
   CreateClassroomFormWrapper,
@@ -29,9 +32,7 @@ import {
   JoinClassroomWrapper,
   AchievementsWrapper,
   StoreWrapper,
-  UserProfileWrapper,
-  TeacherDashboardWrapper,
-  StudentDashboardWrapper
+  UserProfileWrapper
 } from './components/NavigationWrappers';
 
 // Layouts
@@ -42,16 +43,6 @@ import { ProtectedLayout } from './layouts/ProtectedLayout.tsx';
 // Guards
 import { AuthGuard } from './guards/AuthGuard.tsx';
 import { RoleGuard } from './guards/RoleGuard.tsx';
-
-// Componentes de carga
-const PageLoader = () => (
-  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-    <div className="text-center">
-      <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-      <p className="text-gray-600">Cargando...</p>
-    </div>
-  </div>
-);
 
 // ============================================================================
 // 🔐 COMPONENTES LAZY (CARGA BAJO DEMANDA)
@@ -64,62 +55,16 @@ const LoginForm = lazy(() =>
 const RegisterForm = lazy(() => 
   import('../components/Auth/RegisterForm').then(module => ({ default: module.RegisterForm }))
 );
+const PasswordRecovery = lazy(() => 
+  import('../components/Auth/PasswordRecovery')
+);
+const AcceptInvitationPage = lazy(() =>
+  import('../components/Invitations/AcceptInvitationPage').then(module => ({ default: module.AcceptInvitationPage }))
+);
 
 // Páginas especiales
 const NotFound = lazy(() => import('./pages/NotFoundPage.tsx'));
 const Unauthorized = lazy(() => import('./pages/UnauthorizedPage.tsx'));
-
-// ============================================================================
-// 🧭 COMPONENTE ROUTER PARA DASHBOARD SEGÚN ROL
-// ============================================================================
-
-const DashboardRouter: React.FC = () => {
-  const { user, isLoading } = useAuth();
-  const navigate = useNavigate();
-  
-  if (isLoading) return <PageLoader />;
-  
-  if (!user) {
-    navigate('/auth/login');
-    return null;
-  }
-  
-  if (user.role === 'teacher') {
-    return <TeacherDashboardWrapper />;
-  }
-  
-  return <StudentDashboardWrapper />;
-};
-
-// ============================================================================
-// 📄 PÁGINA TEMPORAL PARA REPOSITORIO
-// ============================================================================
-
-const RepositoryPage: React.FC = () => (
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div className="text-center">
-      <h1 className="text-3xl font-bold text-gray-900 mb-4">Repositorio de Actividades</h1>
-      <p className="text-gray-600">Explora y comparte actividades educativas</p>
-      <div className="mt-8 p-8 bg-white rounded-xl shadow-sm border border-gray-100">
-        <p className="text-gray-500">Funcionalidad en desarrollo...</p>
-      </div>
-    </div>
-  </div>
-);
-
-// ============================================================================
-// 🛡️ COMPONENTE WRAPPER PARA LAZY LOADING
-// ============================================================================
-
-interface LazyWrapperProps {
-  children: React.ReactNode;
-}
-
-const LazyWrapper: React.FC<LazyWrapperProps> = ({ children }) => (
-  <Suspense fallback={<PageLoader />}>
-    {children}
-  </Suspense>
-);
 
 // ============================================================================
 // 🗺️ DEFINICIÓN DE RUTAS
@@ -150,6 +95,25 @@ export const router = createBrowserRouter(
         {/* Redirigir /auth a /auth/login */}
         <Route index element={<Navigate to="login" replace />} />
       </Route>
+
+      {/* ============================================================================ */}
+      {/* 🔄 RECUPERACIÓN DE CONTRASEÑA */}
+      {/* ============================================================================ */}
+      <Route path="password-recovery" element={
+        <LazyWrapper>
+          <PasswordRecovery />
+        </LazyWrapper>
+      } />
+      <Route path="reset-password" element={
+        <LazyWrapper>
+          <PasswordRecovery />
+        </LazyWrapper>
+      } />
+      <Route path="invitations/accept" element={
+        <LazyWrapper>
+          <AcceptInvitationPage />
+        </LazyWrapper>
+      } />
 
       {/* ============================================================================ */}
       {/* 🛡️ RUTAS PROTEGIDAS (REQUIEREN AUTENTICACIÓN) */}

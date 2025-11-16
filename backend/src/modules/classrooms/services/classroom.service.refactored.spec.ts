@@ -11,16 +11,9 @@ import {
 } from '../../../common/exceptions/business.exception';
 import { CLASSROOM_TOKENS } from '../tokens';
 
-// Silent logger for tests
-const silentLogger = {
-  log: () => {},
-  error: () => {},
-  warn: () => {},
-  debug: () => {},
-  verbose: () => {},
-};
 import { createMockRepository } from '../../../test/setup';
 
+// Esta suite comprueba el comportamiento del servicio ClassroomService con sus dependencias mockeadas.
 describe('ClassroomService', () => {
   let service: ClassroomService;
   let classroomRepository: jest.Mocked<any>;
@@ -68,9 +61,14 @@ describe('ClassroomService', () => {
     settings: {},
     teacher: mockTeacher,
     students: [],
-    activities: [],
-  };
+    validateClassroom: jest.fn(),
+    getStudentCount: jest.fn(() => 0),
+    getActivityCount: jest.fn(() => 0),
+    hasStudent: jest.fn(() => false),
+    isTeacherOf: jest.fn(() => true),
+  } as any;
 
+  // Antes de cada prueba recreamos el módulo con las dependencias simuladas.
   beforeEach(async () => {
     const mockClassroomRepository = createMockRepository();
     const mockValidator = {
@@ -110,9 +108,7 @@ describe('ClassroomService', () => {
           useValue: mockPermissionValidator,
         },
       ],
-    })
-    .setLogger(silentLogger)
-    .compile();
+    }).compile();
 
     service = module.get<ClassroomService>(ClassroomService);
     classroomRepository = module.get(CLASSROOM_TOKENS.IClassroomRepository);
@@ -125,6 +121,7 @@ describe('ClassroomService', () => {
     expect(service).toBeDefined();
   });
 
+  // Validamos los escenarios relacionados con la creación de aulas.
   describe('createClassroom', () => {
     const createDto = {
       name: 'Matemáticas 5to A',
@@ -135,16 +132,16 @@ describe('ClassroomService', () => {
     const teacherId = 'teacher-1';
 
     it('should create a classroom successfully', async () => {
-      // Arrange
+      // Preparación
       validator.validateCreateData.mockResolvedValue(undefined);
       permissionValidator.validateCanCreateClassroom.mockResolvedValue(undefined);
       codeGenerator.generateUniqueCode.mockResolvedValue('ABC123');
       classroomRepository.create.mockResolvedValue(mockClassroom);
 
-      // Act
+      // Acción
       const result = await service.createClassroom(createDto, teacherId);
 
-      // Assert
+      // Verificación
       expect(validator.validateCreateData).toHaveBeenCalledWith(createDto);
       expect(permissionValidator.validateCanCreateClassroom).toHaveBeenCalledWith(teacherId);
       expect(codeGenerator.generateUniqueCode).toHaveBeenCalled();
@@ -160,78 +157,80 @@ describe('ClassroomService', () => {
     });
 
     it('should throw validation error when data is invalid', async () => {
-      // Arrange
+      // Preparación
       const validationError = new ValidationException('Invalid data', {});
       validator.validateCreateData.mockRejectedValue(validationError);
 
-      // Act & Assert
+      // Acción y verificación
       await expect(service.createClassroom(createDto, teacherId))
         .rejects.toThrow(ValidationException);
       expect(permissionValidator.validateCanCreateClassroom).not.toHaveBeenCalled();
     });
 
     it('should throw permission error when user cannot create classroom', async () => {
-      // Arrange
+      // Preparación
       validator.validateCreateData.mockResolvedValue(undefined);
       const permissionError = new OperationNotAllowedException('create', 'insufficient permissions');
       permissionValidator.validateCanCreateClassroom.mockRejectedValue(permissionError);
 
-      // Act & Assert
+      // Acción y verificación
       await expect(service.createClassroom(createDto, teacherId))
         .rejects.toThrow(OperationNotAllowedException);
       expect(codeGenerator.generateUniqueCode).not.toHaveBeenCalled();
     });
   });
 
+  // Verificamos la recuperación de aulas por identificador y manejo de errores.
   describe('findClassroomById', () => {
     it('should return classroom when found and active', async () => {
-      // Arrange
+      // Preparación
       classroomRepository.findById.mockResolvedValue(mockClassroom);
 
-      // Act
+      // Acción
       const result = await service.findClassroomById('classroom-1');
 
-      // Assert
+      // Verificación
       expect(classroomRepository.findById).toHaveBeenCalledWith('classroom-1');
       expect(result).toEqual(mockClassroom);
     });
 
     it('should throw ResourceNotFoundException when classroom not found', async () => {
-      // Arrange
+      // Preparación
       classroomRepository.findById.mockResolvedValue(null);
 
-      // Act & Assert
+      // Acción y verificación
       await expect(service.findClassroomById('classroom-1'))
         .rejects.toThrow(ResourceNotFoundException);
     });
 
     it('should throw OperationNotAllowedException when classroom is inactive', async () => {
-      // Arrange
+      // Preparación
       const inactiveClassroom = { ...mockClassroom, isActive: false };
       classroomRepository.findById.mockResolvedValue(inactiveClassroom);
 
-      // Act & Assert
+      // Acción y verificación
       await expect(service.findClassroomById('classroom-1'))
         .rejects.toThrow(OperationNotAllowedException);
     });
   });
 
+  // Cubrimos los flujos de unión de estudiantes a un aula mediante código de invitación.
   describe('joinClassroom', () => {
     const joinDto = { inviteCode: 'ABC123' };
     const studentId = 'student-1';
 
     it('should join classroom successfully', async () => {
-      // Arrange
+      // Preparación
       validator.validateJoinData.mockResolvedValue(undefined);
       permissionValidator.validateCanJoinClassroom.mockResolvedValue(undefined);
       classroomRepository.findByInviteCode.mockResolvedValue(mockClassroom);
       validator.validateCanJoinSpecificClassroom.mockResolvedValue(undefined);
       classroomRepository.addStudent.mockResolvedValue(mockClassroom);
 
-      // Act
+      // Acción
       const result = await service.joinClassroom(joinDto, studentId);
 
-      // Assert
+      // Verificación
       expect(validator.validateJoinData).toHaveBeenCalledWith(joinDto);
       expect(permissionValidator.validateCanJoinClassroom).toHaveBeenCalledWith(studentId);
       expect(classroomRepository.findByInviteCode).toHaveBeenCalledWith('ABC123');
@@ -241,74 +240,118 @@ describe('ClassroomService', () => {
     });
 
     it('should throw ValidationException when invite code is invalid', async () => {
-      // Arrange
+      // Preparación
       validator.validateJoinData.mockResolvedValue(undefined);
       permissionValidator.validateCanJoinClassroom.mockResolvedValue(undefined);
       classroomRepository.findByInviteCode.mockResolvedValue(null);
 
-      // Act & Assert
+      // Acción y verificación
       await expect(service.joinClassroom(joinDto, studentId))
         .rejects.toThrow(ValidationException);
       expect(validator.validateCanJoinSpecificClassroom).not.toHaveBeenCalled();
     });
   });
 
+  // Probamos los caminos de eliminación de aulas y sus restricciones.
   describe('deleteClassroom', () => {
     const classroomId = 'classroom-1';
     const userId = 'teacher-1';
 
     it('should delete classroom when no students enrolled', async () => {
-      // Arrange
+      // Preparación
       permissionValidator.validateCanDeleteClassroom.mockResolvedValue(undefined);
       classroomRepository.getStudentCount.mockResolvedValue(0);
       classroomRepository.delete.mockResolvedValue(undefined);
 
-      // Act
+      // Acción
       await service.deleteClassroom(classroomId, userId);
 
-      // Assert
+      // Verificación
       expect(permissionValidator.validateCanDeleteClassroom).toHaveBeenCalledWith(classroomId, userId);
       expect(classroomRepository.getStudentCount).toHaveBeenCalledWith(classroomId);
       expect(classroomRepository.delete).toHaveBeenCalledWith(classroomId);
     });
 
     it('should throw OperationNotAllowedException when students are enrolled', async () => {
-      // Arrange
+      // Preparación
       permissionValidator.validateCanDeleteClassroom.mockResolvedValue(undefined);
       classroomRepository.getStudentCount.mockResolvedValue(5);
 
-      // Act & Assert
+      // Acción y verificación
       await expect(service.deleteClassroom(classroomId, userId))
         .rejects.toThrow(OperationNotAllowedException);
       expect(classroomRepository.delete).not.toHaveBeenCalled();
     });
   });
 
+  // Analizamos la generación de nuevos códigos de invitación para un aula.
   describe('generateNewInviteCode', () => {
     const classroomId = 'classroom-1';
     const userId = 'teacher-1';
 
     it('should generate new invite code successfully', async () => {
-      // Arrange
+      // Preparación
       permissionValidator.validateCanModifyClassroom.mockResolvedValue(undefined);
       classroomRepository.findById.mockResolvedValue(mockClassroom);
       codeGenerator.generateUniqueCode.mockResolvedValue('XYZ789');
       classroomRepository.update.mockResolvedValue(undefined);
 
-      // Act
+      // Acción
       const result = await service.generateNewInviteCode(classroomId, userId);
 
-      // Assert
+      // Verificación
       expect(permissionValidator.validateCanModifyClassroom).toHaveBeenCalledWith(classroomId, userId);
       expect(codeGenerator.generateUniqueCode).toHaveBeenCalled();
       expect(classroomRepository.update).toHaveBeenCalledWith(classroomId, { inviteCode: 'XYZ789' });
       expect(result).toBe('XYZ789');
     });
+
+    it('should throw OperationNotAllowedException when user lacks permission', async () => {
+      const permissionError = new OperationNotAllowedException('actualizar aula', 'sin permisos');
+      permissionValidator.validateCanModifyClassroom.mockRejectedValue(permissionError);
+
+      // Acción y verificación
+      await expect(service.generateNewInviteCode(classroomId, userId))
+        .rejects.toThrow(OperationNotAllowedException);
+      expect(classroomRepository.findById).not.toHaveBeenCalled();
+      expect(codeGenerator.generateUniqueCode).not.toHaveBeenCalled();
+      expect(classroomRepository.update).not.toHaveBeenCalled();
+    });
   });
 
+  // Confirmamos que los estudiantes pueden abandonar un aula y que los errores se propagan.
+  describe('leaveClassroom', () => {
+    const classroomId = 'classroom-1';
+    const studentId = 'student-1';
+
+    it('should remove student from classroom when it exists', async () => {
+      // Preparación
+      classroomRepository.findById.mockResolvedValue(mockClassroom);
+      classroomRepository.removeStudent.mockResolvedValue(undefined);
+
+      // Acción
+      await service.leaveClassroom(classroomId, studentId);
+
+      // Verificación
+      expect(classroomRepository.findById).toHaveBeenCalledWith(classroomId);
+      expect(classroomRepository.removeStudent).toHaveBeenCalledWith(classroomId, studentId);
+    });
+
+    it('should throw ResourceNotFoundException when classroom does not exist', async () => {
+      // Preparación
+      classroomRepository.findById.mockResolvedValue(null);
+
+      // Acción y verificación
+      await expect(service.leaveClassroom(classroomId, studentId))
+        .rejects.toThrow(ResourceNotFoundException);
+      expect(classroomRepository.removeStudent).not.toHaveBeenCalled();
+    });
+  });
+
+  // Evaluamos el cálculo de estadísticas generales de un aula.
   describe('getClassroomStats', () => {
     it('should return classroom statistics', async () => {
-      // Arrange
+      // Preparación
       const classroomWithActivities = {
         ...mockClassroom,
         activities: [
@@ -320,10 +363,10 @@ describe('ClassroomService', () => {
       classroomRepository.findById.mockResolvedValue(classroomWithActivities);
       classroomRepository.getStudentCount.mockResolvedValue(15);
 
-      // Act
+      // Acción
       const result = await service.getClassroomStats('classroom-1');
 
-      // Assert
+      // Verificación
       expect(result).toEqual({
         totalStudents: 15,
         totalActivities: 3,

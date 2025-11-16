@@ -30,8 +30,8 @@
  */
 
 // 📦 IMPORTACIONES NECESARIAS
-import React, { useState, useEffect } from 'react'; // React y hooks básicos
-import { useAuth } from '../../contexts/AuthContext'; // Para obtener datos del profesor logueado
+import React, { useMemo, useState, useEffect } from 'react'; // React y hooks básicos
+import { useAuth } from '../../contexts/useAuth'; // Para obtener datos del profesor logueado
 import { ClassroomService } from '../../services/implementations/ClassroomService'; // Servicio de aulas
 import { ActivityService } from '../../services/implementations/ActivityService'; // Servicio de actividades
 import { Classroom, Activity } from '../../types'; // Tipos de datos
@@ -43,7 +43,8 @@ import {
   Award,      // Icono de premio (para logros/actividades especiales)
   Eye,        // Icono de ojo (para ver detalles)
   Edit,       // Icono de editar (para modificar contenido)
-  Trash2      // Icono de basura (para eliminar contenido)
+  Trash2,     // Icono de basura (para eliminar contenido)
+  Gamepad2    // Icono de gamepad (para juegos)
 } from 'lucide-react';
 
 // ============================================================================
@@ -61,10 +62,27 @@ import {
  * 
  * Es como tener el mismo control remoto, pero para diferentes dispositivos.
  */
+type TeacherDashboardPage =
+  | 'create-classroom'
+  | 'create-activity'
+  | 'create-game'
+  | 'classrooms'
+  | 'classroom-detail'
+  | 'repository';
+
+type TeacherDashboardNavigationPayload = {
+  'create-classroom': undefined;
+  'create-activity': undefined;
+  'create-game': undefined;
+  classrooms: undefined;
+  'classroom-detail': { classroomId: string };
+  repository: undefined;
+};
+
 interface TeacherDashboardProps {
   // Función para navegar a otras páginas de la aplicación
   // El profesor puede ir a: crear aula, crear actividad, ver repositorio, etc.
-  onNavigate: (page: string, data?: any) => void;
+  onNavigate: <Page extends TeacherDashboardPage>(page: Page, data?: TeacherDashboardNavigationPayload[Page]) => void;
 }
 
 // ============================================================================
@@ -119,10 +137,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }
   // ========================================================================
   
   // Servicio para gestionar aulas (patrón Singleton)
-  const classroomService = ClassroomService.getInstance();
+  const classroomService = useMemo(() => ClassroomService.getInstance(), []);
   
   // Servicio para gestionar actividades
-  const activityService = ActivityService.getInstance();
+  const activityService = useMemo(() => ActivityService.getInstance(), []);
 
   // ========================================================================
   // 🔄 EFFECT HOOK - CARGA DE DATOS INICIAL
@@ -159,7 +177,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }
         
         // 📚 PASO 1: Cargar todas las aulas del profesor
         // Un profesor puede tener múltiples aulas (ej: Matemáticas A, Matemáticas B)
-        const userClassrooms = await classroomService.getClassroomsByTeacher(user.id);
+        const userClassrooms = await classroomService.getClassroomsByTeacher();
         setClassrooms(userClassrooms); // Guardar en el estado
 
         // 🎯 PASO 2: Cargar actividades de todas las aulas
@@ -206,7 +224,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }
 
     // 🚀 Ejecutar la función de carga de datos
     loadDashboardData();
-  }, [user]); // 👀 Dependencia: solo ejecutar cuando 'user' cambie
+  }, [activityService, classroomService, user]); // 👀 Dependencia: solo ejecutar cuando cambian usuario o servicios
 
   // ========================================================================
   // 🎬 FUNCIONES DE MANEJO DE EVENTOS
@@ -247,6 +265,25 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }
    */
   const handleCreateActivity = () => {
     onNavigate('create-activity'); // Navegar a página de creación de actividad
+  };
+
+  /**
+   * 🎮 CREAR NUEVO JUEGO
+   * 
+   * ¿Qué es crear un juego?
+   * Es diseñar experiencias educativas gamificadas:
+   * - Trivias interactivas con puntuación
+   * - Crucigramas educativos
+   * - Simulaciones inmersivas
+   * 
+   * El profesor configura:
+   * - Tipo de juego (trivia, crossword, simulation)
+   * - Materia y nivel educativo
+   * - Preguntas con puntuación
+   * - Duración y dificultad
+   */
+  const handleCreateGame = () => {
+    onNavigate('create-game'); // Navegar a página de creación de juegos
   };
 
   // ========================================================================
@@ -393,19 +430,32 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }
           
           {/* 🏫 SECCIÓN IZQUIERDA: GESTIÓN DE AULAS */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            {/* 📋 Encabezado con título y botón de acción */}
+            {/* 📋 Encabezado con título y botones de acción */}
             <div className="p-6 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 {/* 🏷️ Título de la sección */}
                 <h2 className="text-xl font-bold text-gray-900">Mis Aulas</h2>
-                {/* ➕ Botón para crear nueva aula */}
-                <button
-                  onClick={handleCreateClassroom} // Navegar a formulario de creación
-                  className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Nueva Aula</span>
-                </button>
+                {/* 🔗 Botones de acceso rápido */}
+                <div className="flex items-center space-x-2">
+                  {/* 🏫 Botón: Ir a Gestión de Aulas */}
+                  <button
+                    onClick={() => onNavigate('classrooms')}
+                    className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-1.5"
+                    title="Ver todas mis aulas"
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>Aulas</span>
+                  </button>
+                  {/* ➕ Botón: Crear nueva aula */}
+                  <button
+                    onClick={handleCreateClassroom}
+                    className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"
+                    title="Crear nueva aula"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Nueva Aula</span>
+                  </button>
+                </div>
               </div>
             </div>
             
@@ -475,19 +525,32 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }
 
           {/* 🎯 SECCIÓN DERECHA: GESTIÓN DE ACTIVIDADES */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            {/* 📋 Encabezado con título y botón de acción */}
+            {/* 📋 Encabezado con título y botones de acción */}
             <div className="p-6 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 {/* 🏷️ Título de la sección */}
                 <h2 className="text-xl font-bold text-gray-900">Actividades Recientes</h2>
-                {/* ➕ Botón para crear nueva actividad */}
-                <button
-                  onClick={handleCreateActivity} // Navegar a formulario de creación
-                  className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Nueva Actividad</span>
-                </button>
+                {/* 🔗 Botones de acceso rápido */}
+                <div className="flex items-center space-x-2">
+                  {/* 📚 Botón: Ir a Repositorio de Actividades */}
+                  <button
+                    onClick={() => onNavigate('repository')}
+                    className="px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors flex items-center space-x-1.5"
+                    title="Ver todas mis actividades"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>Repositorio</span>
+                  </button>
+                  {/* ➕ Botón: Crear nueva actividad */}
+                  <button
+                    onClick={handleCreateActivity}
+                    className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                    title="Crear nueva actividad"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Nueva Actividad</span>
+                  </button>
+                </div>
               </div>
             </div>
             
@@ -580,8 +643,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }
           {/* 📋 Título orientado a productividad docente */}
           <h2 className="text-xl font-bold text-gray-900 mb-4">Acciones Rápidas</h2>
           
-          {/* 🏗️ Grid de botones de acción (3 columnas en desktop) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* 🏗️ Grid de botones de acción (4 columnas en desktop) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             
             {/* 🏫 BOTÓN 1: CREAR NUEVA AULA */}
             <button
@@ -615,7 +678,23 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }
               </div>
             </button>
 
-            {/* 🏆 BOTÓN 3: EXPLORAR REPOSITORIO */}
+            {/* 🎮 BOTÓN 3: CREAR NUEVO JUEGO */}
+            <button
+              onClick={handleCreateGame} // Navegar a creación de juegos
+              className="flex items-center space-x-3 p-4 bg-pink-50 rounded-lg hover:bg-pink-100 transition-colors text-left"
+            >
+              {/* 🎮 Icono de gamepad */}
+              <div className="p-2 bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100 rounded-lg">
+                <Gamepad2 className="w-5 h-5 text-pink-600" />
+              </div>
+              {/* 📝 Texto del botón */}
+              <div>
+                <h3 className="font-semibold text-pink-900">Crear Juego</h3>
+                <p className="text-sm text-pink-700">Diseña juegos educativos</p>
+              </div>
+            </button>
+
+            {/* 🏆 BOTÓN 4: EXPLORAR REPOSITORIO */}
             <button
               onClick={() => onNavigate('repository')} // Navegar al repositorio
               className="flex items-center space-x-3 p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-left"

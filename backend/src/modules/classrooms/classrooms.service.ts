@@ -6,8 +6,9 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Classroom } from './classroom.entity';
+import { Activity } from '../activities/activity.entity';
 import { User, UserRole } from '../users/user.entity';
 import { CreateClassroomDto } from './dto/create-classroom.dto';
 import { UpdateClassroomDto } from './dto/update-classroom.dto';
@@ -34,6 +35,8 @@ export class ClassroomsService {
   constructor(
     @InjectRepository(Classroom)
     private readonly classroomRepository: Repository<Classroom>,
+    @InjectRepository(Activity)
+    private readonly activityRepository: Repository<Activity>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
@@ -61,11 +64,41 @@ export class ClassroomsService {
     // Generar código de invitación único
     const inviteCode = await this.generateUniqueInviteCode();
 
-    // Crear el aula
+    // Normalizar etiquetas para evitar duplicados
+    const normalizedTags = createClassroomDto.tags
+      ? Array.from(new Set(createClassroomDto.tags.map(tag => tag.trim().toLowerCase()))).slice(0, 10) as string[] // Limpia, homogeniza y limita las etiquetas
+      : undefined; // Si no llegan etiquetas dejamos el valor sin definir para no sobreescribir
+
+    // Normalizar lista de correos invitados
+    const normalizedInvites = createClassroomDto.invitedStudentEmails
+      ? Array.from(new Set(createClassroomDto.invitedStudentEmails.map(email => email.trim().toLowerCase()))).slice(0, 20) as string[] // Quita espacios, normaliza y evita duplicados
+      : undefined; // Si no se enviaron correos dejamos que el valor se mantenga vacío
+
+    // Preparar configuración con valores por defecto combinados con los enviados
+    const defaultSettings = {
+      allowStudentDiscussion: true, // Habilitamos por defecto los foros entre estudiantes
+      requireApprovalForJoin: false, // No se requiere aprobación previa salvo que el docente lo indique
+      maxStudents: 50, // Capacidad inicial para nuevas aulas
+      timezone: createClassroomDto.timezone || 'America/Santiago', // Establecemos zona horaria por defecto
+      language: createClassroomDto.language || 'es', // Idioma base en español
+    };
+
+    const mergedSettings = {
+      ...defaultSettings, // Partimos de la configuración base
+      ...(createClassroomDto.settings || {}), // Permitimos que el docente sobreescriba valores específicos
+    };
+
+    // Crear el aula utilizando los datos normalizados
     const classroom = this.classroomRepository.create({
       ...createClassroomDto,
       teacherId,
       inviteCode,
+      tags: normalizedTags, // Guardamos las etiquetas normalizadas
+      invitedStudentEmails: normalizedInvites, // Persistimos los correos invitados limpios
+      level: createClassroomDto.level || 'intermedio', // Nivel por defecto intermedio salvo que se indique otro
+      timezone: createClassroomDto.timezone || 'America/Santiago', // Zona horaria final que usará el aula
+      language: createClassroomDto.language || 'es', // Idioma final asociado
+      settings: mergedSettings, // Configuración consolidada con defaults y overrides
     });
 
     return this.classroomRepository.save(classroom);
@@ -181,8 +214,27 @@ export class ClassroomsService {
       }
     }
 
-    // Actualizar el aula
-    await this.classroomRepository.update(id, updateClassroomDto);
+    const normalizedTags = updateClassroomDto.tags
+      ? Array.from(new Set(updateClassroomDto.tags.map(tag => tag.trim().toLowerCase()))).slice(0, 10) as string[] // Normalizamos etiquetas nuevas
+      : undefined; // Si no se envían etiquetas no tocamos las existentes
+
+    const normalizedInvites = updateClassroomDto.invitedStudentEmails
+      ? Array.from(new Set(updateClassroomDto.invitedStudentEmails.map(email => email.trim().toLowerCase()))).slice(0, 20) as string[] // Normalizamos correos agregados en la edición
+      : undefined; // Sin correos nuevos mantenemos la lista previa
+
+    const mergedSettings = updateClassroomDto.settings
+      ? {
+          ...classroom.settings, // Partimos de la configuración ya guardada
+          ...updateClassroomDto.settings, // Aplicamos los cambios enviados
+        }
+      : undefined; // Si no llegan configuraciones nuevas mantenemos las actuales
+
+    await this.classroomRepository.update(id, {
+      ...updateClassroomDto,
+      tags: normalizedTags,
+      invitedStudentEmails: normalizedInvites,
+      settings: mergedSettings,
+    });
     return this.findById(id);
   }
 
@@ -242,6 +294,24 @@ export class ClassroomsService {
     const isAlreadyEnrolled = classroom.students.some(s => s.id === studentId);
     if (isAlreadyEnrolled) {
       throw new ConflictException('Ya estás inscrito en esta aula');
+    }
+
+    const currentStudents = classroom.students.length;
+    const rawMaxStudents = classroom.settings?.maxStudents;
+
+    const parsedMaxStudents =
+      typeof rawMaxStudents === 'number'
+        ? rawMaxStudents
+        : typeof rawMaxStudents === 'string'
+          ? Number.parseInt(rawMaxStudents, 10)
+          : Number(rawMaxStudents ?? 50);
+
+    const maxStudentsAllowed = Number.isFinite(parsedMaxStudents) && parsedMaxStudents > 0
+      ? parsedMaxStudents
+      : 50;
+
+    if (currentStudents >= maxStudentsAllowed) {
+      throw new BadRequestException(`El aula alcanzó su límite de ${maxStudentsAllowed} estudiantes`); // Informamos que no hay cupos disponibles
     }
 
     // Agregar el estudiante al aula
@@ -378,5 +448,120 @@ export class ClassroomsService {
       createdAt: classroom.createdAt,
       isActive: classroom.isActive,
     };
+  }
+
+  /**
+   * Agrega una actividad existente al aula
+   * CU-20: Agregar Actividad a Aula
+   * @param classroomId - ID del aula
+   * @param activityId - ID de la actividad a agregar
+   * @param userId - ID del usuario que realiza la acción
+   * @returns Aula actualizada con la nueva actividad
+   */
+  async addActivity(classroomId: string, activityId: string, userId: string): Promise<Classroom> {
+    // Verificar que el aula existe
+    const classroom = await this.classroomRepository.findOne({
+      where: { id: classroomId },
+      relations: ['activities', 'teacher'],
+    });
+
+    if (!classroom) {
+      throw new NotFoundException('Aula no encontrada');
+    }
+
+    // Verificar permisos: solo el docente propietario o admin pueden agregar actividades
+    if (classroom.teacherId !== userId) {
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (!user || user.role !== UserRole.ADMIN) {
+        throw new ForbiddenException('No tienes permisos para agregar actividades a esta aula');
+      }
+    }
+
+    // Verificar que la actividad existe
+    const activity = await this.activityRepository.findOne({
+      where: { id: activityId },
+      relations: ['createdBy', 'classroom'],
+    });
+
+    if (!activity) {
+      throw new NotFoundException('Actividad no encontrada');
+    }
+
+    // Verificar que la actividad esté activa
+    if (!activity.isActive) {
+      throw new BadRequestException('No se puede agregar una actividad inactiva');
+    }
+
+    // Verificar que la actividad no esté ya en el aula
+    const isAlreadyInClassroom = classroom.activities?.some(act => act.id === activityId);
+    if (isAlreadyInClassroom) {
+      throw new ConflictException('Esta actividad ya está en el aula');
+    }
+
+    // IMPORTANTE: Como la relación es ManyToOne desde Activity hacia Classroom,
+    // necesitamos actualizar el classroomId de la actividad
+    // Sin embargo, esto sobrescribiría el aula original de la actividad.
+    // En su lugar, verificamos que la actividad pertenezca al mismo docente
+    
+    // Verificar que el docente sea el creador de la actividad o admin
+    if (activity.createdBy.id !== classroom.teacherId) {
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (!user || user.role !== UserRole.ADMIN) {
+        throw new ForbiddenException(
+          'Solo puedes agregar actividades que tú hayas creado, o debes ser administrador',
+        );
+      }
+    }
+
+    // Verificar que la actividad no pertenezca ya a otra aula
+    if (activity.classroom && activity.classroom.id !== classroomId) {
+      throw new ConflictException(
+        'Esta actividad ya pertenece a otra aula. Debes quitarla de allí primero o crear una copia.',
+      );
+    }
+
+    // Asignar la actividad al aula
+    activity.classroomId = classroomId;
+    await this.activityRepository.save(activity);
+
+    // Retornar el aula actualizada con sus actividades
+    return this.findById(classroomId);
+  }
+
+  /**
+   * Quita una actividad del aula (soft delete)
+   * CU-22: Quitar Actividad de Aula
+   * @param classroomId - ID del aula
+   * @param activityId - ID de la actividad a quitar
+   * @param userId - ID del usuario que realiza la acción
+   */
+  async removeActivity(classroomId: string, activityId: string, userId: string): Promise<void> {
+    // Verificar que el aula existe
+    const classroom = await this.classroomRepository.findOne({
+      where: { id: classroomId },
+      relations: ['activities'],
+    });
+
+    if (!classroom) {
+      throw new NotFoundException('Aula no encontrada');
+    }
+
+    // Verificar permisos: solo el docente propietario o admin pueden quitar actividades
+    if (classroom.teacherId !== userId) {
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (!user || user.role !== UserRole.ADMIN) {
+        throw new ForbiddenException('No tienes permisos para quitar actividades de esta aula');
+      }
+    }
+
+    // Verificar que la actividad existe y pertenece al aula
+    const activity = classroom.activities?.find(act => act.id === activityId);
+    if (!activity) {
+      throw new NotFoundException('Actividad no encontrada en esta aula');
+    }
+
+    // Soft delete: marcar la actividad como inactiva en lugar de eliminarla
+    activity.isActive = false;
+    await this.classroomRepository.save(classroom);
   }
 }

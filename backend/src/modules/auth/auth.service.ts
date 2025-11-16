@@ -13,6 +13,7 @@ import {
   ValidationException 
 } from '../../common/exceptions/business.exception';
 import { OperationResult } from '../../common/interfaces/contracts.interface';
+import { InstitutionCredentialService } from './services/institution-credential.service';
 
 /**
  * Resultado de autenticación
@@ -41,6 +42,7 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
+    private readonly institutionCredentialService: InstitutionCredentialService,
   ) {}
 
   /**
@@ -64,6 +66,11 @@ export class AuthService {
           registerDto.email,
           '/auth/register'
         );
+      }
+
+      // Validar credenciales institucionales cuando el rol es docente
+      if (registerDto.role === UserRole.TEACHER) {
+        await this.institutionCredentialService.ensureTeacherInstitutionalEmail(registerDto.email);
       }
 
       // Hash de la contraseña con salt seguro
@@ -424,12 +431,18 @@ export class AuthService {
    * @returns Usuario sin contraseña
    * @private
    */
-  private removePasswordFromUser(user: User): Omit<User, 'password'> {
+  private removePasswordFromUser(user: User): any {
     const { password, ...userWithoutPassword } = user;
     // Asegurar que completedActivities esté disponible como getter
     return {
       ...userWithoutPassword,
-      completedActivities: user.completedActivities
+      completedActivities: user.completedActivities,
+      // Asegurar que los métodos públicos estén disponibles
+      validateUser: user.validateUser,
+      getFullName: user.getFullName,
+      isTeacher: user.isTeacher,
+      isStudent: user.isStudent,
+      isAdmin: user.isAdmin
     };
   }
 }

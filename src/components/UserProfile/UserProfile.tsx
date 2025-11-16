@@ -4,7 +4,7 @@
 // Interfaz para gestionar información personal y configuraciones
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/useAuth';
 import { 
   User, 
   Lock,

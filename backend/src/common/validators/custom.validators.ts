@@ -3,13 +3,15 @@
  * Implementa el principio Single Responsibility para validaciones
  */
 
-import { 
-  registerDecorator, 
-  ValidationOptions, 
-  ValidatorConstraint, 
+import {
+  registerDecorator,
+  ValidationOptions,
+  ValidatorConstraint,
   ValidatorConstraintInterface,
-  ValidationArguments 
+  ValidationArguments,
 } from 'class-validator';
+
+type ValidationTarget = object;
 
 /**
  * Validador para contraseñas seguras
@@ -39,7 +41,7 @@ export class IsStrongPasswordConstraint implements ValidatorConstraintInterface 
 }
 
 export function IsStrongPassword(validationOptions?: ValidationOptions) {
-  return function (object: any, propertyName: string) {
+  return function (object: ValidationTarget, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -71,7 +73,7 @@ export class IsValidInviteCodeConstraint implements ValidatorConstraintInterface
 }
 
 export function IsValidInviteCode(validationOptions?: ValidationOptions) {
-  return function (object: any, propertyName: string) {
+  return function (object: ValidationTarget, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -104,7 +106,7 @@ export class IsSafeNameConstraint implements ValidatorConstraintInterface {
 }
 
 export function IsSafeName(validationOptions?: ValidationOptions) {
-  return function (object: any, propertyName: string) {
+  return function (object: ValidationTarget, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -153,7 +155,7 @@ export class IsSafeUrlConstraint implements ValidatorConstraintInterface {
 }
 
 export function IsSafeUrl(validationOptions?: ValidationOptions) {
-  return function (object: any, propertyName: string) {
+  return function (object: ValidationTarget, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -170,18 +172,31 @@ export function IsSafeUrl(validationOptions?: ValidationOptions) {
 @ValidatorConstraint({ name: 'isInRange', async: false })
 export class IsInRangeConstraint implements ValidatorConstraintInterface {
   validate(value: number, args: ValidationArguments): boolean {
-    const [min, max] = args.constraints;
-    return typeof value === 'number' && value >= min && value <= max;
+    const [min, max] = this.extractBounds(args.constraints);
+    return typeof value === 'number' && typeof min === 'number' && typeof max === 'number' && value >= min && value <= max;
   }
 
   defaultMessage(args: ValidationArguments): string {
-    const [min, max] = args.constraints;
+    const [min, max] = this.extractBounds(args.constraints);
+    if (typeof min !== 'number' || typeof max !== 'number') {
+      return 'El rango configurado no es válido';
+    }
+
     return `El valor debe estar entre ${min} y ${max}`;
+  }
+
+  private extractBounds(constraints: unknown[]): [number | undefined, number | undefined] {
+    if (!Array.isArray(constraints)) {
+      return [undefined, undefined];
+    }
+
+    const [min, max] = constraints;
+    return [typeof min === 'number' ? min : undefined, typeof max === 'number' ? max : undefined];
   }
 }
 
 export function IsInRange(min: number, max: number, validationOptions?: ValidationOptions) {
-  return function (object: any, propertyName: string) {
+  return function (object: ValidationTarget, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -221,7 +236,7 @@ export class IsSafeHtmlConstraint implements ValidatorConstraintInterface {
 }
 
 export function IsSafeHtml(validationOptions?: ValidationOptions) {
-  return function (object: any, propertyName: string) {
+  return function (object: ValidationTarget, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -238,20 +253,37 @@ export function IsSafeHtml(validationOptions?: ValidationOptions) {
 @ValidatorConstraint({ name: 'isValidFileSize', async: false })
 export class IsValidFileSizeConstraint implements ValidatorConstraintInterface {
   validate(fileSize: number, args: ValidationArguments): boolean {
-    const [maxSizeInMB] = args.constraints;
+    const maxSizeInMB = this.extractMaxSize(args.constraints);
+    if (typeof maxSizeInMB !== 'number') {
+      return false;
+    }
+
     const maxSizeInBytes = maxSizeInMB * 1024 * 1024;
-    
+
     return typeof fileSize === 'number' && fileSize > 0 && fileSize <= maxSizeInBytes;
   }
 
   defaultMessage(args: ValidationArguments): string {
-    const [maxSizeInMB] = args.constraints;
+    const maxSizeInMB = this.extractMaxSize(args.constraints);
+    if (typeof maxSizeInMB !== 'number') {
+      return 'El tamaño máximo del archivo es inválido';
+    }
+
     return `El archivo no debe exceder ${maxSizeInMB}MB`;
+  }
+
+  private extractMaxSize(constraints: unknown[]): number | undefined {
+    if (!Array.isArray(constraints)) {
+      return undefined;
+    }
+
+    const [maxSizeInMB] = constraints;
+    return typeof maxSizeInMB === 'number' ? maxSizeInMB : undefined;
   }
 }
 
 export function IsValidFileSize(maxSizeInMB: number, validationOptions?: ValidationOptions) {
-  return function (object: any, propertyName: string) {
+  return function (object: ValidationTarget, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,

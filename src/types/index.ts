@@ -52,7 +52,160 @@ export interface User {
 }
 
 /**
- * 🏫 INTERFAZ PARA REPRESENTAR UN AULA VIRTUAL
+ * � Tipos para personalización visual del perfil.
+ * Deben coincidir con los valores de la enumeración en el backend.
+ */
+export type ProfileTheme = 'light' | 'dark' | 'auto' | 'blue' | 'green' | 'purple';
+
+/**
+ * 🌍 Idiomas soportados para la interfaz del perfil.
+ */
+export type ProfileLanguage = 'es' | 'en' | 'fr' | 'pt';
+
+/**
+ * 🔐 Niveles de privacidad del perfil.
+ */
+export type ProfilePrivacyLevel = 'public' | 'friends' | 'private';
+
+/**
+ * 🛡️ Configuraciones de privacidad disponibles en el perfil.
+ */
+export interface ProfilePrivacySettings {
+  showEmail?: boolean;
+  showBirthDate?: boolean;
+  showLocation?: boolean;
+  showSocialLinks?: boolean;
+  showStats?: boolean;
+  allowMessages?: boolean;
+  allowFriendRequests?: boolean;
+}
+
+/**
+ * 🔔 Configuraciones de notificaciones del perfil.
+ */
+export interface ProfileNotificationSettings {
+  email?: boolean;
+  push?: boolean;
+  in_app?: boolean;
+  newMessages?: boolean;
+  classroomUpdates?: boolean;
+  activityReminders?: boolean;
+  achievementUnlocked?: boolean;
+  friendRequests?: boolean;
+  weeklyDigest?: boolean;
+}
+
+/**
+ * ♿ Preferencias de accesibilidad del usuario.
+ */
+export interface ProfileAccessibilitySettings {
+  highContrast?: boolean;
+  reducedMotion?: boolean;
+  screenReaderOptimized?: boolean;
+  keyboardNavigation?: boolean;
+}
+
+/**
+ * 📊 Estadísticas del perfil expuestas por el backend.
+ */
+export interface ProfileStats {
+  activitiesCompleted?: number;
+  classroomsJoined?: number;
+  badgesEarned?: number;
+  pointsEarned?: number;
+  streakDays?: number;
+  totalStudyTime?: number;
+  averageScore?: number;
+  favoritesCount?: number;
+  followersCount?: number;
+  followingCount?: number;
+}
+
+/**
+ * 🔗 Enlaces sociales configurados por el usuario.
+ */
+export interface ProfileSocialLinks {
+  twitter?: string;
+  linkedin?: string;
+  github?: string;
+  instagram?: string;
+  facebook?: string;
+}
+
+/**
+ * 🧾 Representación del perfil según lo expuesto por la API de backend.
+ */
+export interface UserProfileEntity {
+  id: string;
+  userId: string;
+  displayName?: string | null;
+  bio?: string | null;
+  birthDate?: string | null;
+  location?: string | null;
+  website?: string | null;
+  socialLinks: ProfileSocialLinks;
+  avatarUrl?: string | null;
+  coverImageUrl?: string | null;
+  theme: ProfileTheme;
+  primaryColor?: string | null;
+  fontSettings?: {
+    size?: 'small' | 'medium' | 'large';
+    family?: string;
+  } | null;
+  isPublic: boolean;
+  privacyLevel: ProfilePrivacyLevel;
+  privacySettings: ProfilePrivacySettings;
+  language: ProfileLanguage;
+  timezone?: string | null;
+  notificationSettings: ProfileNotificationSettings;
+  accessibilitySettings?: ProfileAccessibilitySettings | null;
+  stats: ProfileStats;
+  featuredAchievements: string[];
+  customBadges: string[];
+  lastProfileUpdate?: string | null;
+  profileViews: number;
+  isVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 📦 Resultado estándar de las operaciones de perfil.
+ */
+export interface ProfileOperationResult {
+  success: boolean;
+  message: string;
+  profile?: UserProfileEntity;
+}
+
+/**
+ * Estados posibles para una invitación de aula.
+ */
+export type InvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
+
+/**
+ * Representa una invitación enviada a un estudiante para un aula específica.
+ */
+export interface ClassroomInvitation {
+  id: string;
+  classroomId: string;
+  email: string;
+  token: string;
+  status: InvitationStatus;
+  invitedById?: string | null;
+  acceptedById?: string | null;
+  expiresAt?: string | Date | null;
+  sentAt?: string | Date | null;
+  acceptedAt?: string | Date | null;
+  revokedAt?: string | Date | null;
+  message?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+/**
+ * �🏫 INTERFAZ PARA REPRESENTAR UN AULA VIRTUAL
  * 
  * ¿Qué es un aula en AcaLud?
  * Es un espacio virtual donde un profesor organiza actividades para sus estudiantes.
@@ -72,11 +225,63 @@ export interface Classroom {
   teacherId: string;             // 👨‍🏫 ID del profesor dueño
   teacher: User;                 // 👨‍🏫 Datos completos del profesor
   students: User[];              // 👥 Lista de estudiantes inscritos
+  invitedStudentEmails?: string[]; // 📧 Correos pendientes de aceptar invitación
+  invitations?: ClassroomInvitation[]; // 📬 Invitaciones emitidas para este aula
   activities: Activity[];        // 📝 Actividades disponibles en el aula
   inviteCode: string;           // 🎫 Código único para que estudiantes se unan
   isActive: boolean;            // ✅ ¿El aula está activa?
   createdAt: Date;              // 📅 Cuándo se creó
   updatedAt: Date;              // 📅 Última actualización
+}
+
+/**
+ * Resultado individual del proceso de envío de invitaciones.
+ */
+export interface InvitationDispatchItem {
+  email: string;
+  token: string;
+  expiresAt?: string | Date | null;
+  status: 'sent' | 'queued' | 'skipped';
+  reason?: string;
+}
+
+/**
+ * Resumen del envío de invitaciones solicitado por el docente.
+ */
+export interface InvitationDispatchResult {
+  classroomId: string;
+  requested: number;
+  processed: InvitationDispatchItem[];
+}
+
+/**
+ * Resultado de validar un token de invitación recibido por correo.
+ */
+export interface InvitationValidationResult {
+  valid: boolean;
+  status: InvitationStatus;
+  token: string;
+  email?: string;
+  classroom?: {
+    id: string;
+    name: string;
+    subject: string;
+    grade: string;
+    teacherName?: string;
+  };
+  expiresAt?: string | Date | null;
+  message?: string;
+  reason?: string;
+}
+
+/**
+ * Resultado de consumir una invitación válida para un aula.
+ */
+export interface InvitationConsumptionResult {
+  status: InvitationStatus;
+  classroomId: string;
+  studentId: string;
+  email: string;
 }
 
 /**

@@ -1,56 +1,26 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { randomUUID } from 'crypto';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
-import { AppModule } from '../src/app.module';
-import { AuthService } from '../src/modules/auth/auth.service';
-import { ClassroomService } from '../src/modules/classrooms/services/classroom.service.refactored';
+import request from 'supertest';
 import { UserRole } from '../src/modules/users/user.entity';
+import { ValidGrades, ValidSubjects } from '../src/modules/classrooms/dto/create-classroom.dto';
+import { createTestApplication } from './communications/helpers/app.helper';
+import { registerUser } from './communications/helpers/auth.helper';
+import { createClassroom } from './communications/helpers/classroom.helper';
 
 describe('Classroom API (e2e)', () => {
   let app: INestApplication;
-  let authService: AuthService;
-  let classroomService: ClassroomService;
   let teacherToken: string;
   let studentToken: string;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    const context = await createTestApplication();
+    app = context.app;
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
+    const teacherAuth = await registerUser(app, { role: UserRole.TEACHER });
+    const studentAuth = await registerUser(app, { role: UserRole.STUDENT });
 
-    authService = moduleFixture.get<AuthService>(AuthService);
-    classroomService = moduleFixture.get<ClassroomService>(ClassroomService);
-
-    // Crear usuarios de prueba y obtener tokens
-    const teacherData = {
-      email: 'teacher@test.com',
-      password: 'password123',
-      firstName: 'Test',
-      lastName: 'Teacher',
-      name: 'Test Teacher',
-      role: UserRole.TEACHER,
-    };
-
-    const studentData = {
-      email: 'student@test.com',
-      password: 'password123',
-      firstName: 'Test',
-      lastName: 'Student', 
-      name: 'Test Student',
-      role: UserRole.STUDENT,
-    };
-
-    // Registrar y obtener tokens
-    const teacherAuth = await authService.register(teacherData);
-    const studentAuth = await authService.register(studentData);
-    
-    if (teacherAuth.success && teacherAuth.data && studentAuth.success && studentAuth.data) {
-      teacherToken = teacherAuth.data.token;
-      studentToken = studentAuth.data.token;
-    }
+    teacherToken = teacherAuth.token;
+    studentToken = studentAuth.token;
   });
 
   afterAll(async () => {
@@ -62,8 +32,8 @@ describe('Classroom API (e2e)', () => {
       const createClassroomDto = {
         name: 'Test Classroom',
         description: 'Test Description',
-        subject: 'Mathematics',
-        grade: '5th Grade',
+        subject: ValidSubjects.MATEMATICAS,
+        grade: ValidGrades.PRIMERO_PRIMARIA,
       };
 
       return request(app.getHttpServer())
@@ -82,8 +52,8 @@ describe('Classroom API (e2e)', () => {
       const createClassroomDto = {
         name: 'Test Classroom',
         description: 'Test Description',
-        subject: 'Mathematics',
-        grade: '5th Grade',
+        subject: ValidSubjects.MATEMATICAS,
+        grade: ValidGrades.PRIMERO_PRIMARIA,
       };
 
       return request(app.getHttpServer())
@@ -97,8 +67,8 @@ describe('Classroom API (e2e)', () => {
       const invalidDto = {
         name: '', // nombre vacío
         description: 'Test Description',
-        subject: 'Mathematics',
-        grade: '5th Grade',
+        subject: ValidSubjects.MATEMATICAS,
+        grade: ValidGrades.PRIMERO_PRIMARIA,
       };
 
       return request(app.getHttpServer())
@@ -113,13 +83,12 @@ describe('Classroom API (e2e)', () => {
     let classroomId: string;
 
     beforeAll(async () => {
-      // Crear un aula de prueba
-      const classroom = await classroomService.createClassroom({
+      const classroom = await createClassroom(app, {
+        token: teacherToken,
         name: 'Test Classroom for GET',
         description: 'Test Description',
-        subject: 'Mathematics',
-        grade: '5th Grade',
-      }, 'teacher-id');
+      });
+
       classroomId = classroom.id;
     });
 
@@ -136,7 +105,7 @@ describe('Classroom API (e2e)', () => {
 
     it('should return 404 for non-existent classroom', () => {
       return request(app.getHttpServer())
-        .get('/api/v1/classrooms/non-existent-id')
+        .get(`/api/v1/classrooms/${randomUUID()}`)
         .set('Authorization', `Bearer ${teacherToken}`)
         .expect(404);
     });
@@ -152,13 +121,11 @@ describe('Classroom API (e2e)', () => {
     let inviteCode: string;
 
     beforeAll(async () => {
-      // Crear un aula y obtener el código de invitación
-      const classroom = await classroomService.createClassroom({
+      const classroom = await createClassroom(app, {
+        token: teacherToken,
         name: 'Test Classroom for Join',
         description: 'Test Description',
-        subject: 'Mathematics',
-        grade: '5th Grade',
-      }, 'teacher-id');
+      });
       inviteCode = classroom.inviteCode;
     });
 
@@ -167,7 +134,7 @@ describe('Classroom API (e2e)', () => {
         .post('/api/v1/classrooms/join')
         .set('Authorization', `Bearer ${studentToken}`)
         .send({ inviteCode })
-        .expect(200)
+        .expect(201)
         .expect((res) => {
           expect(res.body.inviteCode).toBe(inviteCode);
         });

@@ -7,6 +7,9 @@ import { IActivityService } from '../interfaces/IActivityService';
 import { Activity, ActivityCompletion, Question, StudentAnswer } from '../../types';
 import { UserService } from './UserService';
 
+// URL base de la API del backend
+const API_URL = 'http://localhost:3001/api/v1';
+
 /**
  * Implementación concreta del servicio de actividades lúdicas
  */
@@ -126,13 +129,25 @@ export class ActivityService implements IActivityService {
    * Obtiene todas las actividades de un aula
    */
   async getActivitiesByClassroom(classroomId: string): Promise<Activity[]> {
-    const activities: Activity[] = [];
-    for (const activity of this.activities.values()) {
-      if (activity.classroomId === classroomId) {
-        activities.push(activity);
+    try {
+      const { httpClient } = await import('../http.service');
+      const activities = await httpClient.get<Activity[]>(`/activities/classroom/${classroomId}`);
+      // Actualizar caché
+      activities.forEach(activity => {
+        this.activities.set(activity.id, activity);
+      });
+      return activities;
+    } catch (error) {
+      console.error('Error fetching classroom activities:', error);
+      // Fallback: buscar en caché
+      const activities: Activity[] = [];
+      for (const activity of this.activities.values()) {
+        if (activity.classroomId === classroomId) {
+          activities.push(activity);
+        }
       }
+      return activities;
     }
-    return activities;
   }
 
   /**
@@ -178,55 +193,89 @@ export class ActivityService implements IActivityService {
    * Obtiene una actividad por su ID
    */
   async getActivityById(activityId: string): Promise<Activity | null> {
-    return this.activities.get(activityId) || null;
+    try {
+      const { httpClient } = await import('../http.service');
+      const activity = await httpClient.get<Activity>(`/activities/${activityId}`);
+      // Guardar en caché
+      this.activities.set(activity.id, activity);
+      return activity;
+    } catch (error) {
+      console.error('Error fetching activity by id:', error);
+      // Fallback: buscar en caché
+      return this.activities.get(activityId) || null;
+    }
   }
 
   /**
    * Crea una nueva actividad
    */
   async createActivity(activityData: Omit<Activity, 'id' | 'createdAt' | 'updatedAt' | 'completions'>): Promise<Activity> {
-    const newActivity: Activity = {
-      ...activityData,
-      id: this.generateId(),
-      completions: [],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    this.activities.set(newActivity.id, newActivity);
-    return newActivity;
+    try {
+      const { httpClient } = await import('../http.service');
+      
+      // Preparar datos para el backend
+      const createDto = {
+        title: activityData.title,
+        description: activityData.description,
+        type: activityData.type,
+        difficulty: activityData.difficulty,
+        subject: activityData.subject,
+        content: activityData.content,
+        rewards: activityData.rewards,
+        classroomId: activityData.classroomId,
+        isPublic: activityData.isPublic || false,
+        tags: activityData.tags || [],
+        estimatedTime: activityData.estimatedTime
+      };
+      
+      console.log('📤 Enviando actividad al backend:', createDto);
+      
+      const activity = await httpClient.post<Activity>('/activities', createDto);
+      
+      // Guardar en caché
+      this.activities.set(activity.id, activity);
+      
+      return activity;
+    } catch (error) {
+      console.error('Error creating activity:', error);
+      throw error;
+    }
   }
 
   /**
    * Actualiza una actividad existente
    */
   async updateActivity(activityId: string, updates: Partial<Activity>): Promise<Activity> {
-    const existingActivity = this.activities.get(activityId);
-    if (!existingActivity) {
-      throw new Error('Actividad no encontrada');
+    try {
+      const { httpClient } = await import('../http.service');
+      const activity = await httpClient.patch<Activity>(`/activities/${activityId}`, updates);
+      // Actualizar caché
+      this.activities.set(activity.id, activity);
+      return activity;
+    } catch (error) {
+      console.error('Error updating activity:', error);
+      throw error;
     }
-
-    const updatedActivity: Activity = {
-      ...existingActivity,
-      ...updates,
-      updatedAt: new Date()
-    };
-
-    this.activities.set(activityId, updatedActivity);
-    return updatedActivity;
   }
 
   /**
    * Elimina una actividad
    */
   async deleteActivity(activityId: string): Promise<void> {
-    this.activities.delete(activityId);
-    
-    // Eliminar completaciones relacionadas
-    for (const [completionId, completion] of this.completions.entries()) {
-      if (completion.activityId === activityId) {
-        this.completions.delete(completionId);
+    try {
+      const { httpClient } = await import('../http.service');
+      await httpClient.delete(`/activities/${activityId}`);
+      // Eliminar del caché
+      this.activities.delete(activityId);
+      // Eliminar completaciones relacionadas del caché
+      for (const [completionId, completion] of this.completions.entries()) {
+        if (completion.activityId === activityId) {
+          this.completions.delete(completionId);
+        }
       }
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+      throw error;
     }
   }
 
@@ -407,5 +456,59 @@ export class ActivityService implements IActivityService {
    */
   private generateId(): string {
     return `activity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * ✅ Completar actividad y enviar al backend
+   * Registra la completación y recibe recompensas automáticas del servidor
+   * 
+   * @param activityId - ID de la actividad completada
+   * @param completionData - Datos de la completación (score, tiempo, respuestas)
+   * @returns Registro de completación con recompensas
+   */
+  async completeActivity(activityId: string, completionData: {
+    score: number;
+    timeSpent: number;
+    answers: Array<{
+      questionId: string;
+      answer: string | string[];
+      isCorrect: boolean;
+      timeSpent: number;
+    }>;
+  }): Promise<ActivityCompletion> {
+    let token: string | null = null;
+
+    if (typeof window !== 'undefined') {
+      try {
+        token = window.localStorage.getItem('acalud_token');
+      } catch (error) {
+        console.warn('No fue posible obtener el token desde localStorage', error);
+        token = null;
+      }
+    }
+
+    if (!token) {
+      throw new Error('No hay sesión activa');
+    }
+
+    // Enviar al endpoint de completación
+    const response = await fetch(`${API_URL}/activities/${activityId}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(completionData)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Error al completar actividad');
+    }
+
+    const completion = await response.json();
+    console.log('✅ Completación registrada:', completion);
+    
+    return completion;
   }
 }

@@ -54,6 +54,7 @@ export class UpdateUserDto {
   })
   @IsOptional()
   @IsString({ message: 'El nombre debe ser un texto' })
+  @MinLength(2, { message: 'El nombre debe tener al menos 2 caracteres' })
   @MaxLength(50, { message: 'El nombre no puede exceder 50 caracteres' })
   @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, {
     message: 'El nombre solo puede contener letras y espacios',
@@ -68,6 +69,7 @@ export class UpdateUserDto {
   })
   @IsOptional()
   @IsString({ message: 'El apellido debe ser un texto' })
+  @MinLength(2, { message: 'El apellido debe tener al menos 2 caracteres' })
   @MaxLength(50, { message: 'El apellido no puede exceder 50 caracteres' })
   @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, {
     message: 'El apellido solo puede contener letras y espacios',

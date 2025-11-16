@@ -3,7 +3,7 @@
 // ============================================================================
 // Define el contrato para el servicio de actividades lúdicas
 
-import { Activity, ActivityCompletion, Question } from '../../types';
+import { Activity, ActivityCompletion } from '../../types';
 
 /**
  * Interface que define las operaciones para el manejo de actividades

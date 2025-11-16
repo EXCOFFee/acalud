@@ -25,8 +25,47 @@ interface FinalErrorResponse {
   timestamp: string;
   path: string;
   correlationId?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   stack?: string;
+}
+
+type RequestUserContext = {
+  id?: string;
+  email?: string;
+  role?: string;
+};
+
+type RequestWithContext = Request & {
+  correlationId?: string;
+  user?: RequestUserContext | null;
+};
+
+interface ClassValidatorErrorDetail {
+  property?: string;
+  constraints?: Record<string, string>;
+}
+
+interface ClassValidatorExceptionShape {
+  response?: {
+    statusCode?: number;
+    message?: Array<string | ClassValidatorErrorDetail>;
+  };
+}
+
+interface DatabaseErrorShape {
+  code?: string;
+  errno?: number;
+  sqlState?: string;
+  constraint?: string;
+  table?: string;
+  column?: string;
+  detail?: string;
+}
+
+interface TypeOrmErrorShape extends DatabaseErrorShape {
+  name?: string;
+  message?: string;
+  criteria?: Record<string, unknown>;
 }
 
 /**
@@ -57,7 +96,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private buildErrorResponse(exception: unknown, request: Request): FinalErrorResponse {
     const timestamp = new Date().toISOString();
     const path = request.url;
-    const correlationId = (request as any).correlationId;
+    const requestWithContext = request as RequestWithContext;
+    const correlationId = requestWithContext.correlationId;
 
     // Excepciones de negocio personalizadas
     if (exception instanceof BusinessException) {
@@ -79,13 +119,20 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const exceptionResponse = exception.getResponse();
       
       let message: string;
-      let details: Record<string, any> | undefined;
+      let details: Record<string, unknown> | undefined;
 
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
       } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
-        const response = exceptionResponse as any;
-        message = response.message || exception.message;
+        const response = exceptionResponse as Record<string, unknown>;
+        const responseMessage = response.message;
+        if (typeof responseMessage === 'string') {
+          message = responseMessage;
+        } else if (Array.isArray(responseMessage)) {
+          message = responseMessage.join(', ');
+        } else {
+          message = exception.message;
+        }
         details = response;
       } else {
         message = exception.message;
@@ -105,48 +152,52 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // Error de validación de class-validator
     if (this.isClassValidatorError(exception)) {
-      return this.handleClassValidatorError(exception as any, timestamp, path, correlationId);
+      return this.handleClassValidatorError(exception, timestamp, path, correlationId);
     }
 
     // Errores de base de datos
     if (this.isDatabaseError(exception)) {
-      return this.handleDatabaseError(exception as any, timestamp, path, correlationId);
+      return this.handleDatabaseError(exception, timestamp, path, correlationId);
     }
 
     // Errores de TypeORM
     if (this.isTypeORMError(exception)) {
-      return this.handleTypeORMError(exception as any, timestamp, path, correlationId);
+      return this.handleTypeORMError(exception, timestamp, path, correlationId);
     }
 
     // Error genérico/desconocido
-    return this.handleGenericError(exception as Error, timestamp, path, correlationId);
+    return this.handleGenericError(exception, timestamp, path, correlationId);
   }
 
   /**
    * Maneja errores de validación de class-validator
    */
   private handleClassValidatorError(
-    exception: any, 
+    exception: ClassValidatorExceptionShape, 
     timestamp: string, 
     path: string, 
     correlationId?: string
   ): FinalErrorResponse {
     const validationErrors: Record<string, string[]> = {};
 
-    if (exception.response && Array.isArray(exception.response.message)) {
-      exception.response.message.forEach((error: any) => {
-        if (typeof error === 'object' && error.property && error.constraints) {
-          validationErrors[error.property] = Object.values(error.constraints) as string[];
-        } else if (typeof error === 'string') {
+    const responseMessages = exception.response?.message;
+    if (Array.isArray(responseMessages)) {
+      responseMessages.forEach((errorDetail) => {
+        if (this.isValidationErrorDetail(errorDetail)) {
+          const { property, constraints } = errorDetail;
+          if (property && constraints) {
+            validationErrors[property] = Object.values(constraints);
+          }
+        } else if (typeof errorDetail === 'string') {
           // Formato simple: "campo mensaje"
-          const parts = error.split(' ');
-          const field = parts[0];
-          const message = parts.slice(1).join(' ');
-          
+          const parts = errorDetail.split(' ');
+          const field = parts.shift() ?? 'unknown';
+          const fieldMessage = parts.join(' ');
+
           if (!validationErrors[field]) {
             validationErrors[field] = [];
           }
-          validationErrors[field].push(message);
+          validationErrors[field].push(fieldMessage);
         }
       });
     }
@@ -167,12 +218,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
    * Maneja errores de base de datos PostgreSQL
    */
   private handleDatabaseError(
-    exception: any, 
+    exception: DatabaseErrorShape, 
     timestamp: string, 
     path: string, 
     correlationId?: string
   ): FinalErrorResponse {
-    const code = exception.code || exception.errno;
+    const code = exception.code ??
+      (typeof exception.sqlState === 'string' ? exception.sqlState : undefined) ??
+      (typeof exception.errno === 'number' ? exception.errno.toString() : undefined);
     
     switch (code) {
       case '23505': // Unique constraint violation
@@ -187,7 +240,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           details: {
             constraint: exception.constraint,
             table: exception.table,
-            field: this.extractFieldFromConstraint(exception.constraint),
+            field: this.extractFieldFromConstraint(exception.constraint ?? ''),
           },
         };
 
@@ -268,7 +321,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
    * Maneja errores específicos de TypeORM
    */
   private handleTypeORMError(
-    exception: any, 
+    exception: TypeOrmErrorShape, 
     timestamp: string, 
     path: string, 
     correlationId?: string
@@ -311,22 +364,23 @@ export class GlobalExceptionFilter implements ExceptionFilter {
    * Maneja errores genéricos
    */
   private handleGenericError(
-    exception: Error, 
+    exception: unknown, 
     timestamp: string, 
     path: string, 
     correlationId?: string
   ): FinalErrorResponse {
     const isProduction = process.env.NODE_ENV === 'production';
+    const errorInstance = exception instanceof Error ? exception : new Error(String(exception ?? 'Unknown error'));
     
     return {
       success: false,
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: isProduction ? 'Error interno del servidor' : exception.message,
+      message: isProduction ? 'Error interno del servidor' : errorInstance.message,
       errorCode: 'INTERNAL_SERVER_ERROR',
       timestamp,
       path,
       correlationId,
-      stack: isProduction ? undefined : exception.stack,
+      stack: isProduction ? undefined : errorInstance.stack,
     };
   }
 
@@ -336,7 +390,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private logException(exception: unknown, request: Request, errorResponse: FinalErrorResponse): void {
     const { method, url, headers } = request;
     const userAgent = headers['user-agent'];
-    const userInfo = (request as any).user;
+    const requestWithContext = request as RequestWithContext;
+    const userInfo = requestWithContext.user;
+    const stackTrace = exception instanceof Error ? exception.stack : undefined;
 
     const logContext = {
       correlationId: errorResponse.correlationId,
@@ -346,16 +402,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       errorCode: errorResponse.errorCode,
       userAgent,
       user: userInfo ? { id: userInfo.id, email: userInfo.email, role: userInfo.role } : null,
-      exception: {
-        name: (exception as any)?.name,
-        message: (exception as any)?.message,
-      },
+      exception: this.getExceptionInfo(exception),
     };
 
     if (errorResponse.statusCode >= 500) {
       this.logger.error(
         `Server Error: ${method} ${url} - ${errorResponse.statusCode}`,
-        (exception as Error)?.stack,
+        stackTrace,
         JSON.stringify(logContext, null, 2)
       );
     } else if (errorResponse.statusCode >= 400) {
@@ -400,29 +453,46 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   /**
    * Determina si es un error de validación de class-validator
    */
-  private isClassValidatorError(exception: unknown): boolean {
-    return (exception as any)?.response?.statusCode === 400 &&
-           Array.isArray((exception as any)?.response?.message);
+  private isClassValidatorError(exception: unknown): exception is ClassValidatorExceptionShape {
+    if (typeof exception !== 'object' || exception === null) {
+      return false;
+    }
+
+    const candidate = exception as ClassValidatorExceptionShape;
+    return candidate.response?.statusCode === HttpStatus.BAD_REQUEST &&
+           Array.isArray(candidate.response?.message);
   }
 
   /**
    * Determina si es un error de base de datos
    */
-  private isDatabaseError(exception: unknown): boolean {
-    const ex = exception as any;
-    return (ex?.code && typeof ex.code === 'string') ||
-           ex?.errno ||
-           ex?.sqlState;
+  private isDatabaseError(exception: unknown): exception is DatabaseErrorShape {
+    if (typeof exception !== 'object' || exception === null) {
+      return false;
+    }
+
+    const candidate = exception as DatabaseErrorShape;
+    return typeof candidate.code === 'string' ||
+           typeof candidate.errno !== 'undefined' ||
+           typeof candidate.sqlState === 'string';
   }
 
   /**
    * Determina si es un error de TypeORM
    */
-  private isTypeORMError(exception: unknown): boolean {
-    const ex = exception as any;
-    return ex?.name === 'QueryFailedError' ||
-           ex?.name === 'EntityNotFound' ||
-           ex?.name === 'CannotCreateEntityIdMapError';
+  private isTypeORMError(exception: unknown): exception is TypeOrmErrorShape {
+    if (typeof exception !== 'object' || exception === null) {
+      return false;
+    }
+
+    const candidate = exception as TypeOrmErrorShape;
+    if (typeof candidate.name !== 'string') {
+      return false;
+    }
+
+    return candidate.name === 'QueryFailedError' ||
+           candidate.name === 'EntityNotFound' ||
+           candidate.name === 'CannotCreateEntityIdMapError';
   }
 
   /**
@@ -438,5 +508,32 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
     
     return constraint;
+  }
+
+  private isValidationErrorDetail(value: unknown): value is ClassValidatorErrorDetail {
+    if (typeof value !== 'object' || value === null) {
+      return false;
+    }
+
+    const detail = value as ClassValidatorErrorDetail;
+    return typeof detail.property === 'string' &&
+           typeof detail.constraints === 'object' &&
+           detail.constraints !== null;
+  }
+
+  private getExceptionInfo(exception: unknown): { name?: string; message?: string } {
+    if (exception instanceof Error) {
+      return { name: exception.name, message: exception.message };
+    }
+
+    if (typeof exception === 'object' && exception !== null) {
+      const candidate = exception as { name?: unknown; message?: unknown };
+      return {
+        name: typeof candidate.name === 'string' ? candidate.name : undefined,
+        message: typeof candidate.message === 'string' ? candidate.message : undefined,
+      };
+    }
+
+    return {};
   }
 }

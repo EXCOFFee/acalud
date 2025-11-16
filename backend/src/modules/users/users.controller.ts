@@ -13,11 +13,15 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateAvatarResponseDto } from './dto/update-avatar-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from './user.entity';
 
@@ -138,6 +142,50 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<User> {
     return this.usersService.update(req.user.id, updateUserDto);
+  }
+
+  /**
+   * Actualiza el avatar del usuario autenticado
+   * CU-11: Modificar Avatar de Usuario
+   */
+  @Patch('profile/avatar')
+  @UseInterceptors(FileInterceptor('avatar'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Actualizar avatar del usuario autenticado' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        avatar: {
+          type: 'string',
+          format: 'binary',
+          description: 'Archivo de imagen para el avatar (JPG, PNG, WebP, máx 2MB)',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Avatar actualizado exitosamente',
+    type: UpdateAvatarResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Archivo inválido (tipo o tamaño no permitido)',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Usuario no encontrado',
+  })
+  async updateAvatar(
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<UpdateAvatarResponseDto> {
+    if (!file) {
+      throw new BadRequestException('Debes proporcionar un archivo de imagen');
+    }
+
+    return this.usersService.updateAvatar(req.user.id, file);
   }
 
   /**

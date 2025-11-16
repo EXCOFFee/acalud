@@ -10,6 +10,10 @@ import {
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../users/user.entity';
+import type { Question } from './question.entity';
+import type { GameResult } from './game-result.entity';
+import type { GameComment } from './game-comment.entity';
+import type { GameRating } from './game-rating.entity';
 
 export enum GameType {
   CROSSWORD = 'crossword',
@@ -121,11 +125,17 @@ export class Game {
   @JoinColumn({ name: 'createdById' })
   createdBy: User;
 
-  @OneToMany('Question', (question: any) => question.game)
-  questions: any[];
+  @OneToMany('Question', (question: Question) => question.game, { cascade: true })
+  questions: Question[];
 
-  @OneToMany('GameResult', (result: any) => result.game)
-  results: any[];
+  @OneToMany('GameResult', (result: GameResult) => result.game, { cascade: true })
+  results: GameResult[];
+
+  @OneToMany('GameComment', (comment: GameComment) => comment.game, { cascade: true })
+  comments: GameComment[];
+
+  @OneToMany('GameRating', (rating: GameRating) => rating.game, { cascade: true })
+  ratings: GameRating[];
 
   // Métodos calculados
   get averageScore(): number {

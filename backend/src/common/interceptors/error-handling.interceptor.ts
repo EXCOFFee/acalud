@@ -27,8 +27,38 @@ interface ErrorResponse {
   timestamp: string;
   path: string;
   correlationId: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   stack?: string;
+}
+
+type RequestUserContext = {
+  id?: string;
+  email?: string;
+  role?: string;
+};
+
+type RequestWithContext = Request & {
+  correlationId?: string;
+  user?: RequestUserContext | null;
+};
+
+interface DatabaseErrorShape {
+  code?: string;
+  name?: string;
+  constraint?: string;
+  detail?: string;
+  column?: string;
+  table?: string;
+}
+
+interface ValidationResponseShape {
+  statusCode?: number;
+  message?: string[];
+}
+
+interface ValidationErrorShape {
+  name?: string;
+  response?: ValidationResponseShape;
 }
 
 /**
@@ -39,13 +69,13 @@ interface ErrorResponse {
 export class ErrorHandlingInterceptor implements NestInterceptor {
   private readonly logger = new Logger(ErrorHandlingInterceptor.name);
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest<Request>();
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const request = context.switchToHttp().getRequest<RequestWithContext>();
     const response = context.switchToHttp().getResponse<Response>();
     const correlationId = this.generateCorrelationId();
     
     // Agregar correlation ID al request para tracking
-    request['correlationId'] = correlationId;
+    request.correlationId = correlationId;
 
     const startTime = Date.now();
 
@@ -57,11 +87,14 @@ export class ErrorHandlingInterceptor implements NestInterceptor {
       }),
       
       // Handle errors
-      catchError((error: Error) => {
+      catchError((error: unknown) => {
         const duration = Date.now() - startTime;
-        const errorResponse = this.handleError(error, request, correlationId);
+        const normalizedError = error instanceof Error
+          ? error
+          : new Error(String(error ?? 'Unknown error'));
+        const errorResponse = this.handleError(normalizedError, request, correlationId);
         
-        this.logError(error, request, duration, correlationId);
+        this.logError(normalizedError, request, duration, correlationId);
         
         // Return standardized error response
         return throwError(() => new HttpException(errorResponse, errorResponse.statusCode));
@@ -72,7 +105,7 @@ export class ErrorHandlingInterceptor implements NestInterceptor {
   /**
    * Maneja diferentes tipos de errores y los convierte a formato estándar
    */
-  private handleError(error: Error, request: Request, correlationId: string): ErrorResponse {
+  private handleError(error: Error, request: RequestWithContext, correlationId: string): ErrorResponse {
     const timestamp = new Date().toISOString();
     const path = request.url;
 
@@ -92,16 +125,30 @@ export class ErrorHandlingInterceptor implements NestInterceptor {
     // HTTP exceptions de NestJS
     if (error instanceof HttpException) {
       const status = error.getStatus();
-      const response = error.getResponse();
+      const responseBody = error.getResponse();
+      let message = error.message;
+      let details: Record<string, unknown> | undefined;
       
+      if (typeof responseBody === 'string') {
+        message = responseBody;
+      } else if (this.isRecord(responseBody)) {
+        const responseMessage = responseBody.message;
+        if (typeof responseMessage === 'string') {
+          message = responseMessage;
+        } else if (Array.isArray(responseMessage)) {
+          message = responseMessage.join(', ');
+        }
+        details = responseBody;
+      }
+
       return {
         statusCode: status,
-        message: typeof response === 'string' ? response : (response as any).message || error.message,
+        message,
         errorCode: this.getErrorCodeFromStatus(status),
         timestamp,
         path,
         correlationId,
-        details: typeof response === 'object' ? response : undefined,
+        details,
       };
     }
 
@@ -116,25 +163,15 @@ export class ErrorHandlingInterceptor implements NestInterceptor {
     }
 
     // Unknown errors
-    return {
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: process.env.NODE_ENV === 'production' 
-        ? 'Error interno del servidor' 
-        : error.message,
-      errorCode: 'INTERNAL_SERVER_ERROR',
-      timestamp,
-      path,
-      correlationId,
-      details: process.env.NODE_ENV === 'production' ? undefined : { stack: error.stack },
-    };
+    return this.buildGenericErrorResponse(error, timestamp, path, correlationId);
   }
 
   /**
    * Maneja errores de base de datos
    */
-  private handleDatabaseError(error: any, timestamp: string, path: string, correlationId: string): ErrorResponse {
+  private handleDatabaseError(error: DatabaseErrorShape, timestamp: string, path: string, correlationId: string): ErrorResponse {
     // PostgreSQL specific errors
-    if (error.code) {
+    if (typeof error.code === 'string') {
       switch (error.code) {
         case '23505': // Unique violation
           return {
@@ -220,14 +257,16 @@ export class ErrorHandlingInterceptor implements NestInterceptor {
   /**
    * Maneja errores de validación
    */
-  private handleValidationError(error: any, timestamp: string, path: string, correlationId: string): ErrorResponse {
+  private handleValidationError(error: ValidationErrorShape, timestamp: string, path: string, correlationId: string): ErrorResponse {
     const validationErrors: Record<string, string[]> = {};
 
-    if (error.response && error.response.message && Array.isArray(error.response.message)) {
-      error.response.message.forEach((msg: string) => {
-        const [field, ...messageParts] = msg.split(' ');
-        const message = messageParts.join(' ');
-        
+    const messages = Array.isArray(error.response?.message) ? error.response?.message : undefined;
+    if (messages) {
+      messages.forEach((msg) => {
+        const parts = msg.split(' ');
+        const field = parts.shift() ?? 'unknown';
+        const message = parts.join(' ');
+
         if (!validationErrors[field]) {
           validationErrors[field] = [];
         }
@@ -249,10 +288,10 @@ export class ErrorHandlingInterceptor implements NestInterceptor {
   /**
    * Registra errores con contexto completo
    */
-  private logError(error: Error, request: Request, duration: number, correlationId: string): void {
+  private logError(error: Error, request: RequestWithContext, duration: number, correlationId: string): void {
     const { method, url, headers, body, query, params } = request;
     const userAgent = headers['user-agent'];
-    const userInfo = (request as any).user;
+    const userInfo = request.user;
 
     const logContext = {
       correlationId,
@@ -260,8 +299,8 @@ export class ErrorHandlingInterceptor implements NestInterceptor {
       url,
       userAgent,
       duration,
-      query,
-      params,
+      query: this.toRecord(query),
+      params: this.toRecord(params),
       body: this.sanitizeBody(body),
       user: userInfo ? { id: userInfo.id, email: userInfo.email, role: userInfo.role } : null,
       error: {
@@ -281,10 +320,10 @@ export class ErrorHandlingInterceptor implements NestInterceptor {
   /**
    * Registra requests exitosos
    */
-  private logSuccess(request: Request, response: Response, duration: number, correlationId: string): void {
+  private logSuccess(request: RequestWithContext, response: Response, duration: number, correlationId: string): void {
     const { method, url } = request;
     const { statusCode } = response;
-    const userInfo = (request as any).user;
+    const userInfo = request.user;
 
     const logContext = {
       correlationId,
@@ -331,30 +370,53 @@ export class ErrorHandlingInterceptor implements NestInterceptor {
   /**
    * Determina si es un error de base de datos
    */
-  private isDatabaseError(error: any): boolean {
-    return error.code && typeof error.code === 'string' && 
-           (error.code.startsWith('23') || error.name === 'QueryFailedError');
+  private isDatabaseError(error: unknown): error is DatabaseErrorShape {
+    if (!this.isRecord(error)) {
+      return false;
+    }
+
+    const candidate = error as Record<string, unknown>;
+    const code = typeof candidate.code === 'string' ? candidate.code : undefined;
+    const name = typeof candidate.name === 'string' ? candidate.name : undefined;
+
+    if (code !== undefined && (code.startsWith('23') || code === 'ECONNREFUSED')) {
+      return true;
+    }
+
+    return name === 'QueryFailedError';
   }
 
   /**
    * Determina si es un error de validación
    */
-  private isValidationError(error: any): boolean {
-    return error.name === 'ValidationError' || 
-           (error.response && error.response.statusCode === 400 && 
-            error.response.message && Array.isArray(error.response.message));
+  private isValidationError(error: unknown): error is ValidationErrorShape {
+    if (!this.isRecord(error)) {
+      return false;
+    }
+
+    const candidate = error as Record<string, unknown>;
+    if (candidate.name === 'ValidationError') {
+      return true;
+    }
+
+    const response = this.isRecord(candidate.response) ? candidate.response as Record<string, unknown> : undefined;
+    const statusCode = typeof response?.statusCode === 'number' ? response.statusCode : undefined;
+    const messages = Array.isArray(response?.message) ? response.message as string[] : undefined;
+
+    return statusCode === HttpStatus.BAD_REQUEST && !!messages;
   }
 
   /**
    * Sanitiza el body del request para logging (remueve datos sensibles)
    */
-  private sanitizeBody(body: any): any {
-    if (!body || typeof body !== 'object') {
+  private sanitizeBody(body: unknown): unknown {
+    const recordBody = this.toRecordOrNull(body);
+    if (!recordBody) {
       return body;
     }
 
     const sensitiveFields = ['password', 'token', 'secret', 'key', 'authorization'];
-    const sanitized = { ...body };
+    const sanitized: Record<string, unknown> = { ...recordBody };
 
     Object.keys(sanitized).forEach(key => {
       if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
@@ -363,5 +425,35 @@ export class ErrorHandlingInterceptor implements NestInterceptor {
     });
 
     return sanitized;
+  }
+
+  private buildGenericErrorResponse(error: Error, timestamp: string, path: string, correlationId: string): ErrorResponse {
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    return {
+      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      message: isProduction ? 'Error interno del servidor' : error.message,
+      errorCode: 'INTERNAL_SERVER_ERROR',
+      timestamp,
+      path,
+      correlationId,
+      details: isProduction ? undefined : { stack: error.stack },
+    };
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+  }
+
+  private toRecord(value: unknown): Record<string, unknown> {
+    return this.toRecordOrNull(value) ?? {};
+  }
+
+  private toRecordOrNull(value: unknown): Record<string, unknown> | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+
+    return value as Record<string, unknown>;
   }
 }

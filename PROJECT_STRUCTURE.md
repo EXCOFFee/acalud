@@ -20,10 +20,13 @@ acalud/
 │
 ├── 📚 docs/                       # DOCUMENTACIÓN ORGANIZADA
 │   ├── 📄 README.md               # Índice de documentación
+│   ├── 🧭 Analisis_Requerimientos_AcaLud.md # Objetivo, alcance y requerimientos del producto
 │   ├── 🚀 DEPLOY.md               # Guía de deployment
 │   ├── 📋 MEJORAS_IMPLEMENTADAS.md # Documentación técnica detallada
 │   ├── 📊 RESUMEN_FINAL_IMPLEMENTACION.md # Resumen ejecutivo
-│   └── 📝 INSTRUCCIONES_GITHUB.md # Configuración de GitHub
+│   ├── 📝 INSTRUCCIONES_GITHUB.md # Configuración de GitHub
+│   └── 🖼️ assets/                 # Diagramas y material de apoyo
+│       └── diagrama-casos-uso.png # Diagrama general de casos de uso (referenciado en la documentación)
 │
 ├── 🔧 scripts/                    # SCRIPTS DE INSTALACIÓN
 │   ├── 📄 README.md               # Documentación de scripts

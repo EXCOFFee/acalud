@@ -96,7 +96,7 @@ export class CreateActivityDto {
   })
   @IsObject({ message: 'El contenido debe ser un objeto JSON válido' })
   @IsNotEmpty({ message: 'El contenido es obligatorio' })
-  content: Record<string, any>;
+  content: Record<string, unknown>;
 
   @ApiProperty({
     description: 'Recompensas por completar la actividad',
@@ -192,5 +192,5 @@ export class CreateActivityDto {
   })
   @IsOptional()
   @IsObject({ message: 'Las configuraciones deben ser un objeto JSON válido' })
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }

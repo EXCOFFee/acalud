@@ -61,153 +61,213 @@ export class ClassroomService implements IClassroomService {
 
   /**
    * Obtiene todas las aulas de un docente
+   * El backend obtiene el teacherId del JWT automáticamente
    */
-  async getClassroomsByTeacher(teacherId: string): Promise<Classroom[]> {
-    const classrooms: Classroom[] = [];
-    for (const classroom of this.classrooms.values()) {
-      if (classroom.teacherId === teacherId) {
-        classrooms.push(classroom);
-      }
+  async getClassroomsByTeacher(): Promise<Classroom[]> {
+    try {
+      const { httpClient } = await import('../http.service');
+      const response = await httpClient.get<Classroom[]>('/classrooms/my-classrooms');
+      
+      // Actualizar caché
+      response.forEach(classroom => {
+        this.classrooms.set(classroom.id, classroom);
+      });
+      
+      return response;
+    } catch (error: any) {
+      console.error('[ClassroomService] Error al obtener aulas del docente:', error);
+      return [];
     }
-    return classrooms;
   }
 
   /**
    * Obtiene todas las aulas donde está inscrito un estudiante
+   * El backend obtiene el studentId del JWT automáticamente
    */
-  async getClassroomsByStudent(studentId: string): Promise<Classroom[]> {
-    const classrooms: Classroom[] = [];
-    for (const classroom of this.classrooms.values()) {
-      if (classroom.students.some(student => student.id === studentId)) {
-        classrooms.push(classroom);
-      }
+  async getClassroomsByStudent(): Promise<Classroom[]> {
+    try {
+      const { httpClient } = await import('../http.service');
+      const response = await httpClient.get<Classroom[]>('/classrooms/my-classrooms');
+      
+      // Actualizar caché
+      response.forEach(classroom => {
+        this.classrooms.set(classroom.id, classroom);
+      });
+      
+      return response;
+    } catch (error: any) {
+      console.error('[ClassroomService] Error al obtener aulas del estudiante:', error);
+      return [];
     }
-    return classrooms;
   }
 
   /**
    * Obtiene un aula por su ID
    */
   async getClassroomById(classroomId: string): Promise<Classroom | null> {
-    return this.classrooms.get(classroomId) || null;
+    try {
+      const { httpClient } = await import('../http.service');
+      const response = await httpClient.get<Classroom>(`/classrooms/${classroomId}`);
+      
+      // Actualizar caché
+      this.classrooms.set(response.id, response);
+      
+      return response;
+    } catch (error: any) {
+      console.error('[ClassroomService] Error al obtener aula:', error);
+      return null;
+    }
   }
 
   /**
    * Crea una nueva aula virtual
    */
   async createClassroom(classroomData: Omit<Classroom, 'id' | 'createdAt' | 'updatedAt' | 'students' | 'activities' | 'inviteCode'>): Promise<Classroom> {
-    const teacher = await this.userService.getUserById(classroomData.teacherId);
-    if (!teacher) {
-      throw new Error('Docente no encontrado');
+    console.log('[ClassroomService] Creando aula:', classroomData);
+    
+    try {
+      // Importar httpClient dinámicamente
+      const { httpClient } = await import('../http.service');
+      
+      // Llamar al backend para crear el aula
+      const response = await httpClient.post<Classroom>(
+        '/classrooms',
+        classroomData
+      );
+      
+      console.log('[ClassroomService] Aula creada exitosamente:', response);
+      
+      // Actualizar caché local
+      this.classrooms.set(response.id, response);
+      
+      return response;
+    } catch (error: any) {
+      console.error('[ClassroomService] Error al crear aula:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Error al crear aula';
+      throw new Error(errorMessage);
     }
-
-    const newClassroom: Classroom = {
-      ...classroomData,
-      id: this.generateId(),
-      teacher: teacher,
-      students: [],
-      activities: [],
-      inviteCode: this.generateInviteCode(),
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    this.classrooms.set(newClassroom.id, newClassroom);
-    return newClassroom;
   }
 
   /**
    * Actualiza los datos de un aula
    */
   async updateClassroom(classroomId: string, updates: Partial<Classroom>): Promise<Classroom> {
-    const existingClassroom = this.classrooms.get(classroomId);
-    if (!existingClassroom) {
-      throw new Error('Aula no encontrada');
+    try {
+      const { httpClient } = await import('../http.service');
+      const response = await httpClient.patch<Classroom>(`/classrooms/${classroomId}`, updates);
+      
+      // Actualizar caché
+      this.classrooms.set(response.id, response);
+      
+      return response;
+    } catch (error: any) {
+      console.error('[ClassroomService] Error al actualizar aula:', error);
+      throw new Error(error.response?.data?.message || 'Error al actualizar aula');
     }
-
-    const updatedClassroom: Classroom = {
-      ...existingClassroom,
-      ...updates,
-      updatedAt: new Date()
-    };
-
-    this.classrooms.set(classroomId, updatedClassroom);
-    return updatedClassroom;
   }
 
   /**
    * Elimina un aula virtual
    */
   async deleteClassroom(classroomId: string): Promise<void> {
-    this.classrooms.delete(classroomId);
+    try {
+      const { httpClient } = await import('../http.service');
+      await httpClient.delete(`/classrooms/${classroomId}`);
+      
+      // Limpiar caché
+      this.classrooms.delete(classroomId);
+    } catch (error: any) {
+      console.error('[ClassroomService] Error al eliminar aula:', error);
+      throw new Error(error.response?.data?.message || 'Error al eliminar aula');
+    }
   }
 
   /**
    * Obtiene un aula por su código de invitación
    */
   async getClassroomByInviteCode(inviteCode: string): Promise<Classroom | null> {
-    for (const classroom of this.classrooms.values()) {
-      if (classroom.inviteCode === inviteCode) {
-        return classroom;
-      }
+    try {
+      const { httpClient } = await import('../http.service');
+      
+      // Llamar al endpoint de preview que incluye los datos del profesor
+      const response = await httpClient.get<Classroom>(`/classrooms/preview/${inviteCode}`);
+      
+      console.log('[ClassroomService] Aula encontrada con código:', response);
+      
+      // Actualizar caché
+      this.classrooms.set(response.id, response);
+      
+      return response;
+    } catch (error: any) {
+      console.error('[ClassroomService] Error al buscar aula por código:', error);
+      return null;
     }
-    return null;
   }
 
   /**
    * Agrega un estudiante a un aula usando código de invitación
    */
-  async joinClassroomByCode(inviteCode: string, studentId: string): Promise<Classroom> {
-    // Buscar aula por código de invitación
-    let targetClassroom: Classroom | null = null;
-    for (const classroom of this.classrooms.values()) {
-      if (classroom.inviteCode === inviteCode) {
-        targetClassroom = classroom;
-        break;
-      }
+  async joinClassroomByCode(inviteCode: string): Promise<Classroom> {
+    console.log('[ClassroomService] Uniendose al aula con código:', inviteCode);
+    
+    try {
+      // Importar httpClient dinámicamente
+      const { httpClient } = await import('../http.service');
+      
+      // Llamar al backend - el userId se obtiene del JWT automáticamente
+      const response = await httpClient.post<Classroom>(
+        '/classrooms/join',
+        { inviteCode }
+      );
+      
+      console.log('[ClassroomService] Unido exitosamente al aula:', response);
+      
+      // Actualizar caché local
+      this.classrooms.set(response.id, response);
+      
+      return response;
+    } catch (error: any) {
+      console.error('[ClassroomService] Error al unirse al aula:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Error al unirse al aula';
+      throw new Error(errorMessage);
     }
-
-    if (!targetClassroom) {
-      throw new Error('Código de invitación inválido');
-    }
-
-    // Verificar que el usuario sea estudiante
-    const student = await this.userService.getUserById(studentId);
-    if (!student || student.role !== 'student') {
-      throw new Error('Solo los estudiantes pueden unirse a las aulas');
-    }
-
-    // Verificar que no esté ya inscrito
-    if (targetClassroom.students.some(s => s.id === studentId)) {
-      throw new Error('El estudiante ya está inscrito en esta aula');
-    }
-
-    // Agregar estudiante al aula
-    const updatedStudents = [...targetClassroom.students, student];
-    return this.updateClassroom(targetClassroom.id, { students: updatedStudents });
   }
 
   /**
    * Remueve un estudiante de un aula
+   * El backend obtiene el studentId del JWT automáticamente
    */
-  async removeStudentFromClassroom(classroomId: string, studentId: string): Promise<Classroom> {
-    const classroom = this.classrooms.get(classroomId);
-    if (!classroom) {
-      throw new Error('Aula no encontrada');
-    }
+  async removeStudentFromClassroom(classroomId: string): Promise<void> {
+    try {
+      const { httpClient } = await import('../http.service');
+      // El backend tiene un endpoint específico para salir del aula
+      await httpClient.delete(`/classrooms/${classroomId}/leave`);
 
-    const updatedStudents = classroom.students.filter(student => student.id !== studentId);
-    return this.updateClassroom(classroomId, { students: updatedStudents });
+      // El servidor responde con 204, así que solo limpiamos la caché local
+      this.classrooms.delete(classroomId);
+    } catch (error: any) {
+      console.error('[ClassroomService] Error al salir del aula:', error);
+      throw new Error(error.response?.data?.message || 'Error al salir del aula');
+    }
   }
 
   /**
    * Genera un nuevo código de invitación para un aula
    */
   async generateNewInviteCode(classroomId: string): Promise<string> {
-    const newCode = this.generateInviteCode();
-    await this.updateClassroom(classroomId, { inviteCode: newCode });
-    return newCode;
+    try {
+      const { httpClient } = await import('../http.service');
+      // El backend tiene un endpoint específico para regenerar código
+      const response = await httpClient.post<Classroom>(`/classrooms/${classroomId}/regenerate-code`);
+      
+      // Actualizar caché
+      this.classrooms.set(response.id, response);
+      
+      return response.inviteCode;
+    } catch (error: any) {
+      console.error('[ClassroomService] Error al regenerar código:', error);
+      throw new Error(error.response?.data?.message || 'Error al regenerar código');
+    }
   }
 
   /**
@@ -219,29 +279,27 @@ export class ClassroomService implements IClassroomService {
     averageCompletion: number;
     averageScore: number;
   }> {
-    const classroom = this.classrooms.get(classroomId);
-    if (!classroom) {
-      throw new Error('Aula no encontrada');
+    try {
+      const { httpClient } = await import('../http.service');
+      // El backend tiene un endpoint específico para estadísticas
+      const response = await httpClient.get<any>(`/classrooms/${classroomId}/stats`);
+      
+      return response;
+    } catch (error: any) {
+      console.error('[ClassroomService] Error al obtener estadísticas:', error);
+      // Devolver valores por defecto en caso de error
+      return {
+        totalStudents: 0,
+        totalActivities: 0,
+        averageCompletion: 0,
+        averageScore: 0
+      };
     }
-
-    // Calcular estadísticas básicas
-    const totalStudents = classroom.students.length;
-    const totalActivities = classroom.activities.length;
-
-    // Para el prototipo, usar valores simulados
-    const averageCompletion = totalActivities > 0 ? 75 : 0;
-    const averageScore = totalActivities > 0 ? 82 : 0;
-
-    return {
-      totalStudents,
-      totalActivities,
-      averageCompletion,
-      averageScore
-    };
   }
 
   /**
    * Genera un código de invitación único
+   * Solo se usa para datos de demostración locales
    */
   private generateInviteCode(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -250,12 +308,5 @@ export class ClassroomService implements IClassroomService {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
-  }
-
-  /**
-   * Genera un ID único para nuevas aulas
-   */
-  private generateId(): string {
-    return `classroom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 }

@@ -32,7 +32,7 @@
 // 📦 IMPORTACIONES NECESARIAS
 import React, { useState } from 'react';                                        // React y hook de estado
 import { LogIn, Eye, EyeOff, Mail, Lock, AlertCircle } from 'lucide-react';    // Iconos para la interfaz
-import { useAuth } from '../../contexts/AuthContext';                          // Hook de autenticación
+import { useAuth } from '../../contexts/useAuth';                          // Hook de autenticación
 
 /**
  * 📋 PROPIEDADES DEL COMPONENTE
@@ -52,7 +52,7 @@ interface LoginFormProps {
  * 
  * @param onSwitchToRegister - Función para cambiar al formulario de registro
  */
-export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
+export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }: LoginFormProps) => {
   
   // 🔐 OBTENER FUNCIONES DE AUTENTICACIÓN DEL CONTEXTO
   // useAuth() nos conecta con el sistema global de autenticación

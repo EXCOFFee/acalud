@@ -4,7 +4,7 @@
 // Header responsivo con navegación adaptada según el rol del usuario
 
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/useAuth';
 import { 
   BookOpen, 
   User, 
@@ -35,6 +35,28 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  /**
+   * 🚪 Manejar cierre de sesión
+   * 
+   * ✅ MEJORA: Limpia la página guardada en localStorage
+   * antes de cerrar sesión para que al hacer login de nuevo
+   * empiece desde el dashboard.
+   */
+  const handleLogout = () => {
+    console.log('🚪 [Header] Cerrando sesión...');
+    
+    // 🗑️ Limpiar página guardada
+    try {
+      localStorage.removeItem('acalud_current_page');
+      console.log('🗑️ [Header] Página guardada limpiada');
+    } catch (error) {
+      console.error('❌ [Header] Error al limpiar página:', error);
+    }
+    
+    // 🚪 Ejecutar logout del contexto
+    logout();
+  };
 
   /**
    * Configuración de navegación para docentes
@@ -148,7 +170,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
               
               {/* Botón de logout */}
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50"
                 title="Cerrar Sesión"
               >
@@ -220,11 +242,11 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
               
               {/* Botón de logout en móvil */}
               <button
-                onClick={logout}
-                className="w-full text-left px-3 py-3 rounded-lg text-base font-medium text-red-600 hover:bg-red-50 flex items-center space-x-3 mt-4 border-t border-gray-200 pt-4"
+                onClick={handleLogout}
+                className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
               >
                 <LogOut className="w-5 h-5" />
-                <span>Cerrar Sesión</span>
+                <span className="font-medium">Cerrar Sesión</span>
               </button>
             </div>
           </div>

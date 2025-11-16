@@ -34,8 +34,8 @@
  */
 
 // 📦 IMPORTACIONES NECESARIAS
-import React, { useState, useEffect } from 'react'; // React y hooks básicos
-import { useAuth } from '../../contexts/AuthContext'; // Para obtener datos del profesor
+import React, { useMemo, useState, useEffect } from 'react'; // React y hooks básicos
+import { useAuth } from '../../contexts/useAuth'; // Para obtener datos del profesor
 import { ClassroomService } from '../../services/implementations/ClassroomService'; // Servicio de aulas
 import { Classroom } from '../../types'; // Tipo de datos para aulas
 import { 
@@ -66,9 +66,18 @@ import {
  * - 'classroom-detail': Para ver detalles de un aula
  * - 'create-activity': Para crear actividad en un aula específica
  */
+type ClassroomPage = 'create-classroom' | 'edit-classroom' | 'classroom-detail' | 'create-activity';
+
+type ClassroomNavigationPayloadMap = {
+  'create-classroom': undefined;
+  'edit-classroom': { classroomId: string };
+  'classroom-detail': { classroomId: string };
+  'create-activity': { classroomId: string };
+};
+
 interface ClassroomManagementProps {
-  // Función para navegar a otras páginas con datos opcionales
-  onNavigate: (page: string, data?: any) => void;
+  // Función para navegar a otras páginas con datos tipados
+  onNavigate: <Page extends ClassroomPage>(page: Page, data?: ClassroomNavigationPayloadMap[Page]) => void;
 }
 
 /**
@@ -164,7 +173,7 @@ export const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ onNavi
   // ========================================================================
   
   // Servicio para manejar operaciones con aulas
-  const classroomService = ClassroomService.getInstance();
+  const classroomService = useMemo(() => ClassroomService.getInstance(), []);
 
   // ========================================================================
   // 🔄 EFFECT HOOK - CARGA INICIAL DE DATOS
@@ -195,7 +204,7 @@ export const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ onNavi
         setError(null); // Limpiar errores previos
         
         // 📞 Llamada al servidor para obtener aulas del profesor
-        const userClassrooms = await classroomService.getClassroomsByTeacher(user.id);
+        const userClassrooms = await classroomService.getClassroomsByTeacher();
         
         // 💾 Guardar datos originales
         setClassrooms(userClassrooms);
@@ -215,7 +224,7 @@ export const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ onNavi
 
     // 🚀 Ejecutar la función de carga
     loadClassrooms();
-  }, [user]); // 👀 Dependencia: solo ejecutar cuando 'user' cambie
+  }, [user, classroomService]); // 👀 Dependencia: solo ejecutar cuando 'user' cambie
 
   // ========================================================================
   // 🔍 EFFECT HOOK - SISTEMA DE FILTROS EN TIEMPO REAL
@@ -287,7 +296,7 @@ export const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ onNavi
    * - key: qué filtro cambiar ('search', 'subject', 'isActive')
    * - value: nuevo valor para ese filtro
    */
-  const updateFilter = (key: keyof ClassroomFilters, value: any) => {
+  const updateFilter = <Key extends keyof ClassroomFilters>(key: Key, value: ClassroomFilters[Key]) => {
     setFilters(prev => ({ 
       ...prev,      // Mantener todos los filtros existentes
       [key]: value  // Cambiar solo el filtro especificado

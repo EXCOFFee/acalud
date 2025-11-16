@@ -10,6 +10,11 @@
  * - No dependen de implementaciones concretas
  */
 
+import type { Classroom as ClassroomEntity } from '../classroom.entity';
+import type { ClassroomInvitation as ClassroomInvitationEntity, InvitationStatus as InvitationStatusEnum } from '../classroom-invitation.entity';
+import type { User as UserEntity } from '../../users/user.entity';
+import type { Activity as ActivityEntity } from '../../activities/activity.entity';
+
 // ============================================================================
 // 📊 REPOSITORIO DE AULAS (ACCESO A DATOS)
 // ============================================================================
@@ -18,6 +23,8 @@ export interface IClassroomRepository {
   findById(id: string): Promise<Classroom | null>;
   findByInviteCode(code: string): Promise<Classroom | null>;
   findWithFilters(filters: ClassroomFilters): Promise<PaginatedResult<Classroom>>;
+  findTeacherClassrooms(teacherId: string): Promise<Classroom[]>;
+  findStudentClassrooms(studentId: string): Promise<Classroom[]>;
   update(id: string, updateData: Partial<Classroom>): Promise<Classroom>;
   delete(id: string): Promise<void>;
   addStudent(classroomId: string, studentId: string): Promise<Classroom>;
@@ -58,18 +65,100 @@ export interface IPermissionValidator {
 }
 
 // ============================================================================
+// ✉️ SERVICIOS DE INVITACIONES A AULAS
+// ============================================================================
+
+export interface SendInvitationsOptions {
+  message?: string;
+  redirectUrl?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface InvitationDispatchItem {
+  email: string;
+  token: string;
+  expiresAt?: Date | null;
+  status: 'sent' | 'queued' | 'skipped';
+  reason?: string;
+}
+
+export interface InvitationDispatchResult {
+  classroomId: string;
+  requested: number;
+  processed: InvitationDispatchItem[];
+}
+
+export interface InvitationValidationResult {
+  valid: boolean;
+  status: InvitationStatus;
+  token: string;
+  email?: string;
+  classroom?: {
+    id: string;
+    name: string;
+    subject: string;
+    grade: string;
+    teacherName?: string;
+  };
+  expiresAt?: Date | null;
+  message?: string;
+  reason?: string;
+}
+
+export interface InvitationConsumptionResult {
+  status: InvitationStatus;
+  classroomId: string;
+  studentId: string;
+  email: string;
+}
+
+export interface CreateInvitationData {
+  classroomId: string;
+  email: string;
+  token: string;
+  invitedById: string;
+  expiresAt?: Date | null;
+  message?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface IClassroomInvitationRepository {
+  createOrUpdatePending(data: CreateInvitationData): Promise<ClassroomInvitation>;
+  findByToken(token: string): Promise<ClassroomInvitation | null>;
+  findPendingByEmail(classroomId: string, email: string): Promise<ClassroomInvitation | null>;
+  listByClassroom(classroomId: string): Promise<ClassroomInvitation[]>;
+  findById(invitationId: string): Promise<ClassroomInvitation | null>;
+  save(invitation: ClassroomInvitation): Promise<ClassroomInvitation>;
+  updateStatus(invitationId: string, status: InvitationStatus, payload?: Partial<ClassroomInvitation>): Promise<ClassroomInvitation>;
+}
+
+export interface IClassroomInvitationService {
+  sendInvitations(classroomId: string, teacherId: string, emails: string[], options?: SendInvitationsOptions): Promise<InvitationDispatchResult>;
+  listInvitations(classroomId: string, requesterId: string): Promise<ClassroomInvitation[]>;
+  validateInvitationToken(token: string): Promise<InvitationValidationResult>;
+  consumeInvitationToken(token: string, userId: string, email: string): Promise<InvitationConsumptionResult>;
+  resendInvitation(classroomId: string, invitationId: string, requesterId: string, options?: SendInvitationsOptions): Promise<ClassroomInvitation>;
+  revokeInvitation(classroomId: string, invitationId: string, requesterId: string): Promise<ClassroomInvitation>;
+}
+
+// ============================================================================
 // 🎯 SERVICIO PRINCIPAL DE AULAS
 // ============================================================================
 export interface IClassroomService {
   createClassroom(data: CreateClassroomDto, teacherId: string): Promise<Classroom>;
   findClassrooms(filters: ClassroomFilters): Promise<PaginatedResult<Classroom>>;
   findClassroomById(id: string): Promise<Classroom>;
+  findClassroomByInviteCode(inviteCode: string): Promise<Classroom>;
   updateClassroom(id: string, data: UpdateClassroomDto, userId: string): Promise<Classroom>;
   deleteClassroom(id: string, userId: string): Promise<void>;
   joinClassroom(data: JoinClassroomDto, studentId: string): Promise<Classroom>;
   leaveClassroom(classroomId: string, studentId: string): Promise<void>;
   generateNewInviteCode(classroomId: string, userId: string): Promise<string>;
   getClassroomStats(classroomId: string): Promise<ClassroomStats>;
+  getTeacherClassrooms(teacherId: string): Promise<Classroom[]>;
+  getStudentClassrooms(studentId: string): Promise<Classroom[]>;
+  addActivityToClassroom(classroomId: string, activityId: string, userId: string): Promise<Classroom>;
+  removeActivityFromClassroom(classroomId: string, activityId: string, userId: string): Promise<void>;
 }
 
 // ============================================================================
@@ -85,9 +174,14 @@ export interface CreateClassroomData {
   inviteCode: string;
   color?: string;
   coverImage?: string;
-  settings: Record<string, any>; // Cambiar para coincidir con la entidad
+  settings: Record<string, unknown>; // Coincide con la entidad para evitar any innecesario
   isActive: boolean;
   createdAt: Date;
+  level: 'básico' | 'intermedio' | 'avanzado'; // Nivel académico declarado para facilitar filtros
+  timezone: string; // Zona horaria usada para programar actividades
+  language: 'es' | 'en' | 'fr' | 'pt'; // Idioma principal del aula
+  tags?: string[]; // Etiquetas opcionales que ayudan a agrupar aulas
+  invitedStudentEmails?: string[]; // Correos almacenados para controlar invitaciones pendientes
 }
 
 export interface ClassroomFilters {
@@ -136,30 +230,6 @@ export interface ClassroomStats {
 }
 
 // ============================================================================
-// 🎯 ENTIDAD DE AULA SIMPLIFICADA
-// ============================================================================
-export interface Classroom {
-  id: string;
-  name: string;
-  description: string;
-  subject: string;
-  grade: string;
-  inviteCode: string;
-  color: string;
-  coverImage?: string;
-  settings: Record<string, any>; // Cambiar para coincidir con la entidad
-  isActive: boolean;
-  teacherId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  
-  // Relaciones (opcional - depende del contexto)
-  teacher?: User;
-  students?: User[];
-  activities?: Activity[];
-}
-
-// ============================================================================
 // 📝 DTOS SIMPLIFICADOS
 // ============================================================================
 export interface CreateClassroomDto {
@@ -170,6 +240,11 @@ export interface CreateClassroomDto {
   color?: string;
   coverImage?: string;
   settings?: Partial<ClassroomSettings>;
+  level?: 'básico' | 'intermedio' | 'avanzado'; // Nivel opcional especificado al crear
+  timezone?: string; // Zona horaria opcional al crear
+  language?: 'es' | 'en' | 'fr' | 'pt'; // Idioma opcional al crear
+  tags?: string[]; // Etiquetas opcionales al crear
+  invitedStudentEmails?: string[]; // Correos opcionales para invitar estudiantes
 }
 
 export interface UpdateClassroomDto {
@@ -180,6 +255,11 @@ export interface UpdateClassroomDto {
   color?: string;
   coverImage?: string;
   settings?: Partial<ClassroomSettings>;
+  level?: 'básico' | 'intermedio' | 'avanzado'; // Nivel opcional al actualizar
+  timezone?: string; // Zona horaria opcional al actualizar
+  language?: 'es' | 'en' | 'fr' | 'pt'; // Idioma opcional al actualizar
+  tags?: string[]; // Etiquetas opcionales al actualizar
+  invitedStudentEmails?: string[]; // Correos adicionales para invitar desde la edición
 }
 
 export interface JoinClassroomDto {
@@ -187,33 +267,10 @@ export interface JoinClassroomDto {
 }
 
 // ============================================================================
-// 👤 ENTIDADES RELACIONADAS (REFERENCIAS)
+// 👤 REFERENCIAS A ENTIDADES REALES
 // ============================================================================
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  name: string;
-  dateOfBirth?: Date;
-  bio?: string;
-  role: 'teacher' | 'student' | 'admin';
-  avatar?: string;
-  coins: number;
-  level: number;
-  experience: number;
-  isActive: boolean;
-  lastLoginAt?: Date;
-  loginAttempts: number;
-  lockedUntil?: Date;
-  preferences: Record<string, any>;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Activity {
-  id: string;
-  title: string;
-  type: string;
-  isActive: boolean;
-}
+export type Classroom = ClassroomEntity;
+export type User = UserEntity;
+export type Activity = ActivityEntity;
+export type ClassroomInvitation = ClassroomInvitationEntity;
+export type InvitationStatus = InvitationStatusEnum;

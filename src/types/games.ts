@@ -190,7 +190,31 @@ export interface TriviaQuestion {
 }
 
 /**
- * 🎵🖼️ Contenido multimedia para enriquecer preguntas
+ * ▶️ Información inicial al comenzar una trivia
+ * Incluye la primera pregunta y configuración relevante
+ */
+export interface TriviaSessionStart {
+  readonly sessionId: string;          // � Identificador de la sesión
+  readonly firstQuestion: TriviaQuestion; // ❓ Primera pregunta a responder
+  readonly totalQuestions: number;     // 🔢 Total de preguntas en la sesión
+  readonly timePerQuestion: number;    // ⏱️ Tiempo disponible por pregunta (segundos)
+}
+
+/**
+ * ✅ Resultado de responder una pregunta de trivia
+ * Proporciona feedback inmediato y la siguiente pregunta cuando aplica
+ */
+export interface TriviaAnswerResult {
+  readonly isCorrect: boolean;         // ✅ ¿La respuesta fue correcta?
+  readonly correctAnswer: string | string[]; // ✔️ Respuesta correcta
+  readonly explanation: string;        // 💡 Explicación educativa
+  readonly pointsEarned: number;       // 🏆 Puntos obtenidos
+  readonly nextQuestion?: TriviaQuestion; // 👉 Próxima pregunta si la sesión continúa
+  readonly isCompleted: boolean;       // 🏁 ¿Se completó la trivia?
+}
+
+/**
+ * �🎵🖼️ Contenido multimedia para enriquecer preguntas
  * Mejora la experiencia de aprendizaje visual y auditiva
  */
 export interface MultimediaContent {
@@ -250,6 +274,57 @@ export interface CrosswordClue {
   readonly startRow: number;           // 📍 Fila de inicio
   readonly startCol: number;           // 📍 Columna de inicio
   readonly difficulty: DifficultyLevel; // 📊 Dificultad específica
+}
+
+/**
+ * 🧱 Información mínima de una celda recibida desde el backend
+ * Utilizada para construir la cuadrícula interactiva en el frontend
+ */
+export interface CrosswordGridCellInput {
+  readonly letter?: string;            // 🔤 Letra asignada a la celda
+  readonly isBlocked?: boolean;        // 🚫 ¿Es una celda bloqueada?
+  readonly number?: number | null;     // 🔢 Número de referencia mostrado
+  readonly isHorizontal?: boolean;     // ↔️ Marca inicio horizontal
+  readonly isVertical?: boolean;       // ↕️ Marca inicio vertical
+}
+
+/**
+ * 🔢 Cuadrícula cruda proporcionada por el backend
+ */
+export type CrosswordGridInput = CrosswordGridCellInput[][];
+
+/**
+ * 💡 Pista básica proveniente del backend
+ */
+export interface CrosswordClueInput {
+  readonly id: string;                 // 🆔 Identificador único
+  readonly number: number;             // 🔢 Número mostrado en la cuadrícula
+  readonly direction: 'horizontal' | 'vertical'; // ↔️↕️ Dirección de la palabra
+  readonly clue: string;               // 💭 Texto de la pista
+  readonly answer: string;             // ✅ Respuesta correcta
+  readonly startPosition: [number, number]; // 📍 Posición inicial [fila, columna]
+  readonly length: number;             // 📏 Longitud de la palabra
+}
+
+/**
+ * 🗂️ Datos completos de un crucigrama listos para renderizar
+ */
+export interface CrosswordGameData {
+  readonly sessionId: string;          // 🆔 Sesión vinculada al crucigrama
+  readonly grid: CrosswordGridInput;   // 🔲 Cuadrícula para el juego
+  readonly clues: CrosswordClueInput[]; // 💡 Lista de pistas
+  readonly totalPoints: number;        // 🏆 Puntaje máximo posible
+  readonly timeLimit: number;          // ⏱️ Tiempo límite en segundos
+}
+
+/**
+ * 🛠️ Resultado de generar un crucigrama dinámicamente
+ */
+export interface GeneratedCrossword {
+  readonly grid: CrosswordGridInput;   // 🔲 Cuadrícula generada
+  readonly clues: CrosswordClueInput[]; // 💡 Pistas resultantes
+  readonly difficulty: DifficultyLevel; // 📊 Nivel de dificultad asignado
+  readonly estimatedTime: number;      // ⏱️ Tiempo estimado de resolución (min)
 }
 
 /**
@@ -377,6 +452,58 @@ export interface DialogueResponse {
 }
 
 /**
+ * 🎬 Estado inicial de una simulación al comenzar
+ */
+export interface SimulationStartState {
+  readonly sessionId: string;          // 🆔 Identificador de la sesión
+  readonly currentScene: SimulationScene; // 🎥 Escena actual
+  readonly characters: SimulationCharacter[]; // 👥 Personajes disponibles
+  readonly objectives: LearningObjective[]; // 🎯 Objetivos activos
+  readonly initialContext: string;     // 📖 Contexto narrativo
+}
+
+/**
+ * 🎯 Resultado de ejecutar una acción dentro de la simulación
+ */
+export interface SimulationActionResult {
+  readonly consequence: ActionConsequence; // 📊 Consecuencia aplicada
+  readonly nextScene: SimulationScene; // 🎬 Escena resultante
+  readonly pointsAwarded: number;      // 🏆 Puntos obtenidos
+  readonly feedback: string;           // 💬 Retroalimentación
+  readonly isSimulationComplete: boolean; // 🏁 ¿Finalizó la simulación?
+}
+
+/**
+ * 💬 Resultado de interactuar con un personaje
+ */
+export interface SimulationInteractionResult {
+  readonly characterResponse: string;  // 💬 Respuesta recibida
+  readonly relationshipChange: number; // ❤️ Cambio en relación
+  readonly unlockedOptions: string[];  // 🔓 Opciones desbloqueadas
+  readonly narrative: string;          // 📖 Narrativa adicional
+}
+
+/**
+ * 📝 Respuesta devuelta al registrar una interacción de juego
+ */
+export interface SubmitGameResponseResult {
+  readonly isCorrect: boolean;         // ✅ ¿La respuesta fue correcta?
+  readonly feedback: string;           // 💬 Retroalimentación inmediata
+  readonly pointsEarned: number;       // 🏆 Puntos obtenidos
+  readonly nextStep?: string;          // 🔜 Próximo paso sugerido
+}
+
+/**
+ * 🏁 Información al finalizar una sesión de juego
+ */
+export interface FinishGameSessionResult {
+  readonly finalScore: number;         // 🏆 Puntaje final
+  readonly achievements: string[];     // 🥇 Logros obtenidos
+  readonly recommendations: Recommendation[]; // 💡 Recomendaciones personalizadas
+  readonly certificate?: string;       // 📄 Certificado emitido (si aplica)
+}
+
+/**
  * 🎯 Objetivo de aprendizaje
  * Meta educativa específica de la simulación
  */
@@ -470,7 +597,7 @@ export interface Checkpoint {
   readonly name: string;               // 📝 Nombre del checkpoint
   readonly reachedAt: Date;            // ⏰ Momento en que se alcanzó
   readonly scoreAtCheckpoint: number;  // 🏆 Puntuación al llegar
-  readonly data: any;                  // 💾 Datos específicos del estado
+  readonly data: unknown;              // 💾 Datos específicos del estado
 }
 
 /**
@@ -493,8 +620,8 @@ export interface Achievement {
  */
 export interface GameResponse {
   readonly questionId: string;         // ❓ ID de la pregunta respondida
-  readonly userAnswer: any;            // 📝 Respuesta del estudiante
-  readonly correctAnswer: any;         // ✅ Respuesta correcta
+  readonly userAnswer: unknown;        // 📝 Respuesta del estudiante
+  readonly correctAnswer: unknown;     // ✅ Respuesta correcta
   readonly isCorrect: boolean;         // ✅ ¿Es correcta la respuesta?
   readonly timeSpent: number;          // ⏱️ Tiempo para responder (segundos)
   readonly pointsEarned: number;       // 🏆 Puntos ganados
@@ -921,7 +1048,7 @@ export type OperationResult<T> = {
 } | {
   success: false;
   error: string;
-  details?: any;
+  details?: unknown;
 };
 
 /**

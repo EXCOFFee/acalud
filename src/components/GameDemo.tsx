@@ -22,6 +22,15 @@ import { GameType, Subject, DifficultyLevel } from '../types/games';
 // 📝 INTERFACES
 // ============================================================================
 
+const GAME_THEMES = ['default', 'dark', 'colorful', 'minimal'] as const;
+type GameTheme = typeof GAME_THEMES[number];
+
+interface GameConfigState {
+  subject: Subject;
+  difficulty: DifficultyLevel;
+  theme: GameTheme;
+}
+
 interface GameDemoProps {
   /** 🎯 Tipo de juego por defecto */
   defaultGameType?: GameType;
@@ -53,11 +62,21 @@ export const GameDemo: React.FC<GameDemoProps> = ({
   
   // 🎯 Estado del selector de juegos
   const [selectedGame, setSelectedGame] = useState<GameType | null>(null);
-  const [gameConfig, setGameConfig] = useState({
+  const [gameConfig, setGameConfig] = useState<GameConfigState>({
     subject: defaultSubject,
     difficulty: defaultDifficulty,
-    theme: 'default' as const
+    theme: 'default'
   });
+
+  const isGameTheme = (value: string): value is GameTheme =>
+    GAME_THEMES.some((theme) => theme === value);
+
+  const handleThemeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const { value } = event.target;
+    if (isGameTheme(value)) {
+      setGameConfig((prev) => ({ ...prev, theme: value }));
+    }
+  };
   
   // 🎮 Función para iniciar un juego
   const startGame = (gameType: GameType) => {
@@ -152,7 +171,7 @@ export const GameDemo: React.FC<GameDemoProps> = ({
               </label>
               <select
                 value={gameConfig.theme}
-                onChange={(e) => setGameConfig(prev => ({ ...prev, theme: e.target.value as any }))}
+                onChange={handleThemeChange}
                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="default">🌅 Por defecto</option>

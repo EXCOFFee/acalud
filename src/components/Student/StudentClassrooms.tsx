@@ -3,8 +3,8 @@
 // ============================================================================
 // Vista de aulas disponibles y actividades para estudiantes
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../../contexts/useAuth';
 import { ClassroomService } from '../../services/implementations/ClassroomService';
 import { ActivityService } from '../../services/implementations/ActivityService';
 import { Classroom, Activity, ActivityCompletion } from '../../types';
@@ -23,14 +23,21 @@ import {
   Eye,
   Calendar,
   User,
-  ArrowRight
+  ArrowRight,
+  LogOut
 } from 'lucide-react';
 
 /**
  * Props del componente StudentClassrooms
  */
+type StudentNavigationHandler = {
+  (page: 'join-classroom'): void;
+  (page: 'activity-detail', data: { activityId: string; classroomId: string }): void;
+};
+
 interface StudentClassroomsProps {
-  onNavigate: (page: string, data?: any) => void;
+  onNavigate: StudentNavigationHandler;
+  initialClassroomId?: string; // ID de aula a mostrar inicialmente
 }
 
 /**
@@ -58,7 +65,7 @@ interface ActivityWithProgress extends Activity {
  * Componente para que estudiantes vean sus aulas y actividades
  * Incluye filtros, búsqueda y seguimiento de progreso
  */
-export const StudentClassrooms: React.FC<StudentClassroomsProps> = ({ onNavigate }) => {
+export const StudentClassrooms: React.FC<StudentClassroomsProps> = ({ onNavigate, initialClassroomId }) => {
   const { user } = useAuth();
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null);
@@ -66,6 +73,7 @@ export const StudentClassrooms: React.FC<StudentClassroomsProps> = ({ onNavigate
   const [filteredActivities, setFilteredActivities] = useState<ActivityWithProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingActivities, setIsLoadingActivities] = useState(false);
+  const [isLeavingClassroom, setIsLeavingClassroom] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'classrooms' | 'activities'>('classrooms');
   
@@ -78,8 +86,8 @@ export const StudentClassrooms: React.FC<StudentClassroomsProps> = ({ onNavigate
     classroomId: ''
   });
 
-  const classroomService = ClassroomService.getInstance();
-  const activityService = ActivityService.getInstance();
+  const classroomService = useMemo(() => ClassroomService.getInstance(), []);
+  const activityService = useMemo(() => ActivityService.getInstance(), []);
 
   /**
    * Cargar aulas del estudiante
@@ -92,14 +100,12 @@ export const StudentClassrooms: React.FC<StudentClassroomsProps> = ({ onNavigate
         setIsLoading(true);
         setError(null);
         
-        const userClassrooms = await classroomService.getClassroomsByStudent(user.id);
+        const userClassrooms = await classroomService.getClassroomsByStudent();
         setClassrooms(userClassrooms);
         
-        // Si solo hay una aula, mostrarla automáticamente
-        if (userClassrooms.length === 1) {
-          setSelectedClassroom(userClassrooms[0]);
-          setView('activities');
-        }
+        // ✅ NO cambiar automáticamente a vista de actividades
+        // Siempre mostrar el menú de aulas primero para que el usuario elija
+        // Esto previene navegación no deseada
       } catch (error) {
         console.error('Error al cargar aulas:', error);
         setError('Error al cargar las aulas. Intenta recargar la página.');
@@ -109,7 +115,19 @@ export const StudentClassrooms: React.FC<StudentClassroomsProps> = ({ onNavigate
     };
 
     loadClassrooms();
-  }, [user]);
+  }, [user, classroomService]);
+
+  /**
+   * Seleccionar aula automáticamente si se proporciona initialClassroomId
+   */
+  useEffect(() => {
+    if (initialClassroomId && classrooms.length > 0 && !selectedClassroom) {
+      const classroom = classrooms.find(c => c.id === initialClassroomId);
+      if (classroom) {
+        selectClassroom(classroom);
+      }
+    }
+  }, [initialClassroomId, classrooms, selectedClassroom]);
 
   /**
    * Cargar actividades cuando se selecciona un aula
@@ -154,7 +172,7 @@ export const StudentClassrooms: React.FC<StudentClassroomsProps> = ({ onNavigate
     if (view === 'activities') {
       loadActivities();
     }
-  }, [selectedClassroom, user, view]);
+  }, [selectedClassroom, user, view, activityService]);
 
   /**
    * Aplicar filtros a las actividades
@@ -217,6 +235,33 @@ export const StudentClassrooms: React.FC<StudentClassroomsProps> = ({ onNavigate
     setSelectedClassroom(null);
     setActivities([]);
     setFilteredActivities([]);
+  };
+
+  /**
+   * Permite que el estudiante abandone el aula seleccionada
+   */
+  const handleLeaveClassroom = async () => {
+    if (!selectedClassroom) {
+      return;
+    }
+
+    const confirmed = window.confirm(`¿Deseas abandonar el aula "${selectedClassroom.name}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsLeavingClassroom(true);
+      setError(null);
+      await classroomService.removeStudentFromClassroom(selectedClassroom.id);
+      setClassrooms(prev => prev.filter(classroom => classroom.id !== selectedClassroom.id));
+      backToClassrooms();
+    } catch (leaveError) {
+      console.error('Error al abandonar aula:', leaveError);
+      setError('No se pudo abandonar el aula. Intenta nuevamente.');
+    } finally {
+      setIsLeavingClassroom(false);
+    }
   };
 
   /**
@@ -433,8 +478,31 @@ export const StudentClassrooms: React.FC<StudentClassroomsProps> = ({ onNavigate
                     </p>
                   </div>
                 </div>
+
+                <button
+                  onClick={handleLeaveClassroom}
+                  disabled={isLeavingClassroom}
+                  className={`inline-flex items-center px-4 py-2 rounded-lg border transition-colors ${
+                    isLeavingClassroom
+                      ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
+                      : 'border-red-200 text-red-600 hover:bg-red-50'
+                  }`}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  {isLeavingClassroom ? 'Saliendo...' : 'Abandonar aula'}
+                </button>
               </div>
             </div>
+
+            {error && (
+              <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">Error</p>
+                  <p className="text-sm text-red-700 mt-1">{error}</p>
+                </div>
+              </div>
+            )}
 
             {/* Estadísticas rápidas */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

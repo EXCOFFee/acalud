@@ -4,7 +4,10 @@
 // Sistema de recompensas donde los estudiantes pueden canjear sus monedas
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/useAuth';
+import { storeService } from '../../services/store.service';
+import type { StoreItem as BackendStoreItem, UserPurchase } from '../../services/store.service';
+import type { LucideIcon } from 'lucide-react';
 import { 
   ShoppingBag, 
   Coins,
@@ -14,7 +17,6 @@ import {
   Heart,
   Palette,
   Gift,
-  Clock,
   Zap,
   Shield,
   Sparkles,
@@ -36,22 +38,25 @@ interface StoreProps {
 }
 
 /**
- * Tipos de items de la tienda
+ * Tipos de items de la tienda (extendidos del backend)
  */
 interface StoreItem {
   id: string;
   name: string;
   description: string;
   price: number;
-  category: 'avatars' | 'themes' | 'badges' | 'power-ups' | 'rewards';
-  icon: any;
+  category: string; // Mapeado desde type del backend
+  icon: LucideIcon;
   color: string;
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'limited';
   isOwned: boolean;
   isEquipped?: boolean;
-  isLimited?: boolean;
-  limitedQuantity?: number;
-  previewImage?: string;
+  imageUrl?: string;
+  tags?: string[];
+  purchaseId?: string; // ID de la compra si es owned
+  type?: string; // Tipo original del backend
+  isLimited?: boolean; // Si es un item limitado
+  limitedQuantity?: number; // Cantidad disponible si es limitado
 }
 
 /**
@@ -61,7 +66,7 @@ interface StoreCategory {
   id: string;
   name: string;
   description: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
 }
 
@@ -74,15 +79,92 @@ interface CartItem {
 }
 
 /**
- * Estado del usuario
+ * Estado del usuario (obtenido del contexto de auth)
  */
 interface UserWallet {
   coins: number;
-  totalEarned: number;
-  totalSpent: number;
-  ownedItems: string[];
-  equippedItems: string[];
 }
+
+/**
+ * 🔄 Mapear tipo del backend a categoría del UI
+ * Convierte los tipos del backend a categorías mostradas en el UI
+ */
+const mapTypeToCategory = (type: string): string => {
+  const mapping: Record<string, string> = {
+    'avatar': 'avatars',
+    'avatar_accessory': 'avatars',
+    'avatar_clothing': 'avatars',
+    'avatar_background': 'avatars',
+    'theme': 'themes',
+    'badge': 'badges',
+    'frame': 'badges',
+    'emote': 'power-ups',
+    'celebration': 'power-ups',
+    'sound_pack': 'power-ups',
+    'other': 'rewards'
+  };
+  return mapping[type] || 'rewards';
+};
+
+/**
+ * 🎨 Obtener icono según tipo de item
+ * Asigna un icono de Lucide React a cada tipo
+ */
+const getIconForType = (type: string): LucideIcon => {
+  const icons: Record<string, LucideIcon> = {
+    'avatar': Crown,
+    'avatar_accessory': Shield,
+    'avatar_clothing': Heart,
+    'avatar_background': Palette,
+    'theme': Palette,
+    'badge': Trophy,
+    'frame': Package,
+    'emote': Sparkles,
+    'celebration': Gift,
+    'sound_pack': Zap,
+    'other': Star
+  };
+  return icons[type] || ShoppingBag;
+};
+
+/**
+ * 🎨 Obtener color según tipo
+ */
+const getColorForType = (type: string): string => {
+  const colors: Record<string, string> = {
+    'avatar': 'purple',
+    'theme': 'pink',
+    'badge': 'yellow',
+    'frame': 'blue',
+    'celebration': 'green',
+    'other': 'gray'
+  };
+  return colors[type] || 'indigo';
+};
+
+const mapBackendItemToStoreItem = (
+  backendItem: BackendStoreItem,
+  ownedItemIds: string[],
+  equippedPurchases: UserPurchase[],
+  inventoryItems: UserPurchase[]
+): StoreItem => ({
+  id: backendItem.id,
+  name: backendItem.name,
+  description: backendItem.description,
+  price: backendItem.price,
+  category: mapTypeToCategory(backendItem.type),
+  type: backendItem.type,
+  icon: getIconForType(backendItem.type),
+  color: getColorForType(backendItem.type),
+  rarity: backendItem.rarity,
+  isOwned: ownedItemIds.includes(backendItem.id),
+  isEquipped: equippedPurchases.some(purchase => purchase.itemId === backendItem.id),
+  imageUrl: backendItem.imageUrl,
+  tags: backendItem.tags,
+  purchaseId: inventoryItems.find(purchase => purchase.itemId === backendItem.id)?.id,
+  isLimited: backendItem.rarity === 'limited' || backendItem.availability === 'limited_time',
+  limitedQuantity: backendItem.stockLimit ?? undefined
+});
 
 /**
  * Componente de la tienda virtual
@@ -152,179 +234,8 @@ export const Store: React.FC<StoreProps> = ({ onBack }) => {
   ];
 
   /**
-   * Definir items de la tienda
-   */
-  const defineStoreItems = (wallet: UserWallet): StoreItem[] => {
-    return [
-      // Avatares
-      {
-        id: 'avatar_ninja',
-        name: 'Avatar Ninja',
-        description: 'Un avatar sigiloso para estudiantes veloces',
-        price: 50,
-        category: 'avatars',
-        icon: Shield,
-        color: 'gray',
-        rarity: 'common',
-        isOwned: wallet.ownedItems.includes('avatar_ninja'),
-        isEquipped: wallet.equippedItems.includes('avatar_ninja')
-      },
-      {
-        id: 'avatar_wizard',
-        name: 'Avatar Mago',
-        description: 'Para los sabios del aprendizaje',
-        price: 100,
-        category: 'avatars',
-        icon: Sparkles,
-        color: 'purple',
-        rarity: 'rare',
-        isOwned: wallet.ownedItems.includes('avatar_wizard'),
-        isEquipped: wallet.equippedItems.includes('avatar_wizard')
-      },
-      {
-        id: 'avatar_dragon',
-        name: 'Avatar Dragón',
-        description: 'El avatar más poderoso disponible',
-        price: 500,
-        category: 'avatars',
-        icon: Crown,
-        color: 'red',
-        rarity: 'legendary',
-        isOwned: wallet.ownedItems.includes('avatar_dragon'),
-        isEquipped: wallet.equippedItems.includes('avatar_dragon'),
-        isLimited: true,
-        limitedQuantity: 50
-      },
-
-      // Temas
-      {
-        id: 'theme_dark',
-        name: 'Tema Oscuro',
-        description: 'Perfecto para estudiar de noche',
-        price: 30,
-        category: 'themes',
-        icon: Palette,
-        color: 'gray',
-        rarity: 'common',
-        isOwned: wallet.ownedItems.includes('theme_dark'),
-        isEquipped: wallet.equippedItems.includes('theme_dark')
-      },
-      {
-        id: 'theme_nature',
-        name: 'Tema Naturaleza',
-        description: 'Colores verdes relajantes',
-        price: 75,
-        category: 'themes',
-        icon: Heart,
-        color: 'green',
-        rarity: 'rare',
-        isOwned: wallet.ownedItems.includes('theme_nature'),
-        isEquipped: wallet.equippedItems.includes('theme_nature')
-      },
-      {
-        id: 'theme_galaxy',
-        name: 'Tema Galaxia',
-        description: 'Explora el cosmos mientras estudias',
-        price: 200,
-        category: 'themes',
-        icon: Star,
-        color: 'purple',
-        rarity: 'epic',
-        isOwned: wallet.ownedItems.includes('theme_galaxy'),
-        isEquipped: wallet.equippedItems.includes('theme_galaxy')
-      },
-
-      // Insignias
-      {
-        id: 'badge_honor',
-        name: 'Insignia de Honor',
-        description: 'Muestra tu dedicación al estudio',
-        price: 25,
-        category: 'badges',
-        icon: Trophy,
-        color: 'yellow',
-        rarity: 'common',
-        isOwned: wallet.ownedItems.includes('badge_honor'),
-        isEquipped: wallet.equippedItems.includes('badge_honor')
-      },
-      {
-        id: 'badge_excellence',
-        name: 'Insignia de Excelencia',
-        description: 'Para estudiantes sobresalientes',
-        price: 150,
-        category: 'badges',
-        icon: Crown,
-        color: 'gold',
-        rarity: 'epic',
-        isOwned: wallet.ownedItems.includes('badge_excellence'),
-        isEquipped: wallet.equippedItems.includes('badge_excellence')
-      },
-
-      // Power-ups
-      {
-        id: 'powerup_double_points',
-        name: 'Puntos Dobles',
-        description: 'Duplica los puntos por 24 horas',
-        price: 40,
-        category: 'power-ups',
-        icon: Zap,
-        color: 'blue',
-        rarity: 'common',
-        isOwned: false // Los power-ups no se "poseen", se consumen
-      },
-      {
-        id: 'powerup_time_freeze',
-        name: 'Congelar Tiempo',
-        description: 'Detiene el cronómetro por 5 minutos',
-        price: 60,
-        category: 'power-ups',
-        icon: Clock,
-        color: 'cyan',
-        rarity: 'rare',
-        isOwned: false
-      },
-      {
-        id: 'powerup_hint_master',
-        name: 'Maestro de Pistas',
-        description: 'Pistas ilimitadas por 1 hora',
-        price: 80,
-        category: 'power-ups',
-        icon: Sparkles,
-        color: 'yellow',
-        rarity: 'rare',
-        isOwned: false
-      },
-
-      // Recompensas especiales
-      {
-        id: 'reward_homework_pass',
-        name: 'Pase de Tarea',
-        description: 'Salta una tarea asignada (solo con permiso del profesor)',
-        price: 300,
-        category: 'rewards',
-        icon: Gift,
-        color: 'green',
-        rarity: 'epic',
-        isOwned: false,
-        isLimited: true,
-        limitedQuantity: 10
-      },
-      {
-        id: 'reward_extra_time',
-        name: 'Tiempo Extra',
-        description: '+30 minutos en el próximo examen',
-        price: 250,
-        category: 'rewards',
-        icon: Plus,
-        color: 'orange',
-        rarity: 'epic',
-        isOwned: false
-      }
-    ];
-  };
-
-  /**
-   * Cargar datos del usuario y tienda
+   * 🔄 Cargar datos del backend
+   * Obtiene items de la tienda e inventario del usuario
    */
   useEffect(() => {
     const loadStoreData = async () => {
@@ -334,23 +245,41 @@ export const Store: React.FC<StoreProps> = ({ onBack }) => {
         setIsLoading(true);
         setError(null);
 
-        // Simular datos del usuario (en producción vendría del backend)
-        const mockWallet: UserWallet = {
-          coins: 275,
-          totalEarned: 450,
-          totalSpent: 175,
-          ownedItems: ['avatar_ninja', 'theme_dark', 'badge_honor'],
-          equippedItems: ['avatar_ninja', 'theme_dark']
-        };
+        // Cargar balance del usuario desde el contexto de auth
+        setUserWallet({
+          coins: user.coins || 0
+        });
 
-        setUserWallet(mockWallet);
-        
-        // Generar items con estado de propiedad
-        const items = defineStoreItems(mockWallet);
-        setStoreItems(items);
+        // Cargar items de la tienda desde el backend
+        const itemsResponse = await storeService.getItems({
+          page: 1,
+          limit: 100,
+          sortBy: 'price',
+          sortOrder: 'ASC'
+        });
+
+        // Cargar inventario del usuario
+        const inventoryResponse = await storeService.getInventory();
+        const inventoryItems = inventoryResponse.data ?? [];
+        const ownedItemIds = inventoryItems.map(purchase => purchase.itemId);
+        const equippedPurchases = inventoryItems.filter(purchase => purchase.isEquipped);
+
+        // Mapear items del backend al formato del UI
+        const items = itemsResponse.data ?? [];
+        const mappedItems: StoreItem[] = items.map(backendItem =>
+          mapBackendItemToStoreItem(backendItem, ownedItemIds, equippedPurchases, inventoryItems)
+        );
+
+        setStoreItems(mappedItems);
+
+        console.log('🛍️ Tienda cargada:', {
+          totalItems: mappedItems.length,
+          ownedItems: ownedItemIds.length,
+          userCoins: user.coins
+        });
 
       } catch (error) {
-        console.error('Error al cargar tienda:', error);
+        console.error('❌ Error al cargar tienda:', error);
         setError('Error al cargar la tienda. Intenta recargar la página.');
       } finally {
         setIsLoading(false);
@@ -417,7 +346,8 @@ export const Store: React.FC<StoreProps> = ({ onBack }) => {
     total + (cartItem.item.price * cartItem.quantity), 0);
 
   /**
-   * Procesar compra
+   * 💰 Procesar compra con el backend
+   * Envía solicitud de compra al servidor y actualiza el estado local
    */
   const processPurchase = async () => {
     if (!userWallet || cartTotal > userWallet.coins) {
@@ -429,38 +359,78 @@ export const Store: React.FC<StoreProps> = ({ onBack }) => {
     }
 
     try {
-      // Simular procesamiento de compra
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Actualizar wallet del usuario
-      const newWallet = {
-        ...userWallet,
-        coins: userWallet.coins - cartTotal,
-        totalSpent: userWallet.totalSpent + cartTotal,
-        ownedItems: [...userWallet.ownedItems, ...cart.map(item => item.item.id)]
-      };
-
-      setUserWallet(newWallet);
-
-      // Actualizar items como poseídos
-      setStoreItems(prevItems => 
-        prevItems.map(item => {
-          const cartItem = cart.find(c => c.item.id === item.id);
-          return cartItem ? { ...item, isOwned: true } : item;
-        })
-      );
-
-      setPurchaseResult({
-        success: true,
-        message: `¡Compra exitosa! Has adquirido ${cart.length} item(s).`,
-        items: cart.map(c => c.item)
+      // Procesar cada item del carrito
+      const purchasePromises = cart.map(async (cartItem) => {
+        try {
+          // Llamar al backend para comprar el item
+          const result = await storeService.purchaseItem(cartItem.item.id, cartItem.quantity);
+          return { success: true, item: cartItem.item, result };
+        } catch (error) {
+          console.error(`Error comprando ${cartItem.item.name}:`, error);
+          return { success: false, item: cartItem.item, error };
+        }
       });
 
-      // Limpiar carrito
-      setCart([]);
+      const results = await Promise.all(purchasePromises);
+      const successfulPurchases = results.filter(r => r.success);
+      const failedPurchases = results.filter(r => !r.success);
+
+      // Actualizar balance local (restar el total gastado)
+      if (successfulPurchases.length > 0) {
+        setUserWallet({
+          coins: userWallet.coins - cartTotal
+        });
+
+        // Recargar items para reflejar cambios
+        const itemsResponse = await storeService.getItems({
+          page: 1,
+          limit: 100,
+          sortBy: 'price',
+          sortOrder: 'ASC'
+        });
+
+        const inventoryResponse = await storeService.getInventory();
+        const inventoryItems = inventoryResponse.data ?? [];
+        const ownedItemIds = inventoryItems.map(purchase => purchase.itemId);
+        const equippedPurchases = inventoryItems.filter(purchase => purchase.isEquipped);
+
+        const items = itemsResponse.data ?? [];
+        const mappedItems: StoreItem[] = items.map(backendItem =>
+          mapBackendItemToStoreItem(backendItem, ownedItemIds, equippedPurchases, inventoryItems)
+        );
+
+        setStoreItems(mappedItems);
+      }
+
+      // Mostrar resultado
+      if (failedPurchases.length === 0) {
+        setPurchaseResult({
+          success: true,
+          message: `¡Compra exitosa! Has adquirido ${successfulPurchases.length} item(s).`,
+          items: successfulPurchases.map(p => p.item)
+        });
+      } else {
+        setPurchaseResult({
+          success: false,
+          message: `Se compraron ${successfulPurchases.length} items, pero ${failedPurchases.length} fallaron.`
+        });
+      }
+
+      // Limpiar carrito solo con items exitosos
+      setCart(prevCart => 
+        prevCart.filter(cartItem => 
+          !successfulPurchases.some(sp => sp.item.id === cartItem.item.id)
+        )
+      );
+
+      console.log('🎉 Compra procesada:', {
+        exitosos: successfulPurchases.length,
+        fallidos: failedPurchases.length,
+        nuevoBalance: userWallet.coins - cartTotal
+      });
 
     } catch (error) {
-      console.error('Error en compra:', error);
+      console.error('❌ Error en compra:', error);
       setPurchaseResult({
         success: false,
         message: 'Error al procesar la compra. Intenta de nuevo.'

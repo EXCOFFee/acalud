@@ -16,7 +16,10 @@ export default {
       tsconfig: {
         jsx: 'react-jsx',
         esModuleInterop: true,
-        allowSyntheticDefaultImports: true
+        allowSyntheticDefaultImports: true,
+        module: 'commonjs',
+        target: 'es2020',
+        types: ['jest', '@testing-library/jest-dom', 'node']
       }
     }]
   },

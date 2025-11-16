@@ -216,11 +216,13 @@ export class ClassroomValidator {
       return errors;
     }
 
-    if (inviteCode.length !== 6) {
+    const normalizedCode = inviteCode.trim().toUpperCase();
+
+    if (normalizedCode.length !== 6) {
       errors.push('El código de invitación debe tener 6 caracteres');
     }
 
-    if (!/^[A-Z0-9]+$/.test(inviteCode)) {
+    if (!/^[A-Z0-9]+$/.test(normalizedCode)) {
       errors.push('El código de invitación solo puede contener letras mayúsculas y números');
     }
 

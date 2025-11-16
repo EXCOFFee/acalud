@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { FilesService } from './files.service';
 import { FilesController } from './files.controller';
+import { FileErrorInterceptor } from './interceptors/file-error.interceptor';
+import { FileValidationInterceptor } from './interceptors/file-validation.interceptor';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 
@@ -49,7 +52,18 @@ import { extname } from 'path';
       },
     }),
   ],
-  providers: [FilesService],
+  providers: [
+    FilesService,
+    // Interceptores a nivel de módulo para manejo de errores y validaciones
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: FileValidationInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: FileErrorInterceptor,
+    },
+  ],
   controllers: [FilesController],
   exports: [FilesService], // Exportamos para otros módulos
 })

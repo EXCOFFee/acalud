@@ -35,27 +35,37 @@
 const getApiBaseUrl = () => {
   // 🧪 ENTORNO DE TESTING
   // Si estamos ejecutando tests automáticos, usar URL fija
-  if (typeof globalThis !== 'undefined' && 
-      (globalThis as any).process?.env?.NODE_ENV === 'test') {
-    console.log('🧪 Entorno de testing detectado - usando API local'); // Debug log
-    return 'http://localhost:3001/api/v1';
-  }
-  
-  // 🌐 ENTORNO DE NAVEGADOR
-  // En el navegador, Vite expone variables de entorno via import.meta.env
-  if (typeof window !== 'undefined') {
-    // Intentar obtener la URL desde las variables de entorno de Vite
-    const viteApiUrl = import.meta.env?.VITE_API_URL;
-    
-    if (viteApiUrl) {
-      console.log('🔧 Usando URL de API desde variables de entorno:', viteApiUrl); // Debug log
-      return viteApiUrl;
-    } else {
-      console.log('🏠 Usando URL de API por defecto (desarrollo local)'); // Debug log
+  if (typeof globalThis !== 'undefined') {
+    const globalNode = globalThis as typeof globalThis & {
+      process?: { env?: { NODE_ENV?: string } };
+    };
+
+    if (globalNode.process?.env?.NODE_ENV === 'test') {
+      console.log('🧪 Entorno de testing detectado - usando API local'); // Debug log
       return 'http://localhost:3001/api/v1';
     }
   }
-  
+
+  const processEnvApiUrl =
+    typeof process !== 'undefined' && process?.env ? process.env.VITE_API_URL : undefined;
+
+  const browserGlobalApiUrl =
+    typeof window !== 'undefined'
+      ? (window as typeof window & { __ACALUD_API_URL__?: string }).__ACALUD_API_URL__
+      : undefined;
+
+  const runtimeApiUrl = processEnvApiUrl || browserGlobalApiUrl;
+
+  if (runtimeApiUrl) {
+    console.log('🔧 Usando URL de API desde configuración de entorno:', runtimeApiUrl); // Debug log
+    return runtimeApiUrl;
+  }
+
+  if (typeof window !== 'undefined') {
+    console.log('🏠 Usando URL de API por defecto (desarrollo local)'); // Debug log
+    return 'http://localhost:3001/api/v1';
+  }
+
   // 🌙 FALLBACK PARA SSR Y OTROS ENTORNOS
   // En caso de que no detectemos el entorno, usar la URL de desarrollo
   console.log('🌙 Entorno no detectado - usando fallback'); // Debug log
@@ -95,7 +105,7 @@ export class HttpError extends Error {
   public statusCode: number;    // 🔢 Código HTTP del error (404, 401, 500, etc.)
   public error?: string;        // 🏷️ Tipo de error ("Bad Request", "Unauthorized", etc.)
   public code?: string;         // 📝 Código de error interno
-  public details?: any;         // 📋 Detalles adicionales del error
+  public details?: unknown;     // 📋 Detalles adicionales del error
 
   /**
    * 🏗️ CONSTRUCTOR DE LA CLASE HttpError
@@ -400,9 +410,9 @@ class HttpClient {
    * @param data - Datos a enviar al servidor (opcional)
    * @returns Promesa con la respuesta del servidor
    */
-  public async post<T>(endpoint: string, data?: any): Promise<T> {
+  public async post<TResponse, TBody = unknown>(endpoint: string, data?: TBody): Promise<TResponse> {
     console.log('📝 Petición POST a:', endpoint, 'con datos:', data); // Debug log
-    return this.request<T>(endpoint, {
+    return this.request<TResponse>(endpoint, {
       method: 'POST',                                    // Especificar que es POST
       body: data ? JSON.stringify(data) : undefined,    // Convertir datos a JSON si existen
     });
@@ -423,9 +433,9 @@ class HttpClient {
    * @param data - Datos completos del objeto (opcional)
    * @returns Promesa con la respuesta del servidor
    */
-  public async put<T>(endpoint: string, data?: any): Promise<T> {
+  public async put<TResponse, TBody = unknown>(endpoint: string, data?: TBody): Promise<TResponse> {
     console.log('🔄 Petición PUT a:', endpoint, 'con datos:', data); // Debug log
-    return this.request<T>(endpoint, {
+    return this.request<TResponse>(endpoint, {
       method: 'PUT',                                     // Especificar que es PUT
       body: data ? JSON.stringify(data) : undefined,    // Convertir datos a JSON
     });
@@ -446,9 +456,9 @@ class HttpClient {
    * @param data - Campos a actualizar (opcional)
    * @returns Promesa con la respuesta del servidor
    */
-  public async patch<T>(endpoint: string, data?: any): Promise<T> {
+  public async patch<TResponse, TBody = unknown>(endpoint: string, data?: TBody): Promise<TResponse> {
     console.log('🔧 Petición PATCH a:', endpoint, 'con datos:', data); // Debug log
-    return this.request<T>(endpoint, {
+    return this.request<TResponse>(endpoint, {
       method: 'PATCH',                                   // Especificar que es PATCH
       body: data ? JSON.stringify(data) : undefined,    // Convertir datos a JSON
     });

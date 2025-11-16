@@ -3,11 +3,11 @@
 // ============================================================================
 // Permite a los docentes crear actividades educativas interactivas
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/useAuth';
 import { ClassroomService } from '../../services/implementations/ClassroomService';
 import { ActivityService } from '../../services/implementations/ActivityService';
-import { Classroom } from '../../types';
+import { Activity, Classroom } from '../../types';
 import { 
   BookOpen, 
   ArrowLeft, 
@@ -69,6 +69,37 @@ interface ActivityFormData {
   questions: Question[];
 }
 
+interface BackendQuestionPayload {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation?: string;
+  points: number;
+}
+
+interface CreateActivityPayload {
+  title: string;
+  description: string;
+  classroomId: string;
+  type: ActivityType;
+  difficulty: DifficultyLevel;
+  subject: string;
+  teacherId: string;
+  isPublic: boolean;
+  isActive: boolean;
+  tags: string[];
+  estimatedTime: number;
+  rewards: {
+    coins: number;
+    experience: number;
+    achievements: string[];
+  };
+  content: {
+    questions: BackendQuestionPayload[];
+    instructions: string;
+  };
+}
+
 /**
  * Errores de validación
  */
@@ -126,8 +157,8 @@ export const CreateActivityForm: React.FC<CreateActivityFormProps> = ({
     ]
   });
 
-  const classroomService = ClassroomService.getInstance();
-  const activityService = ActivityService.getInstance();
+  const classroomService = useMemo(() => ClassroomService.getInstance(), []);
+  const activityService = useMemo(() => ActivityService.getInstance(), []);
 
   /**
    * Configuración de tipos de actividades
@@ -172,7 +203,7 @@ export const CreateActivityForm: React.FC<CreateActivityFormProps> = ({
 
       try {
         setLoadingClassrooms(true);
-        const userClassrooms = await classroomService.getClassroomsByTeacher(user.id);
+        const userClassrooms = await classroomService.getClassroomsByTeacher();
         setClassrooms(userClassrooms);
         
         // Si no hay aula preseleccionada y hay aulas disponibles, seleccionar la primera
@@ -188,7 +219,7 @@ export const CreateActivityForm: React.FC<CreateActivityFormProps> = ({
     };
 
     loadClassrooms();
-  }, [user, classroomId]);
+  }, [user, classroomId, classroomService]);
 
   /**
    * Valida el formulario y retorna los errores
@@ -262,7 +293,7 @@ export const CreateActivityForm: React.FC<CreateActivityFormProps> = ({
   /**
    * Maneja el cambio en los campos básicos del formulario
    */
-  const handleInputChange = (field: keyof ActivityFormData, value: any) => {
+  const handleInputChange = <Field extends keyof ActivityFormData>(field: Field, value: ActivityFormData[Field]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Limpiar error específico
@@ -336,7 +367,25 @@ export const CreateActivityForm: React.FC<CreateActivityFormProps> = ({
       }
 
       // Preparar datos para envío
-      const activityData = {
+      const questionPayloads: BackendQuestionPayload[] = formData.questions
+        .filter(q => q.text.trim() && q.options.every(opt => opt.trim()))
+        .map(q => {
+          const candidateIndex = typeof q.correctAnswer === 'string'
+            ? parseInt(q.correctAnswer, 10)
+            : q.correctAnswer[0]
+              ? parseInt(q.correctAnswer[0], 10)
+              : 0;
+
+          return {
+            question: q.text.trim(),
+            options: q.options.map(opt => opt.trim()),
+            correctAnswer: Number.isNaN(candidateIndex) ? 0 : candidateIndex,
+            explanation: q.explanation?.trim() ?? '',
+            points: q.points || 10,
+          } satisfies BackendQuestionPayload;
+        });
+
+      const activityData: CreateActivityPayload = {
         title: formData.title.trim(),
         description: formData.description.trim(),
         classroomId: formData.classroomId,
@@ -345,24 +394,23 @@ export const CreateActivityForm: React.FC<CreateActivityFormProps> = ({
         subject: formData.subject || 'General',
         teacherId: user.id,
         isPublic: false,
+        isActive: true,
         tags: [],
         estimatedTime: formData.timeLimit,
         rewards: {
           coins: formData.maxScore,
           experience: Math.floor(formData.maxScore * 1.5),
-          achievements: []
+          achievements: [],
         },
-        isActive: true,
         content: {
-          questions: formData.questions.filter(q => 
-            q.text.trim() && q.options.every(opt => opt.trim())
-          ),
-          instructions: formData.instructions.trim()
-        }
+          questions: questionPayloads,
+          instructions: formData.instructions.trim(),
+        },
       };
 
-      // Crear la actividad
-      const newActivity = await activityService.createActivity(activityData);
+      const newActivity = await activityService.createActivity(
+        activityData as unknown as Omit<Activity, 'id' | 'createdAt' | 'updatedAt' | 'completions'>
+      );
 
       // Mostrar mensaje de éxito
       setShowSuccess(true);

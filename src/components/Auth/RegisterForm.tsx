@@ -34,7 +34,7 @@
 
 // 📦 IMPORTACIONES NECESARIAS
 import React, { useState } from 'react';                                        // React y hook de estado
-import { useAuth } from '../../contexts/AuthContext';                          // Hook de autenticación personalizado
+import { useAuth } from '../../contexts/useAuth';                          // Hook de autenticación personalizado
 import { BookOpen, Mail, Lock, Eye, EyeOff, User, GraduationCap } from 'lucide-react'; // Iconos para la interfaz
 
 /**
@@ -397,6 +397,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) =
                   placeholder="tu@email.com"                          // Texto de ejemplo mostrando formato de email
                 />
               </div>
+              {formData.role === 'teacher' && (
+                <p className="mt-2 text-xs text-indigo-600">Recuerda usar tu correo institucional autorizado para validar tu cuenta docente.</p>
+              )}
             </div>
 
             {/* 👥 SELECTOR DE ROL DE USUARIO (CARACTERÍSTICA ÚNICA DEL REGISTRO) */}

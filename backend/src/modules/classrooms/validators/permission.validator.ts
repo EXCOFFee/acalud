@@ -9,44 +9,33 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { IPermissionValidator } from '../interfaces';
-import { 
+import {
   AuthorizationException,
-  ResourceNotFoundException 
+  ResourceNotFoundException,
 } from '../../../common/exceptions/business.exception';
+import { User, UserRole } from '../../users/user.entity';
+import { Classroom } from '../classroom.entity';
 
 @Injectable()
 export class PermissionValidator implements IPermissionValidator {
   private readonly logger = new Logger(PermissionValidator.name);
 
-  // TODO: Inyectar repositorios de usuarios y aulas cuando estén disponibles
-  // constructor(
-  //   private readonly userRepository: IUserRepository,
-  //   private readonly classroomRepository: IClassroomRepository,
-  // ) {}
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Classroom)
+    private readonly classroomRepository: Repository<Classroom>,
+  ) {}
 
   async validateCanCreateClassroom(userId: string): Promise<void> {
     this.logger.log(`Validating create classroom permission for user: ${userId}`);
-    
-    // TODO: Implementar validación real cuando tengamos acceso a user repository
-    // const user = await this.userRepository.findById(userId);
-    // 
-    // if (!user) {
-    //   throw new ResourceNotFoundException('Usuario', userId);
-    // }
-    // 
-    // if (user.role !== 'teacher' && user.role !== 'admin') {
-    //   throw new AuthorizationException('crear aula', 'aula', userId);
-    // }
 
-    // Por ahora, validación básica
-    if (!userId || userId.trim() === '') {
-      throw new AuthorizationException('crear aula', 'aula', 'usuario-invalido');
-    }
+    const user = await this.loadActiveUser(userId);
 
-    // Simulación: validar formato de UUID
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(userId)) {
+    if (user.role !== UserRole.TEACHER && user.role !== UserRole.ADMIN) {
       throw new AuthorizationException('crear aula', 'aula', userId);
     }
   }
@@ -54,31 +43,12 @@ export class PermissionValidator implements IPermissionValidator {
   async validateCanModifyClassroom(classroomId: string, userId: string): Promise<void> {
     this.logger.log(`Validating modify classroom permission for user ${userId} on classroom ${classroomId}`);
 
-    // TODO: Implementar validación real cuando tengamos acceso a repositorios
-    // const classroom = await this.classroomRepository.findById(classroomId);
-    // const user = await this.userRepository.findById(userId);
-    // 
-    // if (!classroom) {
-    //   throw new ResourceNotFoundException('Aula', classroomId);
-    // }
-    // 
-    // if (!user) {
-    //   throw new ResourceNotFoundException('Usuario', userId);
-    // }
-    // 
-    // // Solo el profesor propietario o admin pueden modificar
-    // if (classroom.teacherId !== userId && user.role !== 'admin') {
-    //   throw new AuthorizationException('modificar aula', 'aula', userId);
-    // }
+    const [user, classroom] = await Promise.all([
+      this.loadActiveUser(userId),
+      this.loadClassroom(classroomId),
+    ]);
 
-    // Por ahora, validación básica
-    if (!userId || !classroomId) {
-      throw new AuthorizationException('modificar aula', 'aula', userId || 'usuario-invalido');
-    }
-
-    // Validar formato de UUIDs
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(userId) || !uuidRegex.test(classroomId)) {
+    if (classroom.teacherId !== userId && user.role !== UserRole.ADMIN) {
       throw new AuthorizationException('modificar aula', 'aula', userId);
     }
   }
@@ -86,54 +56,15 @@ export class PermissionValidator implements IPermissionValidator {
   async validateCanDeleteClassroom(classroomId: string, userId: string): Promise<void> {
     this.logger.log(`Validating delete classroom permission for user ${userId} on classroom ${classroomId}`);
 
-    // TODO: Implementar validación real cuando tengamos acceso a repositorios
-    // const classroom = await this.classroomRepository.findById(classroomId);
-    // const user = await this.userRepository.findById(userId);
-    // 
-    // if (!classroom) {
-    //   throw new ResourceNotFoundException('Aula', classroomId);
-    // }
-    // 
-    // if (!user) {
-    //   throw new ResourceNotFoundException('Usuario', userId);
-    // }
-    // 
-    // // Solo el profesor propietario o admin pueden eliminar
-    // if (classroom.teacherId !== userId && user.role !== 'admin') {
-    //   throw new AuthorizationException('eliminar aula', 'aula', userId);
-    // }
-
-    // Por ahora, validación básica (misma lógica que modificar)
     await this.validateCanModifyClassroom(classroomId, userId);
   }
 
   async validateCanJoinClassroom(userId: string): Promise<void> {
     this.logger.log(`Validating join classroom permission for user: ${userId}`);
 
-    // TODO: Implementar validación real cuando tengamos acceso a user repository
-    // const user = await this.userRepository.findById(userId);
-    // 
-    // if (!user) {
-    //   throw new ResourceNotFoundException('Usuario', userId);
-    // }
-    // 
-    // if (!user.isActive) {
-    //   throw new AuthorizationException('unirse a aula', 'aula', userId);
-    // }
-    // 
-    // // Verificar si el usuario no está bloqueado
-    // if (user.lockedUntil && user.lockedUntil > new Date()) {
-    //   throw new AuthorizationException('unirse a aula', 'aula', userId);
-    // }
+    const user = await this.loadActiveUser(userId);
 
-    // Por ahora, validación básica
-    if (!userId || userId.trim() === '') {
-      throw new AuthorizationException('unirse a aula', 'aula', 'usuario-invalido');
-    }
-
-    // Validar formato de UUID
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(userId)) {
+    if (user.role !== UserRole.STUDENT) {
       throw new AuthorizationException('unirse a aula', 'aula', userId);
     }
   }
@@ -141,44 +72,39 @@ export class PermissionValidator implements IPermissionValidator {
   async validateCanViewClassroom(classroomId: string, userId: string): Promise<void> {
     this.logger.log(`Validating view classroom permission for user ${userId} on classroom ${classroomId}`);
 
-    // TODO: Implementar validación real cuando tengamos acceso a repositorios
-    // const classroom = await this.classroomRepository.findById(classroomId);
-    // const user = await this.userRepository.findById(userId);
-    // 
-    // if (!classroom) {
-    //   throw new ResourceNotFoundException('Aula', classroomId);
-    // }
-    // 
-    // if (!user) {
-    //   throw new ResourceNotFoundException('Usuario', userId);
-    // }
-    // 
-    // // Verificar si el usuario tiene acceso al aula
-    // const hasAccess = classroom.teacherId === userId || 
-    //                   classroom.students?.some(student => student.id === userId) ||
-    //                   user.role === 'admin';
-    // 
-    // if (!hasAccess) {
-    //   throw new AuthorizationException('ver aula', 'aula', userId);
-    // }
+    const [user, classroom] = await Promise.all([
+      this.loadActiveUser(userId),
+      this.loadClassroom(classroomId, ['students']),
+    ]);
 
-    // Por ahora, validación básica
-    if (!userId || !classroomId) {
-      throw new AuthorizationException('ver aula', 'aula', userId || 'usuario-invalido');
-    }
+    const isTeacher = classroom.teacherId === userId;
+    const isStudent = classroom.students?.some(student => student.id === userId) ?? false;
 
-    // Validar formato de UUIDs
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(userId) || !uuidRegex.test(classroomId)) {
+    if (!isTeacher && !isStudent && user.role !== UserRole.ADMIN) {
       throw new AuthorizationException('ver aula', 'aula', userId);
     }
   }
 
-  /**
-   * Valida formato de UUID
-   */
-  private isValidUUID(uuid: string): boolean {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(uuid);
+  private async loadActiveUser(userId: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { id: userId, isActive: true } });
+
+    if (!user) {
+      throw new ResourceNotFoundException('Usuario', userId);
+    }
+
+    return user;
+  }
+
+  private async loadClassroom(classroomId: string, relations: string[] = []): Promise<Classroom> {
+    const classroom = await this.classroomRepository.findOne({
+      where: { id: classroomId, isActive: true },
+      relations,
+    });
+
+    if (!classroom) {
+      throw new ResourceNotFoundException('Aula', classroomId);
+    }
+
+    return classroom;
   }
 }

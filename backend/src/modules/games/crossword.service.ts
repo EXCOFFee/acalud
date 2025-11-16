@@ -70,7 +70,7 @@ export class CrosswordService {
     }
 
     // Validar respuestas del crucigrama
-    let correctAnswers = 0;
+    const correctAnswers = 0;
     const totalAnswers = answers.length;
 
     // Lógica de validación aquí...

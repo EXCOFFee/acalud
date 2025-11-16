@@ -295,4 +295,34 @@ export class ActivitiesController {
   async getActivityStats(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
     return this.activitiesService.getActivityStats(id, req.user.id);
   }
+
+  /**
+   * Publica una actividad en la biblioteca pública (solo creador)
+   * CU-27: Publicar Actividad
+   */
+  @Patch(':id/publish')
+  @ApiOperation({ summary: 'Publicar actividad en la biblioteca pública' })
+  @ApiResponse({
+    status: 200,
+    description: 'Actividad publicada exitosamente',
+    type: Activity,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'La actividad no cumple los requisitos para ser publicada',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Solo el creador puede publicar esta actividad',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Actividad no encontrada',
+  })
+  async publishActivity(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req,
+  ): Promise<Activity> {
+    return this.activitiesService.publishActivity(id, req.user.id);
+  }
 }

@@ -4,7 +4,7 @@
 // Permite a los estudiantes unirse a aulas usando código de invitación
 
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/useAuth';
 import { ClassroomService } from '../../services/implementations/ClassroomService';
 import { 
   Users, 
@@ -109,31 +109,44 @@ export const JoinClassroom: React.FC<JoinClassroomProps> = ({ onBack, onSuccess 
       // Buscar aula por código
       const classroom = await classroomService.getClassroomByInviteCode(inviteCode.trim().toUpperCase());
       
+      // 🛡️ VALIDACIÓN 1: Verificar que el aula existe
       if (!classroom) {
         setErrors({ code: 'Código de invitación no válido' });
         return;
       }
 
+      // 🛡️ VALIDACIÓN 2: Verificar que el aula está activa
       if (!classroom.isActive) {
         setErrors({ code: 'Esta aula no está activa actualmente' });
         return;
       }
 
-      // Verificar si ya está inscrito
-      if (classroom.students.some(student => student.id === user?.id)) {
+      // 🛡️ VALIDACIÓN 3: Verificar que el aula tiene datos del profesor
+      // CRÍTICO: Algunos endpoints del backend no incluyen la relación 'teacher'
+      if (!classroom.teacher) {
+        console.error('⚠️ El aula no incluye datos del profesor:', classroom);
+        setErrors({ general: 'Error al cargar información del aula. Contacta al administrador.' });
+        return;
+      }
+
+      // 🛡️ VALIDACIÓN 4: Verificar si ya está inscrito
+      if (classroom.students && classroom.students.some(student => student.id === user?.id)) {
         setErrors({ code: 'Ya estás inscrito en esta aula' });
         return;
       }
 
-      // Preparar vista previa
+      // ✅ Preparar vista previa del aula
       const preview: ClassroomPreview = {
         id: classroom.id,
         name: classroom.name,
         description: classroom.description,
         subject: classroom.subject,
         grade: classroom.grade,
-        teacherName: classroom.teacher.firstName + ' ' + classroom.teacher.lastName,
-        studentCount: classroom.students.length,
+        // 📝 Nombre del profesor con múltiples fallbacks
+        teacherName: classroom.teacher.name || 
+                     `${classroom.teacher.firstName || ''} ${classroom.teacher.lastName || ''}`.trim() ||
+                     'Profesor',
+        studentCount: classroom.students?.length || 0,
         isActive: classroom.isActive,
         inviteCode: classroom.inviteCode
       };
@@ -173,7 +186,7 @@ export const JoinClassroom: React.FC<JoinClassroomProps> = ({ onBack, onSuccess 
       setState('joining');
       setErrors({});
 
-      await classroomService.joinClassroomByCode(classroomPreview.inviteCode, user.id);
+      await classroomService.joinClassroomByCode(classroomPreview.inviteCode);
       
       setState('success');
       

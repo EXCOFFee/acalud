@@ -5,6 +5,7 @@ Este directorio contiene la documentación detallada del proyecto AcaLud.
 ## 📋 Índice de Documentación
 
 ### Técnica
+- **[Analisis_Requerimientos_AcaLud.md](./Analisis_Requerimientos_AcaLud.md)** - Objetivo, alcance, límites, requerimientos, casos de uso y pruebas
 - **[MEJORAS_IMPLEMENTADAS.md](./MEJORAS_IMPLEMENTADAS.md)** - Detalles técnicos completos de todas las mejoras implementadas (testing, React Router, lazy loading, monitoreo)
 - **[RESUMEN_FINAL_IMPLEMENTACION.md](./RESUMEN_FINAL_IMPLEMENTACION.md)** - Resumen ejecutivo de la implementación y logros
 
@@ -56,10 +57,13 @@ El proyecto incluye las siguientes mejoras de alta prioridad:
 ```
 docs/
 ├── README.md                           # Este archivo
+├── Analisis_Requerimientos_AcaLud.md   # Documento maestro de alcance y requerimientos
 ├── MEJORAS_IMPLEMENTADAS.md           # Documentación técnica detallada
 ├── RESUMEN_FINAL_IMPLEMENTACION.md   # Resumen ejecutivo
 ├── DEPLOY.md                          # Guía de deployment
-└── INSTRUCCIONES_GITHUB.md           # Configuración de GitHub
+├── INSTRUCCIONES_GITHUB.md           # Configuración de GitHub
+└── assets/                            # Recursos multimedia (diagramas, imágenes)
+	└── diagrama-casos-uso.png         # Diagrama general de casos de uso (ubicación esperada)
 ```
 
 ## 📞 Soporte

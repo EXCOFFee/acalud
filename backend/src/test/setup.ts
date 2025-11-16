@@ -7,17 +7,34 @@ beforeAll(async () => {
   process.env.TZ = 'UTC';
 });
 
-// Mock global para logger
-jest.mock('@nestjs/common', () => ({
-  ...jest.requireActual('@nestjs/common'),
-  Logger: jest.fn().mockImplementation(() => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    verbose: jest.fn(),
-  })),
-}));
+// Mock global para logger (silencia salidas pero conserva métodos estáticos)
+jest.mock('@nestjs/common', () => {
+  const actualCommon = jest.requireActual('@nestjs/common');
+  const { Logger: ActualLogger } = jest.requireActual('@nestjs/common/services/logger.service');
+
+  class SilentLogger extends ActualLogger {
+    constructor(...args: ConstructorParameters<typeof ActualLogger>) {
+      super(...args);
+    }
+
+    log = jest.fn();
+    error = jest.fn();
+    warn = jest.fn();
+    debug = jest.fn();
+    verbose = jest.fn();
+  }
+
+  SilentLogger.log = jest.fn();
+  SilentLogger.error = jest.fn();
+  SilentLogger.warn = jest.fn();
+  SilentLogger.debug = jest.fn();
+  SilentLogger.verbose = jest.fn();
+
+  return {
+    ...actualCommon,
+    Logger: SilentLogger,
+  };
+});
 
 // Helper para crear módulos de testing
 export const createTestingModule = async (metadata: any) => {
@@ -34,6 +51,11 @@ export const createMockRepository = () => ({
   update: jest.fn(),
   delete: jest.fn(),
   remove: jest.fn(),
+  findWithFilters: jest.fn(),
+  findByInviteCode: jest.fn(),
+  addStudent: jest.fn(),
+  removeStudent: jest.fn(),
+  getStudentCount: jest.fn(),
   createQueryBuilder: jest.fn(() => ({
     select: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),

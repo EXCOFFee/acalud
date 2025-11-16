@@ -36,12 +36,12 @@ export interface PaginatedResponse<T> {
 /**
  * Resultado de operaciones
  */
-export interface OperationResult<T = any> {
+export interface OperationResult<T = unknown, D = Record<string, unknown>> {
   success: boolean;
   data?: T;
   message: string;
   errorCode?: string;
-  details?: Record<string, any>;
+  details?: D;
 }
 
 /**
@@ -55,23 +55,23 @@ export interface AuditInfo {
   timestamp: Date;
   userAgent?: string;
   ipAddress?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 /**
  * Contrato para servicios de aulas
  */
 export interface IClassroomService {
-  create(createDto: any, teacherId: string): Promise<OperationResult<any>>;
-  findAll(options: FindClassroomsOptions): Promise<PaginatedResponse<any>>;
-  findById(id: string): Promise<OperationResult<any>>;
-  findByInviteCode(inviteCode: string): Promise<OperationResult<any>>;
-  update(id: string, updateDto: any, userId: string): Promise<OperationResult<any>>;
+  create(createDto: unknown, teacherId: string): Promise<OperationResult<unknown>>;
+  findAll(options: FindClassroomsOptions): Promise<PaginatedResponse<unknown>>;
+  findById(id: string): Promise<OperationResult<unknown>>;
+  findByInviteCode(inviteCode: string): Promise<OperationResult<unknown>>;
+  update(id: string, updateDto: unknown, userId: string): Promise<OperationResult<unknown>>;
   remove(id: string, userId: string): Promise<OperationResult<void>>;
-  joinClassroom(joinDto: any, studentId: string): Promise<OperationResult<any>>;
+  joinClassroom(joinDto: unknown, studentId: string): Promise<OperationResult<unknown>>;
   leaveClassroom(classroomId: string, studentId: string): Promise<OperationResult<void>>;
-  getTeacherClassrooms(teacherId: string): Promise<OperationResult<any[]>>;
-  getStudentClassrooms(studentId: string): Promise<OperationResult<any[]>>;
+  getTeacherClassrooms(teacherId: string): Promise<OperationResult<unknown[]>>;
+  getStudentClassrooms(studentId: string): Promise<OperationResult<unknown[]>>;
   regenerateInviteCode(classroomId: string, userId: string): Promise<OperationResult<string>>;
   getClassroomStats(classroomId: string): Promise<OperationResult<ClassroomStats>>;
 }
@@ -104,14 +104,14 @@ export interface ClassroomStats {
  * Contrato para servicios de actividades
  */
 export interface IActivityService {
-  create(createDto: any, creatorId: string): Promise<OperationResult<any>>;
-  findAll(options: FindActivitiesOptions): Promise<PaginatedResponse<any>>;
-  findById(id: string, userId: string): Promise<OperationResult<any>>;
-  update(id: string, updateDto: any, userId: string): Promise<OperationResult<any>>;
+  create(createDto: unknown, creatorId: string): Promise<OperationResult<unknown>>;
+  findAll(options: FindActivitiesOptions): Promise<PaginatedResponse<unknown>>;
+  findById(id: string, userId: string): Promise<OperationResult<unknown>>;
+  update(id: string, updateDto: unknown, userId: string): Promise<OperationResult<unknown>>;
   remove(id: string, userId: string): Promise<OperationResult<void>>;
-  completeActivity(activityId: string, studentId: string, answers: any[]): Promise<OperationResult<any>>;
+  completeActivity(activityId: string, studentId: string, answers: unknown[]): Promise<OperationResult<unknown>>;
   getActivityStats(activityId: string): Promise<OperationResult<ActivityStats>>;
-  getClassroomActivities(classroomId: string, userId: string): Promise<OperationResult<any[]>>;
+  getClassroomActivities(classroomId: string, userId: string): Promise<OperationResult<unknown[]>>;
 }
 
 /**
@@ -141,9 +141,9 @@ export interface ActivityStats {
  * Contrato para servicios de usuarios
  */
 export interface IUserService {
-  findById(id: string): Promise<OperationResult<any>>;
-  findByEmail(email: string): Promise<OperationResult<any>>;
-  update(id: string, updateDto: any): Promise<OperationResult<any>>;
+  findById(id: string): Promise<OperationResult<unknown>>;
+  findByEmail(email: string): Promise<OperationResult<unknown>>;
+  update(id: string, updateDto: unknown): Promise<OperationResult<unknown>>;
   updatePassword(id: string, currentPassword: string, newPassword: string): Promise<OperationResult<void>>;
   getUserStats(id: string): Promise<OperationResult<UserStats>>;
   deactivateUser(id: string, adminId: string): Promise<OperationResult<void>>;
@@ -170,12 +170,12 @@ export interface UserStats {
  * Contrato para servicios de gamificación
  */
 export interface IGamificationService {
-  getUserAchievements(userId: string): Promise<OperationResult<any[]>>;
-  grantAchievement(userId: string, achievementId: string): Promise<OperationResult<any>>;
-  checkAndGrantAchievements(userId: string, actionType: string, metadata?: any): Promise<OperationResult<any[]>>;
-  getUserInventory(userId: string): Promise<OperationResult<any>>;
-  purchaseItem(userId: string, purchaseDto: any): Promise<OperationResult<any>>;
-  getGamificationStats(): Promise<OperationResult<any>>;
+  getUserAchievements(userId: string): Promise<OperationResult<unknown[]>>;
+  grantAchievement(userId: string, achievementId: string): Promise<OperationResult<unknown>>;
+  checkAndGrantAchievements(userId: string, actionType: string, metadata?: Record<string, unknown>): Promise<OperationResult<unknown[]>>;
+  getUserInventory(userId: string): Promise<OperationResult<unknown>>;
+  purchaseItem(userId: string, purchaseDto: Record<string, unknown>): Promise<OperationResult<unknown>>;
+  getGamificationStats(): Promise<OperationResult<Record<string, unknown>>>;
 }
 
 /**
@@ -221,7 +221,7 @@ export interface ValidationError {
   field: string;
   message: string;
   code: string;
-  value?: any;
+  value?: unknown;
 }
 
 /**
@@ -231,7 +231,7 @@ export interface ValidationWarning {
   field: string;
   message: string;
   code: string;
-  value?: any;
+  value?: unknown;
 }
 
 /**
@@ -249,9 +249,9 @@ export interface ICacheService {
  * Contrato para notificaciones
  */
 export interface INotificationService {
-  sendEmail(to: string, subject: string, template: string, data: any): Promise<OperationResult<void>>;
+  sendEmail(to: string, subject: string, template: string, data: Record<string, unknown>): Promise<OperationResult<void>>;
   sendInAppNotification(userId: string, title: string, message: string, type: string): Promise<OperationResult<void>>;
-  getUserNotifications(userId: string, options: FindOptions): Promise<PaginatedResponse<any>>;
+  getUserNotifications(userId: string, options: FindOptions): Promise<PaginatedResponse<unknown>>;
   markAsRead(notificationId: string, userId: string): Promise<OperationResult<void>>;
 }
 
@@ -292,9 +292,9 @@ export interface IConfigService {
  * Contrato para logging
  */
 export interface ILoggerService {
-  log(message: string, context?: string, meta?: any): void;
-  error(message: string, trace?: string, context?: string, meta?: any): void;
-  warn(message: string, context?: string, meta?: any): void;
-  debug(message: string, context?: string, meta?: any): void;
-  verbose(message: string, context?: string, meta?: any): void;
+  log(message: string, context?: string, meta?: Record<string, unknown>): void;
+  error(message: string, trace?: string, context?: string, meta?: Record<string, unknown>): void;
+  warn(message: string, context?: string, meta?: Record<string, unknown>): void;
+  debug(message: string, context?: string, meta?: Record<string, unknown>): void;
+  verbose(message: string, context?: string, meta?: Record<string, unknown>): void;
 }

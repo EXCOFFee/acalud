@@ -7,9 +7,9 @@
  * - DIP: Puede usar diferentes fuentes de aleatoriedad
  */
 
-import { Injectable } from '@nestjs/common';
-import { IInviteCodeGenerator } from '../interfaces';
-import { IClassroomRepository } from '../interfaces';
+import { Inject, Injectable } from '@nestjs/common';
+import { IInviteCodeGenerator, IClassroomRepository } from '../interfaces';
+import { CLASSROOM_TOKENS } from '../tokens';
 
 @Injectable()
 export class InviteCodeGenerator implements IInviteCodeGenerator {
@@ -19,6 +19,7 @@ export class InviteCodeGenerator implements IInviteCodeGenerator {
   private readonly MAX_GENERATION_ATTEMPTS = 10;
 
   constructor(
+    @Inject(CLASSROOM_TOKENS.IClassroomRepository)
     private readonly classroomRepository: IClassroomRepository,
   ) {}
 

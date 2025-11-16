@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Activity, ActivityType, DifficultyLevel } from './activity.entity';
 import { ActivityCompletion } from './activity-completion.entity';
 import { User, UserRole } from '../users/user.entity';
@@ -71,7 +71,15 @@ export class ActivitiesService {
     return await this.activityRepository.save(activity);
   }
 
-  async findAll(options: FindActivitiesOptions) {
+  async findAll(options: FindActivitiesOptions): Promise<{
+    data: Activity[];
+    meta: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
     const { page, limit, classroomId, type, difficulty, search, isActive = true, userId } = options;
     
     const queryBuilder = this.activityRepository.createQueryBuilder('activity')
@@ -265,7 +273,7 @@ export class ActivitiesService {
         maxScore: 100,
         timeSpent: completeActivityDto.timeSpent,
         attempts: 1,
-        answers: completeActivityDto.answers as any,
+  answers: completeActivityDto.answers as unknown as ActivityCompletion['answers'],
       });
       completion = await this.completionRepository.save(completion);
     }
@@ -324,6 +332,34 @@ export class ActivitiesService {
     };
   }
 
+  async publishActivity(activityId: string, teacherId: string): Promise<Activity> {
+    const activity = await this.activityRepository.findOne({
+      where: { id: activityId },
+      relations: ['createdBy', 'classroom'],
+    });
+
+    if (!activity) {
+      throw new NotFoundException('Actividad no encontrada');
+    }
+
+    if (activity.createdBy.id !== teacherId) {
+      throw new ForbiddenException('Solo el docente propietario puede publicar esta actividad');
+    }
+
+    if (activity.isPublic) {
+      throw new BadRequestException('Esta actividad ya está publicada');
+    }
+
+    if (!activity.isActive) {
+      throw new BadRequestException('No se puede publicar una actividad inactiva');
+    }
+
+    this.ensureActivityCanBePublished(activity);
+
+    activity.isPublic = true;
+    return await this.activityRepository.save(activity);
+  }
+
   private async checkActivityAccess(activity: Activity, userId: string): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -354,5 +390,30 @@ export class ActivitiesService {
     }
 
     throw new ForbiddenException('No tienes permisos para acceder a esta actividad');
+  }
+
+  private ensureActivityCanBePublished(activity: Activity): void {
+    if (!activity.title || activity.title.trim().length < 3) {
+      throw new BadRequestException('La actividad debe tener un título válido (mínimo 3 caracteres)');
+    }
+
+    if (!activity.description || activity.description.trim().length < 10) {
+      throw new BadRequestException('La actividad debe tener una descripción válida (mínimo 10 caracteres)');
+    }
+
+    if (!activity.content || typeof activity.content !== 'object' || Object.keys(activity.content).length === 0) {
+      throw new BadRequestException('La actividad debe tener contenido definido');
+    }
+
+    if (activity.type === ActivityType.QUIZ) {
+      const questions = (activity.content as { questions?: unknown[] }).questions;
+      if (!Array.isArray(questions) || questions.length === 0) {
+        throw new BadRequestException('Un quiz debe tener al menos una pregunta para ser publicado');
+      }
+    }
+
+    if (!activity.rewards || typeof activity.rewards.coins !== 'number' || typeof activity.rewards.experience !== 'number') {
+      throw new BadRequestException('La actividad debe tener recompensas definidas');
+    }
   }
 }

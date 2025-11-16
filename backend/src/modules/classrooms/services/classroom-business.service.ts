@@ -10,12 +10,15 @@
  */
 
 import { Injectable, Logger, Inject } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { 
   IClassroomService,
   IClassroomRepository,
   IClassroomValidator,
   IPermissionValidator,
   IInviteCodeGenerator,
+  IClassroomInvitationService,
   CreateClassroomDto,
   UpdateClassroomDto,
   JoinClassroomDto,
@@ -27,11 +30,14 @@ import {
 } from '../interfaces';
 import { 
   ResourceNotFoundException, 
-  BusinessLimitException,
   ValidationException,
-  OperationNotAllowedException
+  OperationNotAllowedException,
+  AuthorizationException,
+  DataConflictException,
 } from '../../../common/exceptions/business.exception';
 import { CLASSROOM_TOKENS } from '../tokens';
+import { Activity } from '../../activities/activity.entity';
+import { User, UserRole } from '../../users/user.entity';
 
 @Injectable()
 export class ClassroomBusinessService implements IClassroomService {
@@ -46,6 +52,12 @@ export class ClassroomBusinessService implements IClassroomService {
     private readonly permissionValidator: IPermissionValidator,
     @Inject(CLASSROOM_TOKENS.IInviteCodeGenerator)
     private readonly inviteCodeGenerator: IInviteCodeGenerator,
+    @Inject(CLASSROOM_TOKENS.IClassroomInvitationService)
+    private readonly invitationService: IClassroomInvitationService,
+    @InjectRepository(Activity)
+    private readonly activityRepository: Repository<Activity>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   async createClassroom(data: CreateClassroomDto, teacherId: string): Promise<Classroom> {
@@ -60,6 +72,16 @@ export class ClassroomBusinessService implements IClassroomService {
 
       // ✅ Generar código de invitación único
       const inviteCode = await this.inviteCodeGenerator.generateUniqueCode();
+
+      // ✅ Normalizar etiquetas para garantizar consistencia
+      const normalizedTags = data.tags
+        ? Array.from(new Set(data.tags.map(tag => tag.trim().toLowerCase()))).slice(0, 10) // Limpiamos y limitamos etiquetas
+        : undefined; // Si no se enviaron etiquetas dejamos sin modificar
+
+      // ✅ Normalizar correos invitados para evitar duplicados
+      const normalizedInvites = data.invitedStudentEmails
+        ? Array.from(new Set(data.invitedStudentEmails.map(email => email.trim().toLowerCase()))).slice(0, 20) // Homogeneizamos correos y quitamos duplicados
+        : undefined; // Sin correos invitados no guardamos nada
 
       // ✅ Preparar datos para crear el aula
       const classroomData: CreateClassroomData = {
@@ -82,10 +104,23 @@ export class ClassroomBusinessService implements IClassroomService {
         },
         isActive: true,
         createdAt: new Date(),
+        level: data.level || 'intermedio',
+        timezone: data.timezone || 'America/Santiago',
+        language: data.language || 'es',
+        tags: normalizedTags,
+        invitedStudentEmails: normalizedInvites,
       };
 
       // ✅ Crear el aula en el repositorio
       const classroom = await this.classroomRepository.create(classroomData);
+
+      if (normalizedInvites && normalizedInvites.length > 0) {
+        try {
+          await this.invitationService.sendInvitations(classroom.id, teacherId, normalizedInvites);
+        } catch (inviteError) {
+          this.logger.warn(`Error enviando invitaciones iniciales: ${inviteError.message}`);
+        }
+      }
 
       this.logger.log(`Classroom created successfully: ${classroom.id}`);
       return classroom;
@@ -144,6 +179,23 @@ export class ClassroomBusinessService implements IClassroomService {
     }
   }
 
+  async findClassroomByInviteCode(inviteCode: string): Promise<Classroom> {
+    this.logger.log(`Finding classroom by invite code: ${inviteCode}`);
+
+    try {
+      const classroom = await this.classroomRepository.findByInviteCode(inviteCode);
+
+      if (!classroom) {
+        throw new ResourceNotFoundException('Aula', inviteCode);
+      }
+
+      return classroom;
+    } catch (error) {
+      this.logger.error(`Error finding classroom by invite code: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
   async updateClassroom(id: string, data: UpdateClassroomDto, userId: string): Promise<Classroom> {
     this.logger.log(`Updating classroom ${id} by user ${userId}`);
 
@@ -158,13 +210,34 @@ export class ClassroomBusinessService implements IClassroomService {
       const existingClassroom = await this.findClassroomById(id);
 
       // ✅ Preparar datos de actualización
+      const normalizedInvites = data.invitedStudentEmails
+        ? Array.from(new Set(data.invitedStudentEmails.map(email => email.trim().toLowerCase()))).slice(0, 20)
+        : undefined;
+
       const updateData: Partial<Classroom> = {
         ...data,
         settings: data.settings ? { ...existingClassroom.settings, ...data.settings } : undefined,
+        tags: data.tags
+          ? Array.from(new Set(data.tags.map(tag => tag.trim().toLowerCase()))).slice(0, 10) // Guardamos etiquetas normalizadas
+          : undefined,
+        invitedStudentEmails: normalizedInvites,
       };
 
       // ✅ Actualizar en el repositorio
       const updatedClassroom = await this.classroomRepository.update(id, updateData);
+
+      if (normalizedInvites && normalizedInvites.length > 0) {
+        const previousInvites = new Set(existingClassroom.invitedStudentEmails || []);
+        const newInvites = normalizedInvites.filter(email => !previousInvites.has(email));
+
+        if (newInvites.length > 0) {
+          try {
+            await this.invitationService.sendInvitations(id, userId, newInvites);
+          } catch (inviteError) {
+            this.logger.warn(`Error enviando nuevas invitaciones: ${inviteError.message}`);
+          }
+        }
+      }
 
       this.logger.log(`Classroom updated successfully: ${id}`);
       return updatedClassroom;
@@ -228,8 +301,27 @@ export class ClassroomBusinessService implements IClassroomService {
       // ✅ Validar reglas específicas del aula
       await this.classroomValidator.validateCanJoinSpecificClassroom(classroom, studentId);
 
-      // ✅ Validar capacidad del aula
-      await this.classroomValidator.validateClassroomCapacity(classroom.id);
+      // ✅ Validar capacidad del aula utilizando la configuración actual
+      const currentStudents = await this.classroomRepository.getStudentCount(classroom.id); // Consultamos la matrícula actual
+      const rawMaxStudents = classroom.settings?.maxStudents;
+
+      const parsedMaxStudents =
+        typeof rawMaxStudents === 'number'
+          ? rawMaxStudents
+          : typeof rawMaxStudents === 'string'
+            ? Number.parseInt(rawMaxStudents, 10)
+            : Number(rawMaxStudents ?? 50);
+
+      const maxStudentsAllowed = Number.isFinite(parsedMaxStudents) && parsedMaxStudents > 0
+        ? parsedMaxStudents
+        : 50;
+
+      if (currentStudents >= maxStudentsAllowed) {
+        throw new OperationNotAllowedException(
+          'unirse al aula',
+          `el aula alcanzó su límite de ${maxStudentsAllowed} estudiantes`
+        );
+      }
 
       // ✅ Unir estudiante al aula
       const updatedClassroom = await this.classroomRepository.addStudent(classroom.id, studentId);
@@ -313,5 +405,85 @@ export class ClassroomBusinessService implements IClassroomService {
       this.logger.error(`Error getting classroom stats: ${error.message}`, error.stack);
       throw error;
     }
+  }
+
+  async getTeacherClassrooms(teacherId: string): Promise<Classroom[]> {
+    this.logger.log(`Fetching classrooms for teacher ${teacherId}`);
+
+    await this.permissionValidator.validateCanCreateClassroom(teacherId);
+    return this.classroomRepository.findTeacherClassrooms(teacherId);
+  }
+
+  async getStudentClassrooms(studentId: string): Promise<Classroom[]> {
+    this.logger.log(`Fetching classrooms for student ${studentId}`);
+
+    await this.permissionValidator.validateCanJoinClassroom(studentId);
+    return this.classroomRepository.findStudentClassrooms(studentId);
+  }
+
+  async addActivityToClassroom(classroomId: string, activityId: string, userId: string): Promise<Classroom> {
+    this.logger.log(`Adding activity ${activityId} to classroom ${classroomId} by user ${userId}`);
+
+    await this.permissionValidator.validateCanModifyClassroom(classroomId, userId);
+
+    const [classroom, activity, user] = await Promise.all([
+      this.findClassroomById(classroomId),
+      this.activityRepository.findOne({
+        where: { id: activityId },
+        relations: ['createdBy', 'classroom'],
+      }),
+      this.userRepository.findOne({ where: { id: userId } }),
+    ]);
+
+    if (!activity) {
+      throw new ResourceNotFoundException('Actividad', activityId);
+    }
+
+    const isAlreadyLinked = classroom.activities?.some(act => act.id === activityId);
+    if (isAlreadyLinked) {
+      throw new DataConflictException('actividad', 'ya está asociada a esta aula');
+    }
+
+    if (!activity.isActive) {
+      throw new OperationNotAllowedException('agregar actividad al aula', 'la actividad está inactiva');
+    }
+
+    if (activity.classroom && activity.classroom.id !== classroomId) {
+      throw new DataConflictException('actividad', 'ya pertenece a otra aula');
+    }
+
+    if (!user) {
+      throw new ResourceNotFoundException('Usuario', userId);
+    }
+
+    const isOwnerTeacher = activity.createdBy?.id === classroom.teacherId;
+    const isAdmin = user.role === UserRole.ADMIN;
+
+    if (!isOwnerTeacher && !isAdmin) {
+      throw new AuthorizationException('agregar actividad a esta aula', 'actividad', userId);
+    }
+
+    activity.classroomId = classroomId;
+    await this.activityRepository.save(activity);
+
+    return this.findClassroomById(classroomId);
+  }
+
+  async removeActivityFromClassroom(classroomId: string, activityId: string, userId: string): Promise<void> {
+    this.logger.log(`Removing activity ${activityId} from classroom ${classroomId} by user ${userId}`);
+
+    await this.permissionValidator.validateCanModifyClassroom(classroomId, userId);
+
+    const activity = await this.activityRepository.findOne({
+      where: { id: activityId, classroomId },
+    });
+
+    if (!activity) {
+      throw new ResourceNotFoundException('Actividad', activityId);
+    }
+
+    activity.isActive = false;
+    activity.classroomId = null;
+    await this.activityRepository.save(activity);
   }
 }

@@ -1,375 +1,380 @@
-// ============================================================================
-// 🏠 COMPONENTE PRINCIPAL DE LA APLICACIÓN ACALUD
-// ============================================================================
-/**
- * 🎯 ¿QUÉ HACE ESTE ARCHIVO?
- * Este es el "cerebro principal" de toda la aplicación AcaLud.
- * Es como el director de orquesta que decide qué mostrar en cada momento:
- * - Si no hay usuario logueado → muestra login/registro
- * - Si hay usuario logueado → muestra la app principal
- * - Maneja toda la navegación entre páginas
- * 
- * 🤔 ¿POR QUÉ ES IMPORTANTE?
- * - Es el punto de entrada único de toda la aplicación
- * - Coordina el estado de autenticación con la navegación
- * - Decide qué componente mostrar según el usuario y página actual
- * - Maneja la experiencia de usuario de manera fluida
- * 
- * 🏗️ ARQUITECTURA:
- * - AuthProvider: Proporciona contexto de autenticación a toda la app
- * - AppContent: Lógica principal de navegación y renderizado
- * - Sistema de rutas: Navegación simple basada en estado interno
- * - Componentes modulares: Cada página es un componente independiente
- */
-
-import { useState } from 'react';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-
-// 🔐 COMPONENTES DE AUTENTICACIÓN
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { useAuth } from './contexts/useAuth';
 import { LoginForm } from './components/Auth/LoginForm';
 import { RegisterForm } from './components/Auth/RegisterForm';
-
-// 🎨 COMPONENTES DE LAYOUT
 import { Header } from './components/Layout/Header';
-
-// 📊 COMPONENTES DE DASHBOARD (PÁGINA PRINCIPAL)
 import { TeacherDashboard } from './components/Dashboard/TeacherDashboard';
 import { StudentDashboard } from './components/Dashboard/StudentDashboard';
-
-// 🏫 COMPONENTES DE GESTIÓN DE AULAS
-import { CreateClassroomForm } from './components/Classroom/CreateClassroomForm';
+import { CreateClassroomForm, EditClassroomForm } from './components/Classroom/CreateClassroomForm';
 import { ClassroomManagement } from './components/Classroom/ClassroomManagement';
+import { ClassroomDetail } from './components/Classroom/ClassroomDetail';
 import { CreateActivityForm } from './components/Activity/CreateActivityForm';
+import { ActivityPlayer } from './components/Activity/ActivityPlayer';
 import { JoinClassroom } from './components/Classroom/JoinClassroom';
 import { StudentClassrooms } from './components/Student/StudentClassrooms';
-
-// 🏆 COMPONENTES DE GAMIFICACIÓN
 import { Achievements } from './components/Gamification/Achievements';
 import { Store } from './components/Gamification/Store';
-
-// 👤 COMPONENTE DE PERFIL
 import { UserProfile } from './components/UserProfile/UserProfile';
-
-// 🎮 COMPONENTES DE JUEGOS EDUCATIVOS
 import { GameDemo } from './components/GameDemo';
+import { GamesList } from './components/Games/GamesList';
+import { TriviaGame } from './components/Games/TriviaGame';
+import { CreateGameForm } from './components/Games/CreateGameForm';
+import { ActivityRepository } from './components/Activity/ActivityRepository';
 
-/**
- * 🧠 COMPONENTE PRINCIPAL DE CONTENIDO
- * 
- * ¿Qué hace?
- * Este componente decide QUÉ mostrar en cada momento basándose en:
- * 1. ¿Hay usuario logueado? → Mostrar app o login
- * 2. ¿Qué página quiere ver? → Mostrar componente correspondiente
- * 3. ¿Qué rol tiene? → Mostrar opciones apropiadas
- * 
- * Estados principales:
- * - Loading: Verificando si hay sesión activa
- * - No autenticado: Formularios de login/registro
- * - Autenticado: Aplicación principal con navegación
- */
-function AppContent() {
-  // 📡 OBTENER ESTADO DE AUTENTICACIÓN
-  // useAuth() nos conecta con el contexto global de autenticación
-  const { user, isLoading } = useAuth();
-  
-  // 🧭 ESTADO DE NAVEGACIÓN
-  const [currentPage, setCurrentPage] = useState('dashboard');  // Página actual
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');  // Modo de auth
-  const [navigationData, setNavigationData] = useState<any>(null);  // Datos entre páginas
+type RouteState = {
+  classroomId?: string;
+  activityId?: string;
+  gameId?: string;
+  templateActivityId?: string;
+  score?: number;
+  [key: string]: unknown;
+};
 
-  /**
-   * 🧭 FUNCIÓN DE NAVEGACIÓN
-   * 
-   * ¿Para qué sirve?
-   * Permite que cualquier componente pueda cambiar de página.
-   * Es como tener un "control remoto" para la navegación.
-   * 
-   * @param page - A qué página queremos ir (ej: 'dashboard', 'profile')
-   * @param data - Información extra para pasar a la página (opcional)
-   * 
-   * Ejemplo de uso:
-   * handleNavigate('profile') → Va al perfil
-   * handleNavigate('classrooms', { created: '123' }) → Va a aulas con datos
-   */
-  const handleNavigate = (page: string, data?: any) => {
-    setCurrentPage(page);        // Cambiar la página actual
-    setNavigationData(data);     // Guardar datos para la nueva página
-  };
+const ROUTE_MAP: Record<string, string> = {
+  dashboard: '/dashboard',
+  classrooms: '/classrooms',
+  'create-classroom': '/classrooms/create',
+  'edit-classroom': '/classrooms/edit',
+  'create-activity': '/activities/create',
+  'classroom-detail': '/classrooms/detail',
+  'student-classrooms': '/student/classrooms',
+  'join-classroom': '/student/classrooms/join',
+  'activity-detail': '/activities/detail',
+  repository: '/repository',
+  achievements: '/achievements',
+  store: '/store',
+  profile: '/profile',
+  games: '/games',
+  'create-game': '/games/create',
+  'trivia-game': '/games/trivia',
+  'game-demo': '/games/demo',
+};
 
-  /**
-   * 🎭 FUNCIÓN PRINCIPAL DE RENDERIZADO
-   * 
-   * ¿Qué hace?
-   * Decide qué mostrar basándose en el estado actual:
-   * 1. Si isLoading = true → Spinner de carga
-   * 2. Si user = null → Formularios de login/registro
-   * 3. Si user existe → Aplicación principal
-   */
-  const renderMainContent = () => {
-    // 🔄 ESTADO DE CARGA
-    // Mientras verificamos si hay sesión activa, mostramos un spinner bonito
-    if (isLoading) {
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
-          <div className="text-center">
-            {/* 🎡 Spinner animado con CSS */}
-            <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 text-lg">Cargando AcaLud...</p>
-          </div>
-        </div>
-      );
-    }
+const PATH_TO_PAGE_KEY = Object.entries(ROUTE_MAP).reduce<Record<string, string>>((acc, [key, path]) => {
+  acc[path] = key;
+  return acc;
+}, {});
 
-    // 🔐 USUARIO NO AUTENTICADO
-    // Si no hay usuario logueado, mostramos los formularios de entrada
-    if (!user) {
-      if (authMode === 'login') {
-        return (
-          <LoginForm 
-            onSwitchToRegister={() => setAuthMode('register')}  // Cambiar a registro
-          />
-        );
-      } else {
-        return (
-          <RegisterForm 
-            onSwitchToLogin={() => setAuthMode('login')}  // Cambiar a login
-          />
-        );
-      }
-    }
+const TEACHER_ALLOWED_PAGES = [
+  'dashboard',
+  'classrooms',
+  'create-classroom',
+  'create-activity',
+  'edit-classroom',
+  'repository',
+  'achievements',
+  'store',
+  'profile',
+  'games',
+  'create-game',
+  'trivia-game',
+  'game-demo',
+  'activity-detail',
+];
 
-    // ✅ USUARIO AUTENTICADO
-    // Si hay usuario logueado, mostramos la aplicación principal
-    return (
-      <div className="min-h-screen bg-gray-50">
-        {/* 🎨 HEADER SIEMPRE VISIBLE */}
-        <Header 
-          onNavigate={handleNavigate}   // Función para navegar desde el header
-          currentPage={currentPage}     // Página actual para destacar en menu
-        />
-        
-        {/* 📄 CONTENIDO PRINCIPAL */}
-        <main>
-          {renderPageContent()}  {/* Aquí se muestra el contenido de cada página */}
-        </main>
-      </div>
-    );
-  };
+const STUDENT_ALLOWED_PAGES = [
+  'dashboard',
+  'student-classrooms',
+  'join-classroom',
+  'classroom-detail',
+  'activity-detail',
+  'repository',
+  'achievements',
+  'store',
+  'profile',
+  'games',
+  'trivia-game',
+  'game-demo',
+];
 
-  /**
-   * Renderiza el contenido de la página actual
-   */
-  const renderPageContent = () => {
-    if (!user) return null;
+function normalizePath(pathname: string): string {
+  if (!pathname || pathname === '/') {
+    return '/';
+  }
 
-    switch (currentPage) {
-      case 'dashboard':
-        // Mostrar dashboard según el rol del usuario
-        if (user.role === 'teacher') {
-          return <TeacherDashboard onNavigate={handleNavigate} />;
-        } else {
-          return <StudentDashboard onNavigate={handleNavigate} />;
-        }
-
-      // Gestión de aulas para profesores
-      case 'classrooms':
-        return <ClassroomManagement onNavigate={handleNavigate} />;
-
-      case 'create-classroom':
-        return <CreateClassroomForm 
-          onBack={() => handleNavigate('classrooms')} 
-          onSuccess={(classroomId) => handleNavigate('classrooms', { created: classroomId })}
-        />;
-
-      case 'create-activity':
-        return <CreateActivityForm 
-          onBack={() => handleNavigate('classrooms')} 
-          onSuccess={(activityId) => handleNavigate('classrooms', { activityCreated: activityId })}
-          classroomId={navigationData?.classroomId} 
-        />;
-
-      // Gestión de aulas para estudiantes
-      case 'student-classrooms':
-        return <StudentClassrooms onNavigate={handleNavigate} />;
-
-      case 'join-classroom':
-        return <JoinClassroom 
-          onBack={() => handleNavigate('student-classrooms')} 
-          onSuccess={(classroomId) => handleNavigate('student-classrooms', { joined: classroomId })}
-        />;
-
-      // Sistema de repositorio
-      case 'repository':
-        return (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">Repositorio de Actividades</h1>
-              <p className="text-gray-600">Explora y comparte actividades educativas</p>
-              <div className="mt-8 p-8 bg-white rounded-xl shadow-sm border border-gray-100">
-                <p className="text-gray-500">Funcionalidad en desarrollo...</p>
-                <button
-                  onClick={() => handleNavigate('dashboard')}
-                  className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                >
-                  Volver al Dashboard
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-
-      // Sistema de gamificación
-      case 'achievements':
-        return <Achievements onBack={() => handleNavigate('dashboard')} />;
-
-      case 'store':
-        return <Store onBack={() => handleNavigate('dashboard')} />;
-
-      // Perfil de usuario
-      case 'profile':
-        return <UserProfile onBack={() => handleNavigate('dashboard')} />;
-
-      // 🎮 JUEGOS EDUCATIVOS
-      case 'games':
-        return <GameDemo onBack={() => handleNavigate('dashboard')} />;
-
-      default:
-        // Página no encontrada - redirigir al dashboard
-        return (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">Página no encontrada</h1>
-              <p className="text-gray-600 mb-8">La página que buscas no existe.</p>
-              <button
-                onClick={() => handleNavigate('dashboard')}
-                className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                Volver al Dashboard
-              </button>
-            </div>
-          </div>
-        );
-    }
-  };
-
-  return renderMainContent();
+  return pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
 }
 
-/**
- * 🎯 COMPONENTE APP PRINCIPAL CON PROVEEDOR DE CONTEXTO
- * 
- * ¿Por qué está separado de AppContent?
- * El componente App actúa como un "envoltorio" que proporciona el contexto
- * de autenticación a toda la aplicación. AppContent puede usar useAuth()
- * porque está dentro del AuthProvider.
- * 
- * Es como una caja que contiene toda la aplicación y le da acceso
- * a la información de autenticación.
- */
+function resolvePageKey(pathname: string): string {
+  const normalized = normalizePath(pathname);
+
+  if (PATH_TO_PAGE_KEY[normalized]) {
+    return PATH_TO_PAGE_KEY[normalized];
+  }
+
+  if (normalized.startsWith('/activities/detail')) {
+    return 'activity-detail';
+  }
+
+  return 'dashboard';
+}
+
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gray-600 text-lg">Cargando AcaLud...</p>
+      </div>
+    </div>
+  );
+}
+
+function AuthenticatedApp() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const restoredPathRef = useRef(false);
+  const routeState = (location.state as RouteState) ?? {};
+
+  const currentPage = useMemo(() => resolvePageKey(location.pathname), [location.pathname]);
+
+  const handleNavigate = useCallback(
+    (page: string, data?: RouteState) => {
+      const targetPath = ROUTE_MAP[page] ?? ROUTE_MAP.dashboard;
+
+      navigate(targetPath, { state: data });
+
+      try {
+        sessionStorage.setItem('acalud_current_page', targetPath);
+      } catch (error) {
+        console.warn('No fue posible guardar la ruta seleccionada', error);
+      }
+    },
+    [navigate]
+  );
+
+  useEffect(() => {
+    if (!user || restoredPathRef.current) {
+      return;
+    }
+
+    try {
+      const storedPath = sessionStorage.getItem('acalud_current_page');
+
+      if (storedPath && storedPath !== location.pathname) {
+        navigate(storedPath, { replace: true });
+      }
+    } catch (error) {
+      console.warn('No fue posible restaurar la última ruta visitada', error);
+    } finally {
+      restoredPathRef.current = true;
+    }
+  }, [user, location.pathname, navigate]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const allowedPages = user.role === 'teacher' ? TEACHER_ALLOWED_PAGES : STUDENT_ALLOWED_PAGES;
+
+    if (!allowedPages.includes(currentPage)) {
+      navigate(ROUTE_MAP.dashboard, { replace: true });
+    }
+  }, [currentPage, navigate, user]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    try {
+      sessionStorage.setItem('acalud_current_page', normalizePath(location.pathname));
+    } catch (error) {
+      console.warn('No fue posible persistir la ruta actual', error);
+    }
+  }, [location.pathname, user]);
+
+  if (!user) {
+    return <Navigate to="/auth/login" replace />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header onNavigate={handleNavigate} currentPage={currentPage} />
+      <main>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route
+            path="/dashboard"
+            element={
+              user.role === 'teacher' ? (
+                <TeacherDashboard onNavigate={handleNavigate} />
+              ) : (
+                <StudentDashboard onNavigate={handleNavigate} />
+              )
+            }
+          />
+          <Route path="/classrooms" element={<ClassroomManagement onNavigate={handleNavigate} />} />
+          <Route
+            path="/classrooms/create"
+            element={
+              <CreateClassroomForm
+                onBack={() => handleNavigate('classrooms')}
+                onSuccess={(classroomId) => handleNavigate('classrooms', { created: classroomId })}
+              />
+            }
+          />
+          <Route
+            path="/classrooms/edit"
+            element={
+              typeof routeState.classroomId === 'string' ? (
+                <EditClassroomForm
+                  classroomId={routeState.classroomId}
+                  onBack={() => handleNavigate('classrooms')}
+                  onSuccess={(updatedId) => handleNavigate('classrooms', { updated: updatedId })}
+                />
+              ) : (
+                <Navigate to="/classrooms" replace />
+              )
+            }
+          />
+          <Route
+            path="/classrooms/detail"
+            element={
+              typeof routeState.classroomId === 'string' ? (
+                <ClassroomDetail
+                  classroomId={routeState.classroomId}
+                  onBack={() => handleNavigate('classrooms')}
+                  onEdit={(id) => handleNavigate('edit-classroom', { classroomId: id })}
+                  onCreateActivity={(id) => handleNavigate('create-activity', { classroomId: id })}
+                />
+              ) : (
+                <Navigate to="/classrooms" replace />
+              )
+            }
+          />
+          <Route
+            path="/activities/create"
+            element={
+              <CreateActivityForm
+                onBack={() => handleNavigate('classrooms')}
+                onSuccess={(activityId) => handleNavigate('classrooms', { activityCreated: activityId })}
+                classroomId={typeof routeState.classroomId === 'string' ? routeState.classroomId : undefined}
+              />
+            }
+          />
+          <Route
+            path="/student/classrooms"
+            element={
+              <StudentClassrooms
+                onNavigate={handleNavigate}
+                initialClassroomId={typeof routeState.classroomId === 'string' ? routeState.classroomId : undefined}
+              />
+            }
+          />
+          <Route
+            path="/student/classrooms/join"
+            element={
+              <JoinClassroom
+                onBack={() => handleNavigate('student-classrooms')}
+                onSuccess={(classroomId) => handleNavigate('student-classrooms', { joined: classroomId })}
+              />
+            }
+          />
+          <Route
+            path="/activities/detail"
+            element={
+              typeof routeState.activityId === 'string' && typeof routeState.classroomId === 'string' ? (
+                <ActivityPlayer
+                  activityId={routeState.activityId}
+                  classroomId={routeState.classroomId}
+                  onBack={() => handleNavigate('student-classrooms')}
+                  onComplete={(score: number) => handleNavigate('student-classrooms', { activityCompleted: true, score })}
+                />
+              ) : (
+                <Navigate to="/dashboard" replace />
+              )
+            }
+          />
+          <Route
+            path="/repository"
+            element={<ActivityRepository onNavigate={handleNavigate} onBack={() => handleNavigate('dashboard')} />}
+          />
+          <Route path="/achievements" element={<Achievements onBack={() => handleNavigate('dashboard')} />} />
+          <Route path="/store" element={<Store onBack={() => handleNavigate('dashboard')} />} />
+          <Route path="/profile" element={<UserProfile onBack={() => handleNavigate('dashboard')} />} />
+          <Route path="/games" element={<GamesList onNavigate={handleNavigate} />} />
+          <Route path="/games/create" element={<CreateGameForm onNavigate={handleNavigate} />} />
+          <Route
+            path="/games/trivia"
+            element={
+              typeof routeState.gameId === 'string' ? (
+                <TriviaGame gameId={routeState.gameId} />
+              ) : (
+                <GamesList onNavigate={handleNavigate} />
+              )
+            }
+          />
+          <Route path="/games/demo" element={<GameDemo onBack={() => handleNavigate('dashboard')} />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+function UnauthenticatedApp() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem('acalud_current_page');
+    } catch (error) {
+      console.warn('No fue posible limpiar la ruta almacenada', error);
+    }
+  }, []);
+
+  return (
+    <Routes>
+      <Route
+        path="/auth/login"
+        element={<LoginForm onSwitchToRegister={() => navigate('/auth/register')} />}
+      />
+      <Route
+        path="/auth/register"
+        element={<RegisterForm onSwitchToLogin={() => navigate('/auth/login')} />}
+      />
+      <Route path="*" element={<Navigate to="/auth/login" replace />} />
+    </Routes>
+  );
+}
+
+function AppContent() {
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    if (!user && !location.pathname.startsWith('/auth/')) {
+      navigate('/auth/login', { replace: true });
+    }
+  }, [isLoading, location.pathname, navigate, user]);
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (!user) {
+    return <UnauthenticatedApp />;
+  }
+
+  return <AuthenticatedApp />;
+}
+
 function App() {
   return (
     <AuthProvider>
-      {/* 🎁 AuthProvider envuelve toda la app */}
-      {/* Esto permite que cualquier componente use useAuth() */}
       <AppContent />
     </AuthProvider>
   );
 }
 
 export default App;
-
-/**
- * 📝 RESUMEN COMPLETO DE ESTE ARCHIVO:
- * 
- * 🎯 PROPÓSITO PRINCIPAL:
- * Este archivo es el "director de orquesta" de AcaLud. Coordina:
- * - Estado de autenticación (¿quién está logueado?)
- * - Navegación entre páginas (¿qué quiere ver?)
- * - Experiencia de usuario (transiciones fluidas)
- * 
- * 🏗️ ARQUITECTURA:
- * 
- * 1. 📦 CAPA DE CONTEXTO (App):
- *    - AuthProvider: Da acceso global al estado de auth
- *    - Envuelve toda la aplicación
- * 
- * 2. 🧠 CAPA DE LÓGICA (AppContent):
- *    - Maneja navegación y estado de páginas
- *    - Decide qué componente renderizar
- *    - Coordina paso de datos entre páginas
- * 
- * 3. 🎨 CAPA DE PRESENTACIÓN (Componentes):
- *    - Cada página es un componente independiente
- *    - Sistema de props para comunicación
- *    - UI consistente con Tailwind CSS
- * 
- * 🔄 FLUJO DE NAVEGACIÓN:
- * 
- * 1. Usuario hace clic en algo
- * 2. Componente llama handleNavigate('nueva-pagina', datos)
- * 3. App.tsx actualiza currentPage y navigationData
- * 4. renderPageContent() ve el cambio y muestra nueva página
- * 5. Nueva página recibe datos via navigationData
- * 
- * 📋 PÁGINAS DISPONIBLES:
- * 
- * 🏠 COMUNES:
- * - dashboard: Página principal (diferente según rol)
- * - profile: Perfil del usuario
- * 
- * 👨‍🏫 PARA PROFESORES:
- * - classrooms: Gestión de aulas
- * - create-classroom: Crear nueva aula
- * - create-activity: Crear actividad para aula
- * 
- * 🎒 PARA ESTUDIANTES:
- * - student-classrooms: Ver aulas donde está inscrito
- * - join-classroom: Unirse a nueva aula
- * 
- * 🏆 GAMIFICACIÓN:
- * - achievements: Ver logros obtenidos
- * - store: Tienda virtual de items
- * 
- * 📚 FUTURAS:
- * - repository: Repositorio público de actividades
- * 
- * 💡 VENTAJAS DE ESTA ARQUITECTURA:
- * 
- * ✅ SIMPLICIDAD:
- * - No necesitamos React Router para un SPA simple
- * - Estado de navegación centralizado y predecible
- * 
- * ✅ FLEXIBILIDAD:
- * - Fácil pasar datos entre páginas
- * - Control total sobre transiciones
- * 
- * ✅ RENDIMIENTO:
- * - No hay recargas de página
- * - Componentes se montan/desmontan según necesidad
- * 
- * ✅ MANTENIBILIDAD:
- * - Toda la lógica de navegación en un lugar
- * - Fácil agregar nuevas páginas
- * 
- * 🚀 EJEMPLO DE USO DESDE OTRO COMPONENTE:
- * 
- * ```tsx
- * // En cualquier componente
- * function MiComponente({ onNavigate }) {
- *   const handleClick = () => {
- *     // Navegar a perfil
- *     onNavigate('profile');
- *     
- *     // Navegar con datos
- *     onNavigate('create-activity', { classroomId: '123' });
- *   };
- * }
- * ```
- * 
- * 🔮 POSIBLES MEJORAS FUTURAS:
- * - Implementar React Router para URLs amigables
- * - Añadir animaciones entre transiciones de página
- * - Implementar lazy loading de componentes
- * - Añadir breadcrumbs para navegación compleja
- * - Historial de navegación (botón atrás)
- */

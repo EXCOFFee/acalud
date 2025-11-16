@@ -3,108 +3,25 @@
 // ============================================================================
 // Componente para mostrar notificaciones toast con diferentes tipos y severidades
 
-import React, { createContext, useContext, useReducer, useCallback } from 'react';
-import { 
-  AuthErrorType, 
-  AuthError 
+import React, { useContext, useReducer, useCallback } from 'react';
+import {
+  AuthErrorType,
+  AuthError
 } from '../../services/enhanced-auth.service';
-import { 
-  ClassroomErrorType, 
-  ClassroomError 
+import {
+  ClassroomErrorType,
+  ClassroomError
 } from '../../services/enhanced-classroom.service';
-
-// ============================================================================
-// TIPOS E INTERFACES
-// ============================================================================
-
-/**
- * Tipos de notificación
- */
-export type NotificationType = 'success' | 'error' | 'warning' | 'info';
-
-/**
- * Posiciones de las notificaciones
- */
-export type NotificationPosition = 
-  | 'top-right' 
-  | 'top-left' 
-  | 'top-center'
-  | 'bottom-right' 
-  | 'bottom-left' 
-  | 'bottom-center';
-
-/**
- * Interfaz para una notificación
- */
-export interface Notification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  message?: string;
-  duration?: number;
-  persistent?: boolean;
-  actions?: Array<{
-    label: string;
-    action: () => void;
-    style?: 'primary' | 'secondary';
-  }>;
-  metadata?: Record<string, any>;
-  timestamp: Date;
-}
-
-/**
- * Estado del sistema de notificaciones
- */
-interface NotificationState {
-  notifications: Notification[];
-  position: NotificationPosition;
-  maxNotifications: number;
-}
-
-/**
- * Acciones del reducer
- */
-type NotificationAction =
-  | { type: 'ADD_NOTIFICATION'; payload: Notification }
-  | { type: 'REMOVE_NOTIFICATION'; payload: string }
-  | { type: 'CLEAR_ALL' }
-  | { type: 'SET_POSITION'; payload: NotificationPosition }
-  | { type: 'SET_MAX_NOTIFICATIONS'; payload: number };
-
-/**
- * Opciones para mostrar notificaciones
- */
-interface ShowNotificationOptions {
-  title: string;
-  message?: string;
-  type?: NotificationType;
-  duration?: number;
-  persistent?: boolean;
-  actions?: Array<{
-    label: string;
-    action: () => void;
-    style?: 'primary' | 'secondary';
-  }>;
-  metadata?: Record<string, any>;
-}
-
-/**
- * Interfaz del contexto de notificaciones
- */
-interface NotificationContextType {
-  notifications: Notification[];
-  position: NotificationPosition;
-  showNotification: (options: ShowNotificationOptions) => string;
-  showSuccess: (title: string, message?: string, options?: Partial<ShowNotificationOptions>) => string;
-  showError: (title: string, message?: string, options?: Partial<ShowNotificationOptions>) => string;
-  showWarning: (title: string, message?: string, options?: Partial<ShowNotificationOptions>) => string;
-  showInfo: (title: string, message?: string, options?: Partial<ShowNotificationOptions>) => string;
-  hideNotification: (id: string) => void;
-  clearAll: () => void;
-  setPosition: (position: NotificationPosition) => void;
-  setMaxNotifications: (max: number) => void;
-  handleError: (error: Error, customMessage?: string) => string;
-}
+import { NotificationContext } from './NotificationContext';
+import {
+  Notification,
+  NotificationContextType,
+  NotificationPosition,
+  NotificationReducerAction,
+  NotificationState,
+  NotificationType,
+  ShowNotificationOptions,
+} from './notification-types';
 
 // ============================================================================
 // CONFIGURACIÓN
@@ -128,18 +45,19 @@ const initialState: NotificationState = {
 // REDUCER
 // ============================================================================
 
-function notificationReducer(state: NotificationState, action: NotificationAction): NotificationState {
+function notificationReducer(state: NotificationState, action: NotificationReducerAction): NotificationState {
   switch (action.type) {
-    case 'ADD_NOTIFICATION':
+    case 'ADD_NOTIFICATION': {
       // Si se alcanza el máximo, remover la más antigua
       const notifications = state.notifications.length >= state.maxNotifications
         ? [...state.notifications.slice(1), action.payload]
         : [...state.notifications, action.payload];
-      
+
       return {
         ...state,
         notifications,
       };
+    }
 
     case 'REMOVE_NOTIFICATION':
       return {
@@ -186,7 +104,16 @@ function generateNotificationId(): string {
 /**
  * Obtiene el mensaje de error amigable para notificaciones
  */
-function getErrorNotificationMessage(error: any): { title: string; message: string } {
+function isErrorWithMessage(error: unknown): error is { message?: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message?: unknown }).message === 'string'
+  );
+}
+
+function getErrorNotificationMessage(error: unknown): { title: string; message: string } {
   if (error instanceof AuthError) {
     switch (error.type) {
       case AuthErrorType.INVALID_CREDENTIALS:
@@ -250,15 +177,11 @@ function getErrorNotificationMessage(error: any): { title: string; message: stri
   // Error genérico
   return {
     title: 'Error',
-    message: error.message || 'Ha ocurrido un error inesperado.'
+    message: isErrorWithMessage(error) && typeof error.message === 'string'
+      ? error.message
+      : 'Ha ocurrido un error inesperado.'
   };
 }
-
-// ============================================================================
-// CONTEXTO
-// ============================================================================
-
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 // ============================================================================
 // PROVIDER
@@ -421,16 +344,16 @@ export function NotificationProvider({
 // COMPONENTE DE CONTENEDOR
 // ============================================================================
 
-function NotificationContainer(): React.ReactElement {
+function NotificationContainer(): React.ReactElement | null {
   const context = useContext(NotificationContext);
-  if (!context) return <></>;
+  if (!context) return null;
 
   const { notifications, position } = context;
 
-  if (notifications.length === 0) return <></>;
+  if (notifications.length === 0) return null;
 
   // Clases CSS para posicionamiento
-  const positionClasses = {
+  const positionClasses: Record<NotificationPosition, string> = {
     'top-right': 'top-4 right-4',
     'top-left': 'top-4 left-4',
     'top-center': 'top-4 left-1/2 transform -translate-x-1/2',
@@ -461,14 +384,20 @@ interface NotificationItemProps {
   notification: Notification;
 }
 
-function NotificationItem({ notification }: NotificationItemProps): React.ReactElement {
+function NotificationItem({ notification }: NotificationItemProps): React.ReactElement | null {
   const context = useContext(NotificationContext);
-  if (!context) return <></>;
+  if (!context) return null;
 
   const { hideNotification } = context;
 
   // Clases CSS según el tipo
-  const typeStyles = {
+  const typeStyles: Record<NotificationType, {
+    container: string;
+    icon: string;
+    title: string;
+    message: string;
+    button: string;
+  }> = {
     success: {
       container: 'bg-green-50 border-green-200',
       icon: 'text-green-400',
@@ -502,7 +431,7 @@ function NotificationItem({ notification }: NotificationItemProps): React.ReactE
   const styles = typeStyles[notification.type];
 
   // Iconos según el tipo
-  const icons = {
+  const icons: Record<NotificationType, React.ReactElement> = {
     success: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -579,23 +508,6 @@ function NotificationItem({ notification }: NotificationItemProps): React.ReactE
       </div>
     </div>
   );
-}
-
-// ============================================================================
-// HOOK PERSONALIZADO
-// ============================================================================
-
-/**
- * Hook para usar el sistema de notificaciones
- */
-export function useNotifications(): NotificationContextType {
-  const context = useContext(NotificationContext);
-  
-  if (context === undefined) {
-    throw new Error('useNotifications debe ser usado dentro de un NotificationProvider');
-  }
-  
-  return context;
 }
 
 // ============================================================================

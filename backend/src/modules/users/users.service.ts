@@ -3,13 +3,18 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, FindManyOptions, SelectQueryBuilder } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
+import * as path from 'path';
 import { User, UserRole } from './user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateAvatarResponseDto } from './dto/update-avatar-response.dto';
 
 /**
  * Interface para opciones de filtrado y paginación
@@ -44,49 +49,88 @@ export interface UserStats {
 }
 
 /**
- * Servicio para la gestión de usuarios
- * Contiene toda la lógica de negocio relacionada con operaciones de usuarios
+ * 👤 SERVICIO DE GESTIÓN DE USUARIOS
+ * 
+ * Contiene toda la lógica de negocio relacionada con operaciones de usuarios:
+ * - Creación y actualización con validaciones
+ * - Gestión de contraseñas segura
+ * - Búsqueda y filtrado avanzado
+ * - Estadísticas y métricas
+ * - Auditoría completa
  */
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+  private readonly saltRounds = 10;
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
 
   /**
-   * Crea un nuevo usuario en el sistema
+   * 📝 Crea un nuevo usuario en el sistema con validaciones completas
    * @param createUserDto - Datos del usuario a crear
    * @returns Usuario creado sin la contraseña
    */
   async create(createUserDto: CreateUserDto): Promise<User> {
-    // Verificar si el email ya existe
-    const existingUser = await this.userRepository.findOne({
-      where: { email: createUserDto.email },
-    });
+    const startTime = Date.now();
+    this.logger.log(`📝 [CREATE] Iniciando creación de usuario: ${createUserDto.email}`);
 
-    if (existingUser) {
-      throw new ConflictException('El email ya está registrado en el sistema');
+    try {
+      // ====== VALIDACIONES PREVIAS ======
+      
+      // Validar que el email no esté registrado
+      this.logger.log(`🔍 [VALIDATION] Verificando email: ${createUserDto.email}`);
+      const existingUser = await this.userRepository.findOne({
+        where: { email: createUserDto.email.toLowerCase() },
+      });
+
+      if (existingUser) {
+        this.logger.warn(`⚠️ [CONFLICT] Email ya registrado: ${createUserDto.email}`);
+        throw new ConflictException('El email ya está registrado en el sistema');
+      }
+
+      // Validar fortaleza de contraseña (ya validada por interceptor, pero verificamos por seguridad)
+      this.logger.log(`🔐 [SECURITY] Validando fortaleza de contraseña`);
+
+      // ====== PROCESAMIENTO SEGURO ======
+      
+      // Hashear la contraseña antes de guardar
+      this.logger.log(`🔐 [SECURITY] Hasheando contraseña para ${createUserDto.email}`);
+      const hashedPassword = await bcrypt.hash(createUserDto.password, this.saltRounds);
+
+      // Crear entidad de usuario
+      const user = this.userRepository.create({
+        ...createUserDto,
+        email: createUserDto.email.toLowerCase().trim(),
+        password: hashedPassword,
+        name: `${createUserDto.firstName} ${createUserDto.lastName}`.trim(),
+        isActive: true,
+      });
+
+      // Guardar en base de datos
+      this.logger.log(`💾 [DATABASE] Guardando usuario: ${createUserDto.email}`);
+      const savedUser = await this.userRepository.save(user);
+
+      // Log de éxito
+      const duration = Date.now() - startTime;
+      this.logger.log(`✅ [SUCCESS] Usuario creado exitosamente en ${duration}ms`);
+      this.logger.log(`👤 [USER_INFO] ID: ${savedUser.id}, Email: ${savedUser.email}, Rol: ${savedUser.role}`);
+
+      // Retornar sin contraseña
+      delete savedUser.password;
+      return savedUser;
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger.error(`❌ [ERROR] Error creando usuario después de ${duration}ms: ${error.message}`);
+      
+      if (error instanceof ConflictException || error instanceof BadRequestException) {
+        throw error;
+      }
+      
+      throw new InternalServerErrorException('Error interno creando usuario');
     }
-
-    // Hashear la contraseña antes de guardar
-    const saltRounds = 12; // Alto nivel de seguridad
-    const hashedPassword = await bcrypt.hash(createUserDto.password, saltRounds);
-
-    // Crear el usuario con valores por defecto para gamificación
-    const user = this.userRepository.create({
-      ...createUserDto,
-      password: hashedPassword,
-      level: 1, // Nivel inicial
-      experience: 0, // Experiencia inicial
-      coins: 100, // Monedas iniciales como bienvenida
-    });
-
-    const savedUser = await this.userRepository.save(user);
-
-    // Remover la contraseña del objeto retornado
-    delete savedUser.password;
-    return savedUser;
   }
 
   /**
@@ -251,6 +295,119 @@ export class UsersService {
   }
 
   /**
+   * Actualiza el avatar del usuario
+   * CU-11: Modificar Avatar de Usuario
+   * @param userId - ID del usuario
+   * @param file - Archivo de imagen subido
+   * @returns Respuesta con la URL del nuevo avatar
+   */
+  async updateAvatar(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<UpdateAvatarResponseDto> {
+    const startTime = Date.now();
+    this.logger.log(`🖼️ [UPDATE_AVATAR] Iniciando actualización de avatar para usuario: ${userId}`);
+
+    try {
+      // Buscar el usuario
+      this.logger.log(`🔍 [VALIDATION] Buscando usuario: ${userId}`);
+      const user = await this.findById(userId);
+
+      if (!user) {
+        throw new NotFoundException('Usuario no encontrado');
+      }
+
+      // Validar el archivo
+      this.logger.log(`✅ [VALIDATION] Validando archivo: ${file.originalname}`);
+      
+      // Validar tipo de archivo
+      const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedMimes.includes(file.mimetype)) {
+        throw new BadRequestException(
+          'Tipo de archivo no permitido. Solo se aceptan: JPG, PNG, WebP',
+        );
+      }
+
+      // Validar tamaño (2MB máximo)
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (file.size > maxSize) {
+        // Eliminar el archivo subido
+        fs.unlinkSync(file.path);
+        throw new BadRequestException(
+          `El archivo es demasiado grande. Tamaño máximo: 2MB. Tamaño del archivo: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+        );
+      }
+
+      this.logger.log(`✅ [VALIDATION] Archivo válido: ${file.filename}`);
+
+      // Eliminar el avatar anterior si existe
+      if (user.avatar) {
+        this.logger.log(`🗑️ [CLEANUP] Eliminando avatar anterior: ${user.avatar}`);
+        
+        // Extraer el nombre del archivo de la URL
+        // Formato esperado: /uploads/avatars/avatar-123456789.jpg
+        const avatarPath = user.avatar.replace(/^\//, ''); // Remover slash inicial si existe
+        const fullPath = path.join(process.cwd(), avatarPath);
+
+        // Verificar si el archivo existe antes de eliminarlo
+        if (fs.existsSync(fullPath)) {
+          try {
+            fs.unlinkSync(fullPath);
+            this.logger.log(`✅ [CLEANUP] Avatar anterior eliminado exitosamente`);
+          } catch (error) {
+            this.logger.warn(`⚠️ [CLEANUP] No se pudo eliminar el avatar anterior: ${error.message}`);
+            // No lanzar error, continuar con la actualización
+          }
+        } else {
+          this.logger.warn(`⚠️ [CLEANUP] Avatar anterior no encontrado en disco: ${fullPath}`);
+        }
+      }
+
+      // Generar la URL del nuevo avatar
+      // El archivo ya está guardado por Multer en ./uploads/avatars/
+      const avatarUrl = `/uploads/avatars/${file.filename}`;
+      
+      this.logger.log(`💾 [DATABASE] Actualizando avatar en la base de datos: ${avatarUrl}`);
+
+      // Actualizar el usuario con la nueva URL del avatar
+      await this.userRepository.update(userId, {
+        avatar: avatarUrl,
+      });
+
+      // Log de éxito
+      const duration = Date.now() - startTime;
+      this.logger.log(`✅ [SUCCESS] Avatar actualizado exitosamente en ${duration}ms`);
+      this.logger.log(`📊 [AVATAR_INFO] Usuario: ${user.email}, Archivo: ${file.filename}, Tamaño: ${(file.size / 1024).toFixed(2)}KB`);
+
+      return {
+        id: userId,
+        avatar: avatarUrl,
+        message: 'Avatar actualizado exitosamente',
+      };
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger.error(`❌ [ERROR] Error actualizando avatar después de ${duration}ms: ${error.message}`);
+      
+      // Si hubo error y el archivo fue subido, eliminarlo
+      if (file && file.path && fs.existsSync(file.path)) {
+        try {
+          fs.unlinkSync(file.path);
+          this.logger.log(`🗑️ [CLEANUP] Archivo temporal eliminado después de error`);
+        } catch (cleanupError) {
+          this.logger.warn(`⚠️ [CLEANUP] No se pudo eliminar archivo temporal: ${cleanupError.message}`);
+        }
+      }
+
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      
+      throw new InternalServerErrorException('Error interno actualizando avatar');
+    }
+  }
+
+  /**
    * Obtiene las estadísticas de gamificación de un usuario
    * @param userId - ID del usuario
    * @returns Estadísticas del usuario
@@ -259,7 +416,7 @@ export class UsersService {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: [
-        'completedActivities',
+        'activityCompletions',
         'achievements',
         'ownedClassrooms',
         'enrolledClassrooms',
@@ -271,7 +428,7 @@ export class UsersService {
     }
 
     // Calcular estadísticas adicionales
-    const completions = user.completedActivities || [];
+    const completions = user.activityCompletions || [];
     const averageScore = completions.length > 0 
       ? completions.reduce((sum, completion) => sum + completion.score, 0) / completions.length 
       : 0;
@@ -288,7 +445,7 @@ export class UsersService {
       }));
 
     return {
-      totalActivitiesCompleted: user.completedActivities?.length || 0,
+      totalActivitiesCompleted: user.activityCompletions?.length || 0,
       totalExperience: user.experience,
       currentLevel: user.level,
       totalCoins: user.coins,

@@ -12,15 +12,17 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
-  BadRequestException,
+  Inject,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { ClassroomsService } from './classrooms.service';
 import { CreateClassroomDto } from './dto/create-classroom.dto';
 import { UpdateClassroomDto } from './dto/update-classroom.dto';
 import { JoinClassroomDto } from './dto/join-classroom.dto';
+import { AddActivityDto } from './dto/add-activity.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Classroom } from './classroom.entity';
+import { CLASSROOM_TOKENS } from './tokens';
+import { IClassroomService } from './interfaces';
 
 /**
  * Controlador para la gestión de aulas virtuales
@@ -31,7 +33,10 @@ import { Classroom } from './classroom.entity';
 @UseGuards(JwtAuthGuard) // Protege todas las rutas con autenticación JWT
 @ApiBearerAuth()
 export class ClassroomsController {
-  constructor(private readonly classroomsService: ClassroomsService) {}
+  constructor(
+    @Inject(CLASSROOM_TOKENS.IClassroomService)
+    private readonly classroomsService: IClassroomService,
+  ) {}
 
   /**
    * Crea una nueva aula virtual (solo docentes)
@@ -55,7 +60,7 @@ export class ClassroomsController {
     @Body() createClassroomDto: CreateClassroomDto,
     @Request() req,
   ): Promise<Classroom> {
-    return this.classroomsService.create(createClassroomDto, req.user.id);
+    return this.classroomsService.createClassroom(createClassroomDto, req.user.id);
   }
 
   /**
@@ -86,7 +91,7 @@ export class ClassroomsController {
     const pageNumber = Math.max(1, Number(page));
     const limitNumber = Math.min(50, Math.max(1, Number(limit)));
 
-    return this.classroomsService.findAll({
+    return this.classroomsService.findClassrooms({
       page: pageNumber,
       limit: limitNumber,
       search,
@@ -159,7 +164,7 @@ export class ClassroomsController {
     description: 'Código de invitación inválido',
   })
   async previewClassroom(@Param('inviteCode') inviteCode: string): Promise<Classroom> {
-    return this.classroomsService.findByInviteCode(inviteCode);
+    return this.classroomsService.findClassroomByInviteCode(inviteCode);
   }
 
   /**
@@ -177,7 +182,7 @@ export class ClassroomsController {
     description: 'Aula no encontrada',
   })
   async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<Classroom> {
-    return this.classroomsService.findById(id);
+    return this.classroomsService.findClassroomById(id);
   }
 
   /**
@@ -203,7 +208,7 @@ export class ClassroomsController {
     @Body() updateClassroomDto: UpdateClassroomDto,
     @Request() req,
   ): Promise<Classroom> {
-    return this.classroomsService.update(id, updateClassroomDto, req.user.id);
+    return this.classroomsService.updateClassroom(id, updateClassroomDto, req.user.id);
   }
 
   /**
@@ -225,7 +230,7 @@ export class ClassroomsController {
     description: 'Aula no encontrada',
   })
   async remove(@Param('id', ParseUUIDPipe) id: string, @Request() req): Promise<void> {
-    await this.classroomsService.remove(id, req.user.id);
+    await this.classroomsService.deleteClassroom(id, req.user.id);
   }
 
   /**
@@ -270,7 +275,7 @@ export class ClassroomsController {
     description: 'No tienes permisos para regenerar el código',
   })
   async regenerateInviteCode(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    const inviteCode = await this.classroomsService.regenerateInviteCode(id, req.user.id);
+    const inviteCode = await this.classroomsService.generateNewInviteCode(id, req.user.id);
     return { inviteCode };
   }
 
@@ -295,5 +300,67 @@ export class ClassroomsController {
   })
   async getClassroomStats(@Param('id', ParseUUIDPipe) id: string) {
     return this.classroomsService.getClassroomStats(id);
+  }
+
+  /**
+   * Agrega una actividad existente al aula (solo propietario o admin)
+   * CU-20: Agregar Actividad a Aula
+   */
+  @Post(':id/activities')
+  @ApiOperation({ summary: 'Agregar actividad al aula' })
+  @ApiResponse({
+    status: 201,
+    description: 'Actividad agregada al aula exitosamente',
+    type: Classroom,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'La actividad ya está en el aula o no está activa',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'No tienes permisos para agregar actividades a esta aula',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Aula o actividad no encontrada',
+  })
+  async addActivityToClassroom(
+    @Param('id', ParseUUIDPipe) classroomId: string,
+    @Body() addActivityDto: AddActivityDto,
+    @Request() req,
+  ): Promise<Classroom> {
+    return this.classroomsService.addActivityToClassroom(
+      classroomId,
+      addActivityDto.activityId,
+      req.user.id,
+    );
+  }
+
+  /**
+   * Quita una actividad del aula (solo propietario o admin)
+   * CU-22: Quitar Actividad de Aula
+   */
+  @Delete(':id/activities/:activityId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Quitar actividad del aula' })
+  @ApiResponse({
+    status: 204,
+    description: 'Actividad quitada del aula exitosamente',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'No tienes permisos para quitar actividades de esta aula',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Aula o actividad no encontrada',
+  })
+  async removeActivityFromClassroom(
+    @Param('id', ParseUUIDPipe) classroomId: string,
+    @Param('activityId', ParseUUIDPipe) activityId: string,
+    @Request() req,
+  ): Promise<void> {
+    await this.classroomsService.removeActivityFromClassroom(classroomId, activityId, req.user.id);
   }
 }

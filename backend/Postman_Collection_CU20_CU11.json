@@ -1,0 +1,1027 @@
+{
+  "info": {
+    "name": "Acalud - CU-20 y CU-11 Testing",
+    "_postman_id": "acalud-cu20-cu11-testing",
+    "description": "Colección de pruebas para:\n- CU-20: Agregar Actividad a Aula\n- CU-11: Modificar Avatar de Usuario\n\nDesarrollado por: GitHub Copilot + Santi\nFecha: 30 de septiembre de 2025",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{teacherToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "0. Setup - Autenticación",
+      "item": [
+        {
+          "name": "Login - Teacher",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('teacherToken', response.access_token);",
+                  "    pm.environment.set('teacherId', response.user.id);",
+                  "    console.log('✅ Teacher token guardado:', response.access_token.substring(0, 20) + '...');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{teacherEmail}}\",\n  \"password\": \"{{teacherPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login como docente para obtener token JWT"
+          },
+          "response": []
+        },
+        {
+          "name": "Login - Student",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('studentToken', response.access_token);",
+                  "    console.log('✅ Student token guardado');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{studentEmail}}\",\n  \"password\": \"{{studentPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Teacher Classrooms",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().length > 0) {",
+                  "    const classrooms = pm.response.json();",
+                  "    pm.environment.set('classroomId', classrooms[0].id);",
+                  "    console.log('✅ Classroom ID guardado:', classrooms[0].id);",
+                  "    console.log('   Aula:', classrooms[0].name);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/classrooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["classrooms"]
+            },
+            "description": "Obtener aulas del docente y guardar ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Teacher Activities",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().length > 0) {",
+                  "    const activities = pm.response.json();",
+                  "    const availableActivities = activities.filter(a => a.classroomId === null);",
+                  "    ",
+                  "    if (availableActivities.length > 0) {",
+                  "        pm.environment.set('activityId', availableActivities[0].id);",
+                  "        console.log('✅ Activity ID guardado:', availableActivities[0].id);",
+                  "        console.log('   Actividad:', availableActivities[0].title);",
+                  "    }",
+                  "    ",
+                  "    if (availableActivities.length > 1) {",
+                  "        pm.environment.set('activity2Id', availableActivities[1].id);",
+                  "        console.log('✅ Activity 2 ID guardado:', availableActivities[1].id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/activities",
+              "host": ["{{baseUrl}}"],
+              "path": ["activities"]
+            },
+            "description": "Obtener actividades del docente (sin asignar a aula)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints para obtener tokens JWT y IDs necesarios"
+    },
+    {
+      "name": "CU-20: Agregar Actividad",
+      "item": [
+        {
+          "name": "✅ 1. Success - Add Activity",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response contains activities array', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('activities');",
+                  "    pm.expect(response.activities).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Activity was added', function () {",
+                  "    const response = pm.response.json();",
+                  "    const activityId = pm.environment.get('activityId');",
+                  "    const found = response.activities.some(a => a.id === activityId);",
+                  "    pm.expect(found).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityId\": \"{{activityId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/classrooms/{{classroomId}}/activities",
+              "host": ["{{baseUrl}}"],
+              "path": ["classrooms", "{{classroomId}}", "activities"]
+            },
+            "description": "Agregar actividad al aula exitosamente"
+          },
+          "response": []
+        },
+        {
+          "name": "❌ 2. Error - Duplicate Activity",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 409', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test('Error message is correct', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.include('ya está en el aula');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityId\": \"{{activityId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/classrooms/{{classroomId}}/activities",
+              "host": ["{{baseUrl}}"],
+              "path": ["classrooms", "{{classroomId}}", "activities"]
+            },
+            "description": "Intentar agregar la misma actividad dos veces"
+          },
+          "response": []
+        },
+        {
+          "name": "❌ 3. Error - No Permissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test('Error message is correct', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.include('permisos');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{studentToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityId\": \"{{activity2Id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/classrooms/{{classroomId}}/activities",
+              "host": ["{{baseUrl}}"],
+              "path": ["classrooms", "{{classroomId}}", "activities"]
+            },
+            "description": "Estudiante intenta agregar actividad al aula del docente"
+          },
+          "response": []
+        },
+        {
+          "name": "❌ 4. Error - Classroom Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions classroom', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.include('Aula');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityId\": \"{{activityId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/classrooms/99999999-9999-9999-9999-999999999999/activities",
+              "host": ["{{baseUrl}}"],
+              "path": ["classrooms", "99999999-9999-9999-9999-999999999999", "activities"]
+            },
+            "description": "Intentar agregar actividad a aula inexistente"
+          },
+          "response": []
+        },
+        {
+          "name": "❌ 5. Error - Activity Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions activity', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.include('Actividad');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityId\": \"99999999-9999-9999-9999-999999999999\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/classrooms/{{classroomId}}/activities",
+              "host": ["{{baseUrl}}"],
+              "path": ["classrooms", "{{classroomId}}", "activities"]
+            },
+            "description": "Intentar agregar actividad inexistente"
+          },
+          "response": []
+        },
+        {
+          "name": "❌ 6. Error - Invalid UUID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions UUID', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message.toString()).to.include('UUID');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityId\": \"not-a-uuid\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/classrooms/{{classroomId}}/activities",
+              "host": ["{{baseUrl}}"],
+              "path": ["classrooms", "{{classroomId}}", "activities"]
+            },
+            "description": "DTO valida que activityId sea UUID válido"
+          },
+          "response": []
+        },
+        {
+          "name": "❌ 7. Error - Empty Field",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions required', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message.toString()).to.match(/obligatorio|required|empty/i);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityId\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/classrooms/{{classroomId}}/activities",
+              "host": ["{{baseUrl}}"],
+              "path": ["classrooms", "{{classroomId}}", "activities"]
+            },
+            "description": "Validar que activityId no puede estar vacío"
+          },
+          "response": []
+        },
+        {
+          "name": "✅ 8. Verify - Get Classroom with Activity",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Classroom has activities', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.activities).to.be.an('array');",
+                  "    pm.expect(response.activities.length).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "pm.test('Added activity is present', function () {",
+                  "    const response = pm.response.json();",
+                  "    const activityId = pm.environment.get('activityId');",
+                  "    const found = response.activities.some(a => a.id === activityId && a.classroomId === response.id);",
+                  "    pm.expect(found).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/classrooms/{{classroomId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["classrooms", "{{classroomId}}"]
+            },
+            "description": "Verificar que la actividad se agregó correctamente"
+          },
+          "response": []
+        }
+      ],
+      "description": "Tests para el caso de uso CU-20: Agregar Actividad a Aula"
+    },
+    {
+      "name": "CU-11: Modificar Avatar",
+      "item": [
+        {
+          "name": "✅ 1. Success - Upload JPG",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has avatar URL', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('avatar');",
+                  "    pm.expect(response.avatar).to.include('/uploads/avatars/');",
+                  "});",
+                  "",
+                  "pm.test('Response has success message', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('message');",
+                  "    pm.expect(response.message).to.include('exitosamente');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": [],
+                  "description": "Seleccionar archivo JPG < 2MB"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile", "avatar"]
+            },
+            "description": "Subir avatar JPG exitosamente\n\n⚠️ Recuerda seleccionar un archivo JPG en el campo 'avatar'"
+          },
+          "response": []
+        },
+        {
+          "name": "✅ 2. Success - Upload PNG",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Avatar URL ends with .png', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.avatar).to.match(/\\.png$/);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": [],
+                  "description": "Seleccionar archivo PNG < 2MB"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile", "avatar"]
+            },
+            "description": "Subir avatar PNG\n\n⚠️ Seleccionar archivo PNG"
+          },
+          "response": []
+        },
+        {
+          "name": "✅ 3. Success - Replace Avatar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('New avatar URL is different', function () {",
+                  "    const response = pm.response.json();",
+                  "    const oldAvatar = pm.environment.get('oldAvatar');",
+                  "    if (oldAvatar) {",
+                  "        pm.expect(response.avatar).to.not.equal(oldAvatar);",
+                  "    }",
+                  "});",
+                  "",
+                  "console.log('🗑️ Verifica en el backend que el avatar anterior fue eliminado del disco');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Guardar avatar actual antes de reemplazar",
+                  "pm.sendRequest({",
+                  "    url: pm.environment.get('baseUrl') + '/users/profile',",
+                  "    method: 'GET',",
+                  "    header: {",
+                  "        'Authorization': 'Bearer ' + pm.environment.get('teacherToken')",
+                  "    }",
+                  "}, function (err, response) {",
+                  "    if (response && response.json().avatar) {",
+                  "        pm.environment.set('oldAvatar', response.json().avatar);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile", "avatar"]
+            },
+            "description": "Reemplazar avatar existente y verificar que el anterior se eliminó"
+          },
+          "response": []
+        },
+        {
+          "name": "❌ 4. Error - No File",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions file required', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.match(/proporcionar|archivo|file/i);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": []
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile", "avatar"]
+            },
+            "description": "Intentar subir avatar sin proporcionar archivo"
+          },
+          "response": []
+        },
+        {
+          "name": "❌ 5. Error - Invalid Type (PDF)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions file type', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.match(/tipo|type|permitido|allowed/i);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": [],
+                  "description": "Seleccionar archivo PDF"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile", "avatar"]
+            },
+            "description": "Intentar subir PDF (tipo no permitido)\n\n⚠️ Seleccionar archivo .pdf"
+          },
+          "response": []
+        },
+        {
+          "name": "❌ 6. Error - Invalid Type (GIF)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error mentions allowed types', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.match(/JPG|PNG|WebP/i);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": [],
+                  "description": "Seleccionar archivo GIF"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile", "avatar"]
+            },
+            "description": "Intentar subir GIF (tipo no permitido)\n\n⚠️ Seleccionar archivo .gif"
+          },
+          "response": []
+        },
+        {
+          "name": "❌ 7. Error - File Too Large",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions size', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.match(/tamaño|size|grande|large|2MB/i);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": [],
+                  "description": "Seleccionar archivo > 2MB"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile", "avatar"]
+            },
+            "description": "Intentar subir archivo mayor a 2MB\n\n⚠️ Seleccionar archivo > 2MB"
+          },
+          "response": []
+        },
+        {
+          "name": "✅ 8. Verify - Get User Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Profile has avatar URL', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('avatar');",
+                  "    pm.expect(response.avatar).to.be.a('string');",
+                  "    pm.expect(response.avatar).to.include('/uploads/avatars/');",
+                  "});",
+                  "",
+                  "pm.test('Avatar URL is accessible', function () {",
+                  "    const response = pm.response.json();",
+                  "    console.log('✅ Avatar URL:', pm.environment.get('baseUrl').replace('/api', '') + response.avatar);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacherToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile"]
+            },
+            "description": "Verificar que el avatar está en el perfil del usuario"
+          },
+          "response": []
+        }
+      ],
+      "description": "Tests para el caso de uso CU-11: Modificar Avatar de Usuario"
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "teacherEmail",
+      "value": "teacher@test.com",
+      "type": "string"
+    },
+    {
+      "key": "teacherPassword",
+      "value": "password123",
+      "type": "string"
+    },
+    {
+      "key": "studentEmail",
+      "value": "student@test.com",
+      "type": "string"
+    },
+    {
+      "key": "studentPassword",
+      "value": "password123",
+      "type": "string"
+    },
+    {
+      "key": "teacherToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "studentToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "teacherId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "classroomId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "activityId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "activity2Id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "oldAvatar",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

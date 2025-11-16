@@ -247,14 +247,30 @@ export const verifyGameSystem = () => {
 };
 
 // 🎯 Auto-ejecutar verificación si se importa directamente
-if (typeof window !== 'undefined') {
-  // En navegador, ejecutar después de un momento
-  setTimeout(() => {
+const isTestEnvironment = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+
+if (!isTestEnvironment) {
+  if (typeof window !== 'undefined') {
+    // En navegador, ejecutar después de un momento
+    setTimeout(() => {
+      verifyGameSystem();
+      runAllTests();
+    }, 100);
+  } else {
+    // En Node.js, ejecutar inmediatamente cuando no es entorno de test automatizado
     verifyGameSystem();
     runAllTests();
-  }, 100);
-} else {
-  // En Node.js, ejecutar inmediatamente
-  verifyGameSystem();
-  runAllTests();
+  }
 }
+
+describe('Games integration documentation', () => {
+  it('exposes manual verification checklist entries', () => {
+    expect(manualVerificationChecklist.features.length).toBeGreaterThan(0);
+    expect(manualVerificationChecklist.architecture.length).toBeGreaterThan(0);
+  });
+
+  it('provides runnable smoke validations for games modules', () => {
+    expect(() => runAllTests()).not.toThrow();
+    expect(() => verifyGameSystem()).not.toThrow();
+  });
+});

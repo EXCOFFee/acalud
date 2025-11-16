@@ -39,7 +39,18 @@ import {
   GameStatistics, StudentPerformanceReport, Recommendation,
   
   // Tipos de utilidad
-  OperationResult, PaginatedResponse
+  OperationResult, PaginatedResponse,
+  TriviaSessionStart,
+  TriviaAnswerResult,
+  CrosswordGameData,
+  GeneratedCrossword,
+  CrosswordGridInput,
+  CrosswordClueInput,
+  SimulationStartState,
+  SimulationActionResult,
+  SimulationInteractionResult,
+  SubmitGameResponseResult,
+  FinishGameSessionResult
 } from '../types/games';
 
 // ============================================================================
@@ -181,12 +192,11 @@ export interface ITriviaService {
    * @param difficulty - Nivel de dificultad (opcional)
    * @returns Sesión de trivia iniciada
    */
-  startTriviaSession(gameId: string, questionCount?: number, difficulty?: DifficultyLevel): Promise<{
-    sessionId: string;
-    firstQuestion: any;
-    totalQuestions: number;
-    timePerQuestion: number;
-  }>;
+  startTriviaSession(
+    gameId: string,
+    questionCount?: number,
+    difficulty?: DifficultyLevel
+  ): Promise<TriviaSessionStart>;
 
   /**
    * 📝 Responder pregunta de trivia
@@ -201,14 +211,7 @@ export interface ITriviaService {
     questionId: string,
     answer: string | string[],
     timeSpent: number
-  ): Promise<{
-    isCorrect: boolean;
-    correctAnswer: string | string[];
-    explanation: string;
-    pointsEarned: number;
-    nextQuestion?: any;
-    isCompleted: boolean;
-  }>;
+  ): Promise<TriviaAnswerResult>;
 
   /**
    * 📊 Obtener resultados finales de trivia
@@ -238,12 +241,7 @@ export interface ICrosswordService {
    * @param gridSize - Tamaño de la grilla (opcional)
    * @returns Crucigrama generado listo para jugar
    */
-  generateCrossword(gameId: string, words?: string[], gridSize?: number): Promise<{
-    grid: any;
-    clues: any[];
-    difficulty: DifficultyLevel;
-    estimatedTime: number;
-  }>;
+  generateCrossword(gameId: string, words?: string[], gridSize?: number): Promise<GeneratedCrossword>;
 
   /**
    * ✅ Validar palabra ingresada en crucigrama
@@ -283,13 +281,7 @@ export interface ISimulationService {
    * @param gameId - ID del juego de simulación
    * @returns Estado inicial de la simulación
    */
-  startSimulation(gameId: string): Promise<{
-    sessionId: string;
-    currentScene: any;
-    characters: any[];
-    objectives: any[];
-    initialContext: string;
-  }>;
+  startSimulation(gameId: string): Promise<SimulationStartState>;
 
   /**
    * 🎯 Ejecutar acción en simulación
@@ -297,13 +289,7 @@ export interface ISimulationService {
    * @param actionId - ID de la acción elegida
    * @returns Consecuencias y nueva escena
    */
-  executeSimulationAction(sessionId: string, actionId: string): Promise<{
-    consequence: any;
-    nextScene: any;
-    pointsAwarded: number;
-    feedback: string;
-    isSimulationComplete: boolean;
-  }>;
+  executeSimulationAction(sessionId: string, actionId: string): Promise<SimulationActionResult>;
 
   /**
    * 💬 Interactuar con personaje
@@ -312,12 +298,11 @@ export interface ISimulationService {
    * @param dialogueOption - Opción de diálogo elegida
    * @returns Respuesta del personaje y consecuencias
    */
-  interactWithCharacter(sessionId: string, characterId: string, dialogueOption: string): Promise<{
-    characterResponse: string;
-    relationshipChange: number;
-    unlockedOptions: string[];
-    narrative: string;
-  }>;
+  interactWithCharacter(
+    sessionId: string,
+    characterId: string,
+    dialogueOption: string
+  ): Promise<SimulationInteractionResult>;
 }
 
 // ============================================================================
@@ -331,9 +316,9 @@ export interface ISimulationService {
 export class GameServiceError extends Error {
   public readonly type: GameErrorType;
   public readonly statusCode: number;
-  public readonly details?: any;
+  public readonly details?: unknown;
 
-  constructor(type: GameErrorType, message: string, statusCode: number = 400, details?: any) {
+  constructor(type: GameErrorType, message: string, statusCode: number = 400, details?: unknown) {
     super(message);
     this.name = 'GameServiceError';
     this.type = type;
@@ -622,7 +607,7 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
   }>> {
     try {
       // 🌐 Enviar respuesta al backend
-      const result = await httpClient.post(
+      const result = await httpClient.post<SubmitGameResponseResult>(
         `/game-sessions/${sessionId}/responses`,
         response
       );
@@ -630,10 +615,10 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
       return { 
         success: true, 
         data: {
-          isCorrect: (result as any)?.isCorrect || false,
-          feedback: (result as any)?.feedback || '',
-          pointsEarned: (result as any)?.pointsEarned || 0,
-          nextStep: (result as any)?.nextStep
+          isCorrect: result.isCorrect,
+          feedback: result.feedback,
+          pointsEarned: result.pointsEarned,
+          nextStep: result.nextStep
         }
       };
     } catch (error) {
@@ -654,7 +639,9 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
   }>> {
     try {
       // 🌐 Finalizar sesión en backend
-      const result = await httpClient.post(`/game-sessions/${sessionId}/finish`);
+      const result = await httpClient.post<FinishGameSessionResult>(
+        `/game-sessions/${sessionId}/finish`
+      );
       
       // 💾 Actualizar cache con estado final
       const cachedSession = this.getCacheItem(this.sessionCache, sessionId);
@@ -663,7 +650,7 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
           ...cachedSession,
           status: GameStatus.COMPLETED,
           completedAt: new Date(),
-          score: (result as any)?.finalScore || 0
+          score: result.finalScore || 0
         };
         this.setCacheItem(this.sessionCache, sessionId, finalSession);
       }
@@ -671,10 +658,10 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
       return { 
         success: true, 
         data: {
-          finalScore: (result as any)?.finalScore || 0,
-          achievements: (result as any)?.achievements || [],
-          recommendations: (result as any)?.recommendations || [],
-          certificate: (result as any)?.certificate
+          finalScore: result.finalScore,
+          achievements: result.achievements,
+          recommendations: result.recommendations,
+          certificate: result.certificate
         }
       };
     } catch (error) {
@@ -771,19 +758,14 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
     gameId: string, 
     questionCount?: number, 
     difficulty?: DifficultyLevel
-  ): Promise<{
-    sessionId: string;
-    firstQuestion: any;
-    totalQuestions: number;
-    timePerQuestion: number;
-  }> {
+  ): Promise<TriviaSessionStart> {
     try {
       const triviaConfig = {
         questionCount: questionCount || 10,
         difficulty: difficulty || DifficultyLevel.INTERMEDIATE
       };
 
-      return await httpClient.post(`/games/trivia/${gameId}/start`, triviaConfig);
+      return await httpClient.post<TriviaSessionStart>(`/games/trivia/${gameId}/start`, triviaConfig);
     } catch (error) {
       throw this.handleError(error, `Error al iniciar trivia ${gameId}`);
     }
@@ -798,14 +780,7 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
     questionId: string,
     answer: string | string[],
     timeSpent: number
-  ): Promise<{
-    isCorrect: boolean;
-    correctAnswer: string | string[];
-    explanation: string;
-    pointsEarned: number;
-    nextQuestion?: any;
-    isCompleted: boolean;
-  }> {
+  ): Promise<TriviaAnswerResult> {
     try {
       const responseData = {
         questionId,
@@ -813,7 +788,10 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
         timeSpent
       };
 
-      return await httpClient.post(`/games/trivia/sessions/${sessionId}/answer`, responseData);
+      return await httpClient.post<TriviaAnswerResult>(
+        `/games/trivia/sessions/${sessionId}/answer`,
+        responseData
+      );
     } catch (error) {
       throw this.handleError(error, `Error al responder pregunta de trivia`);
     }
@@ -847,19 +825,17 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
    * 🎯 Generar crucigrama automáticamente
    * Crea crucigrama optimizado para el nivel educativo
    */
-  async generateCrossword(gameId: string, words?: string[], gridSize?: number): Promise<{
-    grid: any;
-    clues: any[];
-    difficulty: DifficultyLevel;
-    estimatedTime: number;
-  }> {
+  async generateCrossword(gameId: string, words?: string[], gridSize?: number): Promise<GeneratedCrossword> {
     try {
       const generationParams = {
         words: words || [],
         gridSize: gridSize || 15
       };
 
-      return await httpClient.post(`/games/crossword/${gameId}/generate`, generationParams);
+      return await httpClient.post<GeneratedCrossword>(
+        `/games/crossword/${gameId}/generate`,
+        generationParams
+      );
     } catch (error) {
       throw this.handleError(error, `Error al generar crucigrama ${gameId}`);
     }
@@ -916,15 +892,9 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
    * 🎬 Iniciar simulación educativa
    * Establece contexto inicial y personajes
    */
-  async startSimulation(gameId: string): Promise<{
-    sessionId: string;
-    currentScene: any;
-    characters: any[];
-    objectives: any[];
-    initialContext: string;
-  }> {
+  async startSimulation(gameId: string): Promise<SimulationStartState> {
     try {
-      return await httpClient.post(`/games/simulation/${gameId}/start`);
+      return await httpClient.post<SimulationStartState>(`/games/simulation/${gameId}/start`);
     } catch (error) {
       throw this.handleError(error, `Error al iniciar simulación ${gameId}`);
     }
@@ -934,17 +904,14 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
    * 🎯 Ejecutar acción en simulación
    * Procesa decisión del estudiante y actualiza narrativa
    */
-  async executeSimulationAction(sessionId: string, actionId: string): Promise<{
-    consequence: any;
-    nextScene: any;
-    pointsAwarded: number;
-    feedback: string;
-    isSimulationComplete: boolean;
-  }> {
+  async executeSimulationAction(sessionId: string, actionId: string): Promise<SimulationActionResult> {
     try {
       const actionData = { choiceId: actionId };
 
-      return await httpClient.post(`/games/simulation/sessions/${sessionId}/choice`, actionData);
+      return await httpClient.post<SimulationActionResult>(
+        `/games/simulation/sessions/${sessionId}/choice`,
+        actionData
+      );
     } catch (error) {
       throw this.handleError(error, `Error al ejecutar acción en simulación`);
     }
@@ -954,19 +921,21 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
    * 💬 Interactuar con personaje
    * Maneja diálogo y relaciones en simulación
    */
-  async interactWithCharacter(sessionId: string, characterId: string, dialogueOption: string): Promise<{
-    characterResponse: string;
-    relationshipChange: number;
-    unlockedOptions: string[];
-    narrative: string;
-  }> {
+  async interactWithCharacter(
+    sessionId: string,
+    characterId: string,
+    dialogueOption: string
+  ): Promise<SimulationInteractionResult> {
     try {
       const interactionData = {
         characterId,
         dialogueOption
       };
 
-      return await httpClient.post(`/games/simulation/sessions/${sessionId}/interact`, interactionData);
+      return await httpClient.post<SimulationInteractionResult>(
+        `/games/simulation/sessions/${sessionId}/interact`,
+        interactionData
+      );
     } catch (error) {
       throw this.handleError(error, `Error al interactuar con personaje en simulación`);
     }
@@ -1125,7 +1094,7 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
    * 🚨 Manejo centralizado de errores
    * Convierte errores HTTP en errores específicos de juegos
    */
-  private handleError(error: any, context: string): GameServiceError {
+  private handleError(error: unknown, context: string): GameServiceError {
     if (error instanceof GameServiceError) {
       return error;
     }
@@ -1134,10 +1103,18 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
       return GameServiceError.fromHttpError(error);
     }
 
-    // Error genérico
+    if (error instanceof Error) {
+      return new GameServiceError(
+        GameErrorType.UNKNOWN_ERROR,
+        `${context}: ${error.message || 'Error desconocido'}`,
+        500,
+        error
+      );
+    }
+
     return new GameServiceError(
       GameErrorType.UNKNOWN_ERROR,
-      `${context}: ${error.message || 'Error desconocido'}`,
+      `${context}: Error desconocido`,
       500,
       error
     );
@@ -1155,7 +1132,7 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
     gameId: string, 
     difficulty?: DifficultyLevel, 
     subject?: Subject
-  ): Promise<any> {
+  ): Promise<CrosswordGameData> {
     try {
       const params = new URLSearchParams();
       if (difficulty) params.append('difficulty', difficulty);
@@ -1187,14 +1164,16 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
    * 🧩 Generar cuadrícula de ejemplo (temporal)
    * TODO: Remover cuando el backend esté implementado
    */
-  private generateSampleGrid(): any[][] {
-    const grid = Array(15).fill(null).map(() => Array(15).fill(null).map(() => ({
-      letter: '',
-      isBlocked: Math.random() > 0.7,
-      number: null as any,
-      isHorizontal: false,
-      isVertical: false
-    })));
+  private generateSampleGrid(): CrosswordGridInput {
+    const grid: CrosswordGridInput = Array.from({ length: 15 }, () =>
+      Array.from({ length: 15 }, () => ({
+        letter: '',
+        isBlocked: Math.random() > 0.7,
+        number: null,
+        isHorizontal: false,
+        isVertical: false
+      }))
+    );
     
     // Agregar algunas palabras de ejemplo
     // Palabra horizontal: "EDUCACION" en fila 5
@@ -1228,7 +1207,7 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
    * 💭 Generar pistas de ejemplo (temporal)
    * TODO: Remover cuando el backend esté implementado
    */
-  private generateSampleClues(): any[] {
+  private generateSampleClues(): CrosswordClueInput[] {
     return [
       {
         id: 'clue-1',
@@ -1238,10 +1217,6 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
         answer: 'EDUCACION',
         startPosition: [5, 3],
         length: 9,
-        isCompleted: false,
-        userAnswer: '',
-        hintUsed: false,
-        isActive: false
       },
       {
         id: 'clue-2',
@@ -1250,11 +1225,7 @@ export class GameService implements IGameService, ITriviaService, ICrosswordServ
         clue: 'Adquirir conocimientos o habilidades',
         answer: 'APRENDER',
         startPosition: [2, 6],
-        length: 8,
-        isCompleted: false,
-        userAnswer: '',
-        hintUsed: false,
-        isActive: false
+        length: 8
       }
     ];
   }

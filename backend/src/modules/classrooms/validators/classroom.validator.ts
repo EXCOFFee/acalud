@@ -22,8 +22,12 @@ import { ValidationException } from '../../../common/exceptions/business.excepti
 export class ClassroomValidator implements IClassroomValidator {
   private readonly MIN_NAME_LENGTH = 3;
   private readonly MAX_NAME_LENGTH = 100;
-  private readonly MAX_DESCRIPTION_LENGTH = 500;
+  private readonly MAX_DESCRIPTION_LENGTH = 1000;
   private readonly MAX_STUDENTS_PER_CLASSROOM = 100;
+  private readonly MAX_TAGS = 10; // Número máximo de etiquetas que permitimos
+  private readonly MAX_INVITATIONS = 20; // Número máximo de invitaciones simultáneas
+  private readonly ALLOWED_LEVELS = ['básico', 'intermedio', 'avanzado']; // Lista de niveles válidos
+  private readonly ALLOWED_LANGUAGES = ['es', 'en', 'fr', 'pt']; // Lista de idiomas aceptados
 
   async validateCreateData(data: CreateClassroomDto): Promise<void> {
     const errors: Record<string, string[]> = {};
@@ -59,6 +63,12 @@ export class ClassroomValidator implements IClassroomValidator {
       errors.color = ['El color debe ser un código hexadecimal válido'];
     }
 
+    this.validateOptionalTags(data.tags, errors);
+    this.validateOptionalLevel(data.level, errors);
+    this.validateOptionalTimezone(data.timezone, errors);
+    this.validateOptionalLanguage(data.language, errors);
+    this.validateOptionalInvitations(data.invitedStudentEmails, errors);
+
     if (Object.keys(errors).length > 0) {
       throw new ValidationException('Datos de aula inválidos', errors);
     }
@@ -90,6 +100,26 @@ export class ClassroomValidator implements IClassroomValidator {
     // Validar color (solo si se proporciona)
     if (data.color !== undefined && !this.isValidHexColor(data.color)) {
       errors.color = ['El color debe ser un código hexadecimal válido'];
+    }
+
+    if (data.tags !== undefined) {
+      this.validateOptionalTags(data.tags, errors);
+    }
+
+    if (data.level !== undefined) {
+      this.validateOptionalLevel(data.level, errors);
+    }
+
+    if (data.timezone !== undefined) {
+      this.validateOptionalTimezone(data.timezone, errors);
+    }
+
+    if (data.language !== undefined) {
+      this.validateOptionalLanguage(data.language, errors);
+    }
+
+    if (data.invitedStudentEmails !== undefined) {
+      this.validateOptionalInvitations(data.invitedStudentEmails, errors);
     }
 
     if (Object.keys(errors).length > 0) {
@@ -167,7 +197,7 @@ export class ClassroomValidator implements IClassroomValidator {
     }
   }
 
-  async validateClassroomCapacity(classroomId: string): Promise<void> {
+  async validateClassroomCapacity(_classroomId: string): Promise<void> {
     // Esta validación requeriría acceso al repositorio para contar estudiantes
     // Se implementaría según la arquitectura específica
     // Por ahora, es un placeholder para mantener la interface
@@ -179,5 +209,87 @@ export class ClassroomValidator implements IClassroomValidator {
   private isValidHexColor(color: string): boolean {
     const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
     return hexRegex.test(color);
+  }
+
+  private validateOptionalTags(tags: string[] | undefined, errors: Record<string, string[]>) {
+    if (!tags) {
+      return;
+    }
+
+    if (!Array.isArray(tags)) {
+      errors.tags = ['Las etiquetas deben enviarse como una lista'];
+      return;
+    }
+
+    if (tags.length > this.MAX_TAGS) {
+      errors.tags = [`Solo se permiten ${this.MAX_TAGS} etiquetas por aula`];
+    }
+
+    const normalizedTags = tags.map(tag => tag.trim().toLowerCase());
+    const hasEmpty = normalizedTags.some(tag => tag.length === 0);
+    if (hasEmpty) {
+      errors.tags = ['Las etiquetas no pueden estar vacías'];
+    }
+
+    const hasTooLong = normalizedTags.some(tag => tag.length > 30);
+    if (hasTooLong) {
+      errors.tags = ['Cada etiqueta debe tener 30 caracteres o menos'];
+    }
+
+    const uniqueTags = new Set(normalizedTags);
+    if (uniqueTags.size !== normalizedTags.length) {
+      errors.tags = ['Las etiquetas no pueden repetirse'];
+    }
+  }
+
+  private validateOptionalLevel(level: string | undefined, errors: Record<string, string[]>) {
+    if (level && !this.ALLOWED_LEVELS.includes(level)) {
+      errors.level = ['El nivel seleccionado no es válido'];
+    }
+  }
+
+  private validateOptionalTimezone(timezone: string | undefined, errors: Record<string, string[]>) {
+    if (!timezone) {
+      return;
+    }
+
+    const timezoneRegex = /^[A-Za-z_]+\/[A-Za-z_]+$/;
+    if (!timezoneRegex.test(timezone)) {
+      errors.timezone = ['La zona horaria debe tener el formato Región/Ciudad'];
+    }
+  }
+
+  private validateOptionalLanguage(language: string | undefined, errors: Record<string, string[]>) {
+    if (language && !this.ALLOWED_LANGUAGES.includes(language)) {
+      errors.language = ['El idioma recibido no es válido'];
+    }
+  }
+
+  private validateOptionalInvitations(emails: string[] | undefined, errors: Record<string, string[]>) {
+    if (!emails) {
+      return;
+    }
+
+    if (!Array.isArray(emails)) {
+      errors.invitedStudentEmails = ['Las invitaciones deben enviarse como lista'];
+      return;
+    }
+
+    if (emails.length > this.MAX_INVITATIONS) {
+      errors.invitedStudentEmails = [`Solo se pueden invitar ${this.MAX_INVITATIONS} estudiantes por vez`];
+    }
+
+    const normalizedEmails = emails.map(email => email.trim().toLowerCase());
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const invalidEmails = normalizedEmails.filter(email => !emailRegex.test(email));
+
+    if (invalidEmails.length > 0) {
+      errors.invitedStudentEmails = [`Los siguientes correos no son válidos: ${invalidEmails.join(', ')}`];
+    }
+
+    const uniqueEmails = new Set(normalizedEmails);
+    if (uniqueEmails.size !== normalizedEmails.length) {
+      errors.invitedStudentEmails = ['Los correos invitados no pueden repetirse'];
+    }
   }
 }

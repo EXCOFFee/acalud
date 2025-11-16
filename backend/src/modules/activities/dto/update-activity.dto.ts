@@ -95,7 +95,7 @@ export class UpdateActivityDto {
   })
   @IsOptional()
   @IsObject({ message: 'El contenido debe ser un objeto JSON válido' })
-  content?: Record<string, any>;
+  content?: Record<string, unknown>;
 
   @ApiProperty({
     description: 'Recompensas actualizadas por completar la actividad',
@@ -202,5 +202,5 @@ export class UpdateActivityDto {
   })
   @IsOptional()
   @IsObject({ message: 'Las configuraciones deben ser un objeto JSON válido' })
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }

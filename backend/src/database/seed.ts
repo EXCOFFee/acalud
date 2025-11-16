@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 import { seedUsers } from './seeds/users.seed';
+import { seedGamesSimple } from './seeds/games-simple.seed';
 
 // Load environment variables
 config();
@@ -27,6 +28,7 @@ async function runSeeds() {
 
     // Run seeds
     await seedUsers(dataSource);
+    await seedGamesSimple(dataSource);
 
     // Close connection
     await dataSource.destroy();

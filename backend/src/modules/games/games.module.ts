@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Game } from './game.entity';
 import { Question } from './question.entity';
 import { GameResult } from './game-result.entity';
+import { GameComment } from './game-comment.entity';
+import { GameRating } from './game-rating.entity';
 import { CrosswordPuzzle } from './crossword-puzzle.entity';
 import { Simulation } from './simulation.entity';
 import { GamesController } from './games.controller';
@@ -21,7 +23,9 @@ import { GameAnalyticsService } from './game-analytics.service';
     TypeOrmModule.forFeature([
       Game,
       Question,
-      GameResult,
+  GameResult,
+  GameComment,
+  GameRating,
       CrosswordPuzzle,
       Simulation,
     ]),

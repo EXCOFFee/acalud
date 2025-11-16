@@ -1,85 +1,99 @@
 /// <reference types="../../../types/jest" />
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act } from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { LoginForm } from '../LoginForm';
-import { AuthProvider } from '../../../contexts/AuthContext';
 
-// Mock del servicio de autenticación
-const mockEnhancedAuthService = {
-  login: jest.fn(),
-  isAuthenticated: jest.fn(() => false),
-  getCurrentUser: jest.fn(() => null),
-  waitForInitialization: jest.fn(() => Promise.resolve()),
-};
+const mockUseAuth = jest.fn();
 
-jest.mock('../../../services/enhanced-auth.service', () => ({
-  enhancedAuthService: mockEnhancedAuthService,
+jest.mock('../../../contexts/useAuth', () => ({
+  useAuth: () => mockUseAuth(),
 }));
 
 describe('LoginForm', () => {
+  const loginMock = jest.fn();
   const mockOnSwitchToRegister = jest.fn();
 
-  const renderLoginForm = () => {
-    return render(
-      <AuthProvider>
-        <LoginForm onSwitchToRegister={mockOnSwitchToRegister} />
-      </AuthProvider>
-    );
+  const renderLoginForm = async () => {
+    const utils = render(<LoginForm onSwitchToRegister={mockOnSwitchToRegister} />);
+    await screen.findByRole('heading', { name: /iniciar sesión/i });
+    return utils;
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    loginMock.mockReset();
+    mockUseAuth.mockReturnValue({
+      login: loginMock,
+      isLoading: false,
+    });
+    loginMock.mockResolvedValue({ success: true });
   });
 
-  it('renders login form correctly', () => {
-    renderLoginForm();
-    
-    expect(screen.getByText('Iniciar Sesión')).toBeInTheDocument();
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+  it('renders login form correctly', async () => {
+    await renderLoginForm();
+
+    expect(screen.getByRole('heading', { name: /iniciar sesión/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/correo electrónico/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/contraseña/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /iniciar sesión/i })).toBeInTheDocument();
   });
 
   it('shows validation errors for empty fields', async () => {
-    renderLoginForm();
-    
-    const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
-    fireEvent.click(submitButton);
+    await renderLoginForm();
 
-    await waitFor(() => {
-      expect(screen.getByText(/el email es requerido/i)).toBeInTheDocument();
-      expect(screen.getByText(/la contraseña es requerida/i)).toBeInTheDocument();
+    const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
+    const form = submitButton.closest('form');
+    expect(form).not.toBeNull();
+    await act(async () => {
+      fireEvent.submit(form!);
+      await Promise.resolve();
     });
+
+    expect(await screen.findByText(/por favor completa todos los campos/i)).toBeInTheDocument();
+    expect(loginMock).not.toHaveBeenCalled();
   });
 
   it('shows validation error for invalid email format', async () => {
-    renderLoginForm();
-    
-    const emailInput = screen.getByLabelText(/email/i);
+    await renderLoginForm();
+
+    const user = userEvent.setup();
+    const emailInput = screen.getByLabelText(/correo electrónico/i);
+    await user.type(emailInput, 'invalid-email');
+    const passwordInput = screen.getByLabelText(/contraseña/i);
+    await user.type(passwordInput, 'password123');
+
     const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
-
-    fireEvent.change(emailInput, { target: { value: 'invalid-email' } });
-    fireEvent.click(submitButton);
-
-    await waitFor(() => {
-      expect(screen.getByText(/formato del email no es válido/i)).toBeInTheDocument();
+    const form = submitButton.closest('form');
+    expect(form).not.toBeNull();
+    await act(async () => {
+      fireEvent.submit(form!);
+      await Promise.resolve();
     });
+
+    expect(await screen.findByText(/por favor ingresa un email válido/i)).toBeInTheDocument();
+    expect(loginMock).not.toHaveBeenCalled();
   });
 
   it('submits form with valid data', async () => {
-    mockEnhancedAuthService.login.mockResolvedValue({ success: true });
-    
-    renderLoginForm();
-    
-    const emailInput = screen.getByLabelText(/email/i);
+    await renderLoginForm();
+
+    const user = userEvent.setup();
+    const emailInput = screen.getByLabelText(/correo electrónico/i);
     const passwordInput = screen.getByLabelText(/contraseña/i);
     const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
+    const form = submitButton.closest('form');
+    expect(form).not.toBeNull();
 
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.click(submitButton);
+    await user.type(emailInput, 'test@example.com');
+    await user.type(passwordInput, 'password123');
+    await act(async () => {
+      fireEvent.submit(form!);
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
-      expect(mockEnhancedAuthService.login).toHaveBeenCalledWith({
+      expect(loginMock).toHaveBeenCalledWith({
         email: 'test@example.com',
         password: 'password123',
       });
@@ -87,55 +101,51 @@ describe('LoginForm', () => {
   });
 
   it('shows error message when login fails', async () => {
-    mockEnhancedAuthService.login.mockResolvedValue({ 
-      success: false, 
-      error: 'Credenciales inválidas' 
-    });
-    
-    renderLoginForm();
-    
-    const emailInput = screen.getByLabelText(/email/i);
+    loginMock.mockResolvedValue({ success: false, error: 'Credenciales inválidas' });
+
+    await renderLoginForm();
+
+    const user = userEvent.setup();
+    const emailInput = screen.getByLabelText(/correo electrónico/i);
     const passwordInput = screen.getByLabelText(/contraseña/i);
     const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
+    const form = submitButton.closest('form');
+    expect(form).not.toBeNull();
 
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'wrongpassword' } });
-    fireEvent.click(submitButton);
+    await user.type(emailInput, 'test@example.com');
+    await user.type(passwordInput, 'wrongpassword');
+    await act(async () => {
+      fireEvent.submit(form!);
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Credenciales inválidas')).toBeInTheDocument();
     });
   });
 
-  it('calls onSwitchToRegister when register link is clicked', () => {
-    renderLoginForm();
-    
+  it('calls onSwitchToRegister when register link is clicked', async () => {
+    await renderLoginForm();
+
+    const user = userEvent.setup();
     const registerLink = screen.getByText(/regístrate aquí/i);
-    fireEvent.click(registerLink);
+    await act(async () => {
+      await user.click(registerLink);
+    });
 
     expect(mockOnSwitchToRegister).toHaveBeenCalled();
   });
 
-  it('shows loading state during login', async () => {
-    mockEnhancedAuthService.login.mockImplementation(() => 
-      new Promise(resolve => setTimeout(() => resolve({ success: true }), 100))
-    );
-    
-    renderLoginForm();
-    
-    const emailInput = screen.getByLabelText(/email/i);
-    const passwordInput = screen.getByLabelText(/contraseña/i);
-    const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
-
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.click(submitButton);
-
-    expect(screen.getByText(/iniciando sesión/i)).toBeInTheDocument();
-    expect(submitButton).toBeDisabled();
-
-    await waitFor(() => {
-      expect(screen.queryByText(/iniciando sesión/i)).not.toBeInTheDocument();
+  it('disables submit button and shows loading text when context reports loading', async () => {
+    mockUseAuth.mockReturnValue({
+      login: loginMock,
+      isLoading: true,
     });
+
+    await renderLoginForm();
+
+    const submitButton = screen.getByRole('button', { name: /iniciando sesión/i });
+    expect(submitButton).toBeDisabled();
+    expect(screen.getByText(/iniciando sesión/i)).toBeInTheDocument();
   });
 });

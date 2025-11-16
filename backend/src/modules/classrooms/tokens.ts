@@ -8,6 +8,8 @@
  * únicos para la inyección de dependencias.
  */
 
+import { Inject } from '@nestjs/common';
+
 // ============================================================================
 // 🎯 TOKENS DE SERVICIOS
 // ============================================================================
@@ -25,6 +27,8 @@ export const CLASSROOM_TOKENS = {
   
   // Generadores de utilidades
   IInviteCodeGenerator: Symbol('IInviteCodeGenerator'),
+  IClassroomInvitationRepository: Symbol('IClassroomInvitationRepository'),
+  IClassroomInvitationService: Symbol('IClassroomInvitationService'),
 } as const;
 
 /**
@@ -75,30 +79,19 @@ export const AUTH_TOKENS = {
  * Funciones helper para hacer más fácil la inyección de dependencias
  */
 
-export const InjectClassroomService = () => {
-  const { Inject } = require('@nestjs/common');
-  return Inject(CLASSROOM_TOKENS.IClassroomService);
-};
+export const InjectClassroomService = () => Inject(CLASSROOM_TOKENS.IClassroomService);
 
-export const InjectClassroomRepository = () => {
-  const { Inject } = require('@nestjs/common');
-  return Inject(CLASSROOM_TOKENS.IClassroomRepository);
-};
+export const InjectClassroomRepository = () => Inject(CLASSROOM_TOKENS.IClassroomRepository);
 
-export const InjectClassroomValidator = () => {
-  const { Inject } = require('@nestjs/common');
-  return Inject(CLASSROOM_TOKENS.IClassroomValidator);
-};
+export const InjectClassroomValidator = () => Inject(CLASSROOM_TOKENS.IClassroomValidator);
 
-export const InjectPermissionValidator = () => {
-  const { Inject } = require('@nestjs/common');
-  return Inject(CLASSROOM_TOKENS.IPermissionValidator);
-};
+export const InjectPermissionValidator = () => Inject(CLASSROOM_TOKENS.IPermissionValidator);
 
-export const InjectInviteCodeGenerator = () => {
-  const { Inject } = require('@nestjs/common');
-  return Inject(CLASSROOM_TOKENS.IInviteCodeGenerator);
-};
+export const InjectInviteCodeGenerator = () => Inject(CLASSROOM_TOKENS.IInviteCodeGenerator);
+
+export const InjectClassroomInvitationRepository = () => Inject(CLASSROOM_TOKENS.IClassroomInvitationRepository);
+
+export const InjectClassroomInvitationService = () => Inject(CLASSROOM_TOKENS.IClassroomInvitationService);
 
 /**
  * 📋 EJEMPLO DE USO CON DECORADORES HELPER:

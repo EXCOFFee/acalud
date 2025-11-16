@@ -4,7 +4,8 @@
 // Muestra los logros obtenidos y disponibles para estudiantes
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/useAuth';
+import type { LucideIcon } from 'lucide-react';
 import { 
   Trophy, 
   Award, 
@@ -39,7 +40,7 @@ interface Achievement {
   id: string;
   title: string;
   description: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
   category: 'progress' | 'social' | 'special' | 'time';
   points: number;
@@ -57,7 +58,7 @@ interface AchievementCategory {
   id: string;
   name: string;
   description: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
 }
 

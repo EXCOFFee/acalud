@@ -23,7 +23,7 @@
 
 // 📦 IMPORTACIONES NECESARIAS
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/useAuth';
 import { gameService, GameServiceError, GameErrorType } from '../../services/games.service';
 import {
   // Tipos específicos de trivia
@@ -348,57 +348,6 @@ export const TriviaGameComponent: React.FC<TriviaGameProps> = ({
    * 🎬 Efecto de inicialización del juego
    * Se ejecuta una sola vez al montar el componente
    */
-  useEffect(() => {
-    initializeGame();
-    
-    // 🧹 Cleanup al desmontar
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [gameId]);
-  
-  /**
-   * ⏱️ Efecto del temporizador
-   * Maneja la cuenta regresiva de cada pregunta
-   */
-  useEffect(() => {
-    if (state.timerActive && state.timeRemaining > 0) {
-      timerRef.current = setInterval(() => {
-        setState(prevState => {
-          const newTime = prevState.timeRemaining - 1;
-          
-          // ⏰ Si se acaba el tiempo, auto-enviar respuesta
-          if (newTime <= 0) {
-            handleTimeOut();
-            return {
-              ...prevState,
-              timeRemaining: 0,
-              timerActive: false
-            };
-          }
-          
-          return {
-            ...prevState,
-            timeRemaining: newTime
-          };
-        });
-      }, 1000);
-    } else {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-    
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [state.timerActive, state.timeRemaining]);
-  
   // ============================================================================
   // 🎮 FUNCIONES PRINCIPALES DEL JUEGO
   // ============================================================================
@@ -465,6 +414,16 @@ export const TriviaGameComponent: React.FC<TriviaGameProps> = ({
       }));
     }
   }, [gameId, questionCount, difficulty, timeLimit, user?.id, isMobile]);
+
+  useEffect(() => {
+    initializeGame();
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [initializeGame]);
   
   /**
    * 📝 Manejar selección de respuesta
@@ -525,10 +484,10 @@ export const TriviaGameComponent: React.FC<TriviaGameProps> = ({
       // ⏭️ Verificar si hay más preguntas
       if (result.isCompleted) {
         await completeGame();
-      } else if (showImmediateFeedback) {
+      } else if (showImmediateFeedback && result.nextQuestion) {
         // ⏱️ Mostrar feedback y continuar después de 3 segundos
         setTimeout(() => {
-          loadNextQuestion(result.nextQuestion);
+          loadNextQuestion(result.nextQuestion!);
         }, 3000);
       }
       
@@ -597,9 +556,9 @@ export const TriviaGameComponent: React.FC<TriviaGameProps> = ({
       // ⏭️ Continuar con siguiente pregunta o completar
       if (result.isCompleted) {
         await completeGame();
-      } else {
+      } else if (result.nextQuestion) {
         setTimeout(() => {
-          loadNextQuestion(result.nextQuestion);
+          loadNextQuestion(result.nextQuestion!);
         }, 2000);
       }
       
@@ -607,6 +566,39 @@ export const TriviaGameComponent: React.FC<TriviaGameProps> = ({
       console.error('Error al procesar tiempo agotado:', error);
     }
   }, [state.currentQuestion, state.session, timeLimit, loadNextQuestion]);
+
+  useEffect(() => {
+    if (state.timerActive && state.timeRemaining > 0) {
+      timerRef.current = setInterval(() => {
+        setState(prevState => {
+          const newTime = prevState.timeRemaining - 1;
+
+          if (newTime <= 0) {
+            handleTimeOut();
+            return {
+              ...prevState,
+              timeRemaining: 0,
+              timerActive: false
+            };
+          }
+
+          return {
+            ...prevState,
+            timeRemaining: newTime
+          };
+        });
+      }, 1000);
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [handleTimeOut, state.timerActive, state.timeRemaining]);
   
   /**
    * ✅ Completar el juego

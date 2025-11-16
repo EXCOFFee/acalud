@@ -4,8 +4,6 @@ import {
   IsString,
   MaxLength,
   IsOptional,
-  IsHexColor,
-  IsObject,
   Matches,
   MinLength,
   IsEnum,
@@ -14,6 +12,10 @@ import {
   IsInt,
   Min,
   Max,
+  IsEmail,
+  IsArray,
+  ArrayMaxSize,
+  ArrayUnique,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { IsSafeName, IsSafeHtml } from '../../../common/validators/custom.validators';
@@ -90,6 +92,19 @@ export enum ValidGrades {
   CUARTO_SECUNDARIA = '4° Secundaria',
   QUINTO_SECUNDARIA = '5° Secundaria',
   OTRO = 'Otro',
+}
+
+export enum ClassroomLevel {
+  BASICO = 'básico',
+  INTERMEDIO = 'intermedio',
+  AVANZADO = 'avanzado',
+}
+
+export enum ClassroomLanguage {
+  ES = 'es',
+  EN = 'en',
+  FR = 'fr',
+  PT = 'pt',
 }
 
 /**
@@ -187,22 +202,27 @@ export class CreateClassroomDto {
     maxItems: 10,
   })
   @IsOptional()
+  @IsArray({ message: 'Las etiquetas deben recibirse en una lista' }) // Aclara que se espera una lista de textos
   @IsString({ each: true, message: 'Cada etiqueta debe ser una cadena de texto' })
   @MaxLength(30, { each: true, message: 'Cada etiqueta no puede exceder 30 caracteres' })
-  @Transform(({ value }) => value?.slice(0, 10).map((tag: string) => tag.trim().toLowerCase()))
+  @ArrayMaxSize(10, { message: 'No se pueden agregar más de 10 etiquetas por aula' }) // Limita la cantidad de etiquetas
+  @ArrayUnique({ message: 'Cada etiqueta debe ser única dentro de la lista' }) // Evita etiquetas duplicadas
+  @Transform(({ value }) => value
+    ? Array.from(new Set(value.slice(0, 10).map((tag: string) => tag.trim().toLowerCase()))) // Limpiamos, homogenizamos y eliminamos duplicados
+    : value)
   tags?: string[];
 
   @ApiProperty({
     description: 'Nivel de dificultad del aula',
-    enum: ['básico', 'intermedio', 'avanzado'],
-    example: 'intermedio',
+    enum: ClassroomLevel,
+    example: ClassroomLevel.INTERMEDIO,
     required: false,
   })
   @IsOptional()
-  @IsEnum(['básico', 'intermedio', 'avanzado'], { 
-    message: 'El nivel debe ser: básico, intermedio o avanzado' 
+  @IsEnum(ClassroomLevel, { 
+    message: `El nivel debe ser uno de los siguientes: ${Object.values(ClassroomLevel).join(', ')}`
   })
-  level?: 'básico' | 'intermedio' | 'avanzado';
+  level?: ClassroomLevel;
 
   @ApiProperty({
     description: 'Zona horaria del aula',
@@ -218,13 +238,29 @@ export class CreateClassroomDto {
 
   @ApiProperty({
     description: 'Idioma principal del aula',
-    enum: ['es', 'en', 'fr', 'pt'],
-    example: 'es',
+    enum: ClassroomLanguage,
+    example: ClassroomLanguage.ES,
     required: false,
   })
   @IsOptional()
-  @IsEnum(['es', 'en', 'fr', 'pt'], { 
-    message: 'El idioma debe ser: es (español), en (inglés), fr (francés) o pt (portugués)' 
+  @IsEnum(ClassroomLanguage, { 
+    message: `El idioma debe ser uno de los siguientes: ${Object.values(ClassroomLanguage).join(', ')}`
   })
-  language?: 'es' | 'en' | 'fr' | 'pt';
+  language?: ClassroomLanguage;
+
+  @ApiProperty({
+    description: 'Correos electrónicos de estudiantes invitados (máximo 20)',
+    example: ['alumno1@colegio.edu', 'alumno2@colegio.edu'],
+    required: false,
+    maxItems: 20,
+  })
+  @IsOptional()
+  @IsArray({ message: 'Las invitaciones deben enviarse en forma de lista de correos' }) // Garantiza que llegue un arreglo de correos
+  @IsEmail({}, { each: true, message: 'Cada invitación debe incluir un correo electrónico válido' }) // Valida cada correo individualmente
+  @ArrayMaxSize(20, { message: 'Solo se pueden invitar hasta 20 estudiantes por vez' }) // Impide exceder la capacidad inicial de invitaciones
+  @ArrayUnique({ message: 'Los correos invitados no pueden repetirse' }) // Evita enviar la misma invitación dos veces
+  @Transform(({ value }) => value
+    ? Array.from(new Set(value.slice(0, 20).map((email: string) => email.trim().toLowerCase()))) // Normalizamos correos y evitamos duplicados
+    : value)
+  invitedStudentEmails?: string[];
 }

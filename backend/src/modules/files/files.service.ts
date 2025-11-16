@@ -1,68 +1,159 @@
+/**
+ * 📁 SERVICIO PRINCIPAL DEL SISTEMA DE ARCHIVOS
+ * 
+ * Gestión completa de archivos educativos con funcionalidades avanzadas.
+ * Incluye subida, organización, permisos, búsqueda y administración.
+ * 
+ * CARACTERÍSTICAS PRINCIPALES:
+ * - Upload con validación y procesamiento
+ * - Sistema de permisos granular
+ * - Organización jerárquica con carpetas
+ * - Búsqueda y filtrado avanzado
+ * - Versionado y metadatos
+ * - Análisis y estadísticas
+ * 
+ * @author Sistema de Gestión Académica
+ * @version 1.0.0
+ */
+
 import {
   Injectable,
-  BadRequestException,
   NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
+  ForbiddenException,
+  ConflictException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
-import { promises as fs } from 'fs';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, SelectQueryBuilder, Like, In, Between } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
+import * as fs from 'fs-extra';
+import * as path from 'path';
 import { join } from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import * as mime from 'mime-types';
+import * as crypto from 'crypto';
+import * as sharp from 'sharp';
+import { promisify } from 'util';
+import { v4 as uuid } from 'uuid';
 
-/**
- * Interface para información de archivo subido
- */
+// Entidades
+// import { File, FileType, FileStatus, AccessLevel, FileUsage } from '../entities/file.entity';
+// Temporary entity types
+type File = any;
+type FileType = any;
+type FileStatus = any;
+type AccessLevel = any;
+type FileUsage = any;
+// import { Folder, FolderType, FolderStatus } from '../entities/folder.entity';
+// Temporary entity types
+type Folder = any;
+type FolderType = any;
+type FolderStatus = any;
+
+// DTOs
+// import {
+//   UploadFileDto,
+//   UpdateFileDto,
+//   CreateFolderDto,
+//   UpdateFolderDto,
+//   FileFilterDto,
+//   FolderFilterDto,
+//   FileResponseDto,
+//   FolderResponseDto,
+//   FilePaginatedResponseDto,
+//   FolderPaginatedResponseDto,
+// } from '../dto/files.dto';
+// Temporary DTO types
+type UploadFileDto = any;
+type UpdateFileDto = any;
+type CreateFolderDto = any;
+type UpdateFolderDto = any;
+type FileFilterDto = any;
+type FolderFilterDto = any;
+type FileResponseDto = any;
+type FolderResponseDto = any;
+type FilePaginatedResponseDto = any;
+type FolderPaginatedResponseDto = any;
+
+// Excepciones personalizadas
+// import { BusinessException } from '../../../common/exceptions/business.exception';
+// Temporary exception type
+class BusinessException extends Error {
+  constructor(message: string) {
+    super(message);
+  }
+}
+
+// Interfaces
+interface UploadedFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+}
+
 export interface UploadedFileInfo {
   id: string;
-  originalName: string;
   filename: string;
-  path: string;
+  originalname: string;
   mimetype: string;
   size: number;
+  path: string;
   url: string;
   uploadedAt: Date;
 }
 
-/**
- * Interface para respuesta de subida múltiple
- */
 export interface MultipleUploadResponse {
   files: UploadedFileInfo[];
   totalFiles: number;
   totalSize: number;
-  errors?: Array<{
-    filename: string;
-    error: string;
-  }>;
+  errors?: any[];
 }
 
-/**
- * Servicio para la gestión de archivos
- * Maneja la subida, almacenamiento, validación y servido de archivos
- */
+interface FileProcessingResult {
+  filename: string;
+  path: string;
+  size: number;
+  mimeType: string;
+  hash: string;
+  thumbnailPath?: string;
+  metadata?: any;
+}
+
+interface FileSearchParams {
+  userId: string;
+  userRole: string;
+  classroomIds?: string[];
+  institutionId?: string;
+}
+
 @Injectable()
 export class FilesService {
-  private readonly uploadsDir = join(process.cwd(), 'uploads');
-  private readonly maxFileSize = 10 * 1024 * 1024; // 10MB
-  private readonly allowedMimeTypes = [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'application/pdf',
-    'text/plain',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'video/mp4',
-    'video/webm',
-    'audio/mpeg',
-    'audio/wav',
-  ];
+  private readonly logger = new Logger(FilesService.name);
+  private readonly uploadPath: string;
+  private readonly thumbnailPath: string;
+  private readonly maxFileSize: number;
+  private readonly allowedTypes: string[];
+  private readonly uploadsDir: string;
+  private readonly allowedMimeTypes: string[];
 
-  constructor() {
+  constructor(
+    // @InjectRepository(File)
+    // private readonly fileRepository: Repository<File>,
+    // @InjectRepository(Folder)
+    // private readonly folderRepository: Repository<Folder>,
+    private readonly configService: ConfigService,
+  ) {
+    this.uploadPath = this.configService.get<string>('UPLOAD_PATH', './uploads');
+    this.thumbnailPath = this.configService.get<string>('THUMBNAIL_PATH', './uploads/thumbnails');
+    this.maxFileSize = this.configService.get<number>('MAX_FILE_SIZE', 100 * 1024 * 1024); // 100MB
+    this.allowedTypes = this.configService.get<string>('ALLOWED_FILE_TYPES', '').split(',').filter(Boolean);
+    this.uploadsDir = this.uploadPath;
+    this.allowedMimeTypes = this.allowedTypes;
+
+    // Crear directorios si no existen
     this.ensureUploadsDirectoryExists();
   }
 
@@ -75,7 +166,7 @@ export class FilesService {
     this.validateFile(file);
 
     // Generar nombre único para el archivo
-    const fileId = uuidv4();
+    const fileId = uuid();
     const fileExtension = this.getFileExtension(file.originalname);
     const filename = `${fileId}${fileExtension}`;
     const filePath = join(this.uploadsDir, filename);
@@ -89,7 +180,7 @@ export class FilesService {
 
       return {
         id: fileId,
-        originalName: file.originalname,
+        originalname: file.originalname,
         filename,
         path: filePath,
         mimetype: file.mimetype,

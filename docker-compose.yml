@@ -66,6 +66,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       JWT_SECRET: ${JWT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      TEACHER_ALLOWED_DOMAINS: "${TEACHER_ALLOWED_DOMAINS:-institucion.edu,colegio.edu}"
     ports:
       - "3001:3000"
     depends_on:

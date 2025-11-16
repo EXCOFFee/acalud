@@ -22,8 +22,8 @@
  */
 
 // 📦 IMPORTACIONES NECESARIAS
-import React, { useState, useEffect } from 'react'; // React y hooks básicos
-import { useAuth } from '../../contexts/AuthContext'; // Para obtener datos del usuario
+import React, { useMemo, useState, useEffect } from 'react'; // React y hooks básicos
+import { useAuth } from '../../contexts/useAuth'; // Para obtener datos del usuario
 import { ClassroomService } from '../../services/implementations/ClassroomService'; // Servicio de aulas
 import { ActivityService } from '../../services/implementations/ActivityService'; // Servicio de actividades
 import { UserService } from '../../services/implementations/UserService'; // Servicio de usuarios
@@ -36,7 +36,8 @@ import {
   Star,        // Icono de estrella (para logros)
   Play,        // Icono de play (para iniciar)
   CheckCircle, // Icono de check (para completado)
-  Target       // Icono de objetivo (para racha)
+  Target,      // Icono de objetivo (para racha)
+  Gamepad2     // Icono de gamepad (para juegos)
 } from 'lucide-react';
 
 // ============================================================================
@@ -53,12 +54,27 @@ import {
  * En este caso, el Dashboard necesita poder navegar a otras páginas,
  * por eso recibe una función 'onNavigate' del componente padre.
  */
+type StudentDashboardPage =
+  | 'store'
+  | 'student-classrooms'
+  | 'join-classroom'
+  | 'achievements'
+  | 'games'
+  | 'profile';
+
+type StudentDashboardNavigationPayload = {
+  store: undefined;
+  'student-classrooms': { classroomId?: string } | undefined;
+  'join-classroom': undefined;
+  achievements: undefined;
+  games: undefined;
+  profile: undefined;
+};
+
 interface StudentDashboardProps {
   // Función para navegar a otra página de la aplicación
-  // Parámetros: 
-  //   - page: string = nombre de la página (ej: 'store', 'profile')
-  //   - data?: any = datos opcionales para pasar a la nueva página
-  onNavigate: (page: string, data?: any) => void;
+  // Parámetros tipados según el destino
+  onNavigate: <Page extends StudentDashboardPage>(page: Page, data?: StudentDashboardNavigationPayload[Page]) => void;
 }
 
 // ============================================================================
@@ -112,13 +128,13 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
   // ========================================================================
   
   // Servicio para manejar aulas (patrón Singleton - una sola instancia)
-  const classroomService = ClassroomService.getInstance();
+  const classroomService = useMemo(() => ClassroomService.getInstance(), []);
   
   // Servicio para manejar actividades
-  const activityService = ActivityService.getInstance();
+  const activityService = useMemo(() => ActivityService.getInstance(), []);
   
   // Servicio para manejar datos de usuarios
-  const userService = UserService.getInstance();
+  const userService = useMemo(() => UserService.getInstance(), []);
 
   // ========================================================================
   // 🔄 EFFECT HOOK - CARGA DE DATOS INICIAL
@@ -153,7 +169,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
         
         // 📚 PASO 1: Cargar aulas del estudiante
         // Llamamos al servicio para obtener todas las aulas donde está inscrito
-        const userClassrooms = await classroomService.getClassroomsByStudent(user.id);
+        const userClassrooms = await classroomService.getClassroomsByStudent();
         setClassrooms(userClassrooms); // Guardar en el estado
 
         // 📋 PASO 2: Cargar actividades completadas recientemente
@@ -174,7 +190,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
           setUserStats(stats); // Guardar en el estado
         } catch (error) {
           // Si no se pueden cargar las estadísticas, no es crítico
-          console.log('Estadísticas no disponibles para este usuario');
+          console.warn('Estadísticas no disponibles para este usuario', error);
           // userStats se queda como null, y la interfaz lo maneja correctamente
         }
 
@@ -190,7 +206,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
 
     // 🚀 Ejecutar la función de carga de datos
     loadDashboardData();
-  }, [user]); // 👀 Dependencia: solo ejecutar cuando 'user' cambie
+  }, [user, activityService, classroomService, userService]); // 👀 Dependencia: actualizar cuando cambian usuario o servicios
 
   // ========================================================================
   // 🧮 FUNCIONES UTILITARIAS
@@ -413,9 +429,34 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
           
           {/* 📚 SECCIÓN IZQUIERDA: MIS AULAS */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            {/* 📋 Encabezado de la sección */}
-            <div className="p-6 border-b border-gray-100">
+            {/* 📋 Encabezado de la sección con botones de acción */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Mis Aulas</h2>
+              {/* 🔗 Botones de acceso rápido */}
+              <div className="flex items-center space-x-2">
+                {/* 🏫 Botón: Ir a Mis Aulas (página completa) */}
+                <button
+                  onClick={() => onNavigate('student-classrooms')}
+                  className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-1.5"
+                  title="Ver todas mis aulas"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>Mis Aulas</span>
+                </button>
+                {/* 📋 Botón: Ver todas (solo si hay aulas) */}
+                {classrooms.length > 0 && (
+                  <button
+                    onClick={() => onNavigate('student-classrooms')}
+                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center space-x-1"
+                    title="Ver listado completo"
+                  >
+                    <span>Ver todas</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
             
             {/* 📝 Contenido de la sección */}
@@ -445,7 +486,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
                     <div
                       key={classroom.id} // Clave única para React
                       className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                      onClick={() => onNavigate('classroom-activities', { classroomId: classroom.id })} // Navegar a actividades del aula
+                      onClick={() => onNavigate('student-classrooms', { classroomId: classroom.id })} // Navegar a actividades del aula
                     >
                       {/* 👈 Lado izquierdo: información del aula */}
                       <div className="flex items-center space-x-3">
@@ -484,9 +525,34 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
 
           {/* 📊 SECCIÓN DERECHA: ACTIVIDADES RECIENTES */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-            {/* 📋 Encabezado de la sección */}
-            <div className="p-6 border-b border-gray-100">
+            {/* 📋 Encabezado de la sección con botones de acción */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Actividades Recientes</h2>
+              {/* 🔗 Botones de acceso rápido */}
+              <div className="flex items-center space-x-2">
+                {/* 🏆 Botón: Ir a Logros (página completa) */}
+                <button
+                  onClick={() => onNavigate('achievements')}
+                  className="px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-1.5"
+                  title="Ver logros y historial"
+                >
+                  <Trophy className="w-4 h-4" />
+                  <span>Logros</span>
+                </button>
+                {/* 📋 Botón: Ver historial (solo si hay actividades) */}
+                {recentCompletions.length > 0 && (
+                  <button
+                    onClick={() => onNavigate('achievements')}
+                    className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center space-x-1"
+                    title="Ver historial completo"
+                  >
+                    <span>Ver historial</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
             
             {/* 📝 Contenido de la sección */}
@@ -572,8 +638,22 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
           <h2 className="text-xl font-bold text-gray-900 mb-4">¿Qué quieres hacer hoy?</h2>
           
           {/* 🏗️ Grid de botones de acción (responsive) */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             
+            {/* 🎮 BOTÓN: JUEGOS EDUCATIVOS (Para todos los usuarios) */}
+            <button
+              onClick={() => onNavigate('games')}
+              className="flex items-center space-x-3 p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors text-left"
+            >
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Gamepad2 className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-purple-900">Juegos</h3>
+                <p className="text-sm text-purple-700">Jugar y aprender</p>
+              </div>
+            </button>
+
             {/* 📚 BOTÓN 1: ESTUDIAR / HACER ACTIVIDADES */}
             <button
               onClick={() => onNavigate('student-classrooms')} // Navegar a aulas para estudiar

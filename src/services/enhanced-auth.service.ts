@@ -109,29 +109,66 @@ export class LocalTokenStorage implements ITokenStorage {
   // 🔑 Nombres únicos para identificar nuestros datos en localStorage
   private readonly TOKEN_KEY = 'acalud_token';         // Clave para el token principal
   private readonly REFRESH_TOKEN_KEY = 'acalud_refresh_token';  // Clave para token de renovación
+  private memoryToken: string | null = null;           // Copia en memoria para entornos sin storage
+  private memoryRefreshToken: string | null = null;    // Copia en memoria para refresh
+
+  /**
+   * Intenta obtener la instancia de localStorage de manera segura
+   */
+  private get storage(): Storage | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    try {
+      return window.localStorage;
+    } catch (error) {
+      console.warn('LocalStorage no disponible, usando almacenamiento en memoria temporal', error);
+      return null;
+    }
+  }
 
   /**
    * 📤 OBTENER TOKEN DE ACCESO
-   * Busca el token en localStorage y lo devuelve (o null si no existe)
+   * Busca el token en sessionStorage y lo devuelve (o null si no existe)
    */
   getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
+    const storage = this.storage;
+    if (!storage) {
+      return this.memoryToken;
+    }
+
+    const token = storage.getItem(this.TOKEN_KEY);
+    this.memoryToken = token;
+    return token;
   }
 
   /**
    * 📥 GUARDAR TOKEN DE ACCESO
-   * Almacena el token en localStorage para uso futuro
+   * Almacena el token en sessionStorage (solo durante esta sesión)
    */
   setToken(token: string): void {
-    localStorage.setItem(this.TOKEN_KEY, token);
+    const storage = this.storage;
+
+    if (storage) {
+      storage.setItem(this.TOKEN_KEY, token);
+    }
+
+    this.memoryToken = token;
   }
 
   /**
    * 🗑️ ELIMINAR TOKEN DE ACCESO
-   * Borra el token de localStorage (útil para logout)
+   * Borra el token de sessionStorage (útil para logout)
    */
   removeToken(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
+    const storage = this.storage;
+
+    if (storage) {
+      storage.removeItem(this.TOKEN_KEY);
+    }
+
+    this.memoryToken = null;
   }
 
   /**
@@ -139,23 +176,42 @@ export class LocalTokenStorage implements ITokenStorage {
    * Similar al token principal, pero este se usa para renovar sesiones
    */
   getRefreshToken(): string | null {
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+    const storage = this.storage;
+    if (!storage) {
+      return this.memoryRefreshToken;
+    }
+
+    const token = storage.getItem(this.REFRESH_TOKEN_KEY);
+    this.memoryRefreshToken = token;
+    return token;
   }
 
   /**
    * 📥 GUARDAR TOKEN DE RENOVACIÓN
-   * Almacena el token de renovación para uso futuro
+   * Almacena el token de renovación (solo durante esta sesión)
    */
   setRefreshToken(token: string): void {
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, token);
+    const storage = this.storage;
+
+    if (storage) {
+      storage.setItem(this.REFRESH_TOKEN_KEY, token);
+    }
+
+    this.memoryRefreshToken = token;
   }
 
   /**
    * 🗑️ ELIMINAR TOKEN DE RENOVACIÓN
-   * Borra el token de renovación de localStorage
+   * Borra el token de renovación de sessionStorage
    */
   removeRefreshToken(): void {
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    const storage = this.storage;
+
+    if (storage) {
+      storage.removeItem(this.REFRESH_TOKEN_KEY);
+    }
+
+    this.memoryRefreshToken = null;
   }
 }
 
@@ -192,9 +248,9 @@ export enum AuthErrorType {
 export class AuthError extends Error {
   public readonly type: AuthErrorType;
   public readonly statusCode: number;
-  public readonly details?: any;
+  public readonly details?: unknown;
 
-  constructor(type: AuthErrorType, message: string, statusCode: number = 400, details?: any) {
+  constructor(type: AuthErrorType, message: string, statusCode: number = 400, details?: unknown) {
     super(message);
     this.type = type;
     this.statusCode = statusCode;
@@ -440,7 +496,7 @@ export class EnhancedAuthService implements IAuthService {
   /**
    * Maneja errores HTTP y los convierte en AuthError
    */
-  private handleError(error: any): never {
+  private handleError(error: unknown): never {
     if (error instanceof HttpError) {
       throw AuthError.fromHttpError(error);
     }
@@ -541,17 +597,9 @@ export class EnhancedAuthService implements IAuthService {
    * Cierra la sesión del usuario
    */
   async logout(): Promise<void> {
-    try {
-      // Intentar notificar al servidor (opcional)
-      try {
-        await httpClient.post('/auth/logout');
-      } catch (error) {
-        console.warn('Error al notificar logout al servidor:', error);
-      }
-    } finally {
-      // Siempre limpiar datos locales
-      this.clearAuth();
-    }
+    // JWT es stateless, solo limpiamos localmente
+    // No necesitamos notificar al backend
+    this.clearAuth();
   }
 
   /**

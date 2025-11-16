@@ -23,17 +23,22 @@
 
 // 📦 IMPORTACIONES NECESARIAS
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/useAuth';
 import { gameService, GameServiceError, GameErrorType } from '../../services/games.service';
 import {
   // Tipos específicos de crucigrama
-  GameSession, GameStatus,
+  GameSession,
+  GameStatus,
   
   // Enumeraciones
-  DifficultyLevel, Subject,
+  DifficultyLevel,
+  Subject,
   
   // Tipos de utilidad
-  LoadingState
+  LoadingState,
+  CrosswordGameData,
+  CrosswordClueInput,
+  CrosswordGridInput
 } from '../../types/games';
 
 // ============================================================================
@@ -399,19 +404,6 @@ export const CrosswordGameComponent: React.FC<CrosswordGameProps> = ({
   // ============================================================================
   
   /**
-   * 🎬 Efecto de inicialización del crucigrama
-   */
-  useEffect(() => {
-    initializeCrossword();
-    
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [gameId]);
-  
-  /**
    * ⏱️ Efecto del temporizador
    */
   useEffect(() => {
@@ -439,28 +431,32 @@ export const CrosswordGameComponent: React.FC<CrosswordGameProps> = ({
   /**
    * ⌨️ Efecto para manejar eventos de teclado
    */
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (state.loadingState !== 'success' || state.isCompleted) return;
-      
-      handleKeyboardInput(event);
-    };
-    
-    if (containerRef.current) {
-      containerRef.current.addEventListener('keydown', handleKeyDown);
-    }
-    
-    return () => {
-      if (containerRef.current) {
-        containerRef.current.removeEventListener('keydown', handleKeyDown);
-      }
-    };
-  }, [state.selectedCell, state.currentDirection, state.grid]);
-  
   // ============================================================================
   // 🎮 FUNCIONES PRINCIPALES DEL JUEGO
   // ============================================================================
   
+  /**
+   * 🧩 Crear cuadrícula inicial
+   */
+  const createGrid = useCallback((gridData: CrosswordGridInput): CrosswordCell[][] => {
+    return gridData.map((row, rowIndex) =>
+      row.map((cell, colIndex) => ({
+        row: rowIndex,
+        col: colIndex,
+        correctLetter: cell?.letter || '',
+        userLetter: '',
+        isBlocked: Boolean(cell?.isBlocked),
+        number: typeof cell?.number === 'number' ? cell.number : undefined,
+        isHorizontal: Boolean(cell?.isHorizontal),
+        isVertical: Boolean(cell?.isVertical),
+        isSelected: false,
+        isHighlighted: false,
+        isCorrect: false,
+        hasError: false
+      }))
+    );
+  }, []);
+
   /**
    * 🚀 Inicializar el crucigrama
    */
@@ -470,13 +466,13 @@ export const CrosswordGameComponent: React.FC<CrosswordGameProps> = ({
       
       // 🌐 Cargar datos del crucigrama desde el backend
       // TODO: Implementar método loadCrosswordGame en el servicio
-      const crosswordData = await gameService.getCrosswordData(gameId, difficulty, subject);
+  const crosswordData: CrosswordGameData = await gameService.getCrosswordData(gameId, difficulty, subject);
       
       // 🧩 Crear cuadrícula inicial
       const initialGrid = createGrid(crosswordData.grid);
       
       // 💭 Procesar pistas
-      const processedClues = crosswordData.clues.map((clue: any) => ({
+      const processedClues = crosswordData.clues.map((clue: CrosswordClueInput) => ({
         ...clue,
         isCompleted: false,
         userAnswer: '',
@@ -531,36 +527,59 @@ export const CrosswordGameComponent: React.FC<CrosswordGameProps> = ({
         error: gameError
       }));
     }
-  }, [gameId, difficulty, subject, user?.id]);
+  }, [createGrid, difficulty, gameId, subject, user?.id]);
+
+  useEffect(() => {
+    initializeCrossword();
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [initializeCrossword]);
   
   /**
-   * 🧩 Crear cuadrícula inicial
+  
+  /**
+   * � Encontrar pista para una celda específica
    */
-  const createGrid = useCallback((gridData: any[][]): CrosswordCell[][] => {
-    return gridData.map((row, rowIndex) =>
-      row.map((cell, colIndex) => ({
-        row: rowIndex,
-        col: colIndex,
-        correctLetter: cell.letter || '',
-        userLetter: '',
-        isBlocked: cell.isBlocked || false,
-        number: cell.number,
-        isHorizontal: cell.isHorizontal || false,
-        isVertical: cell.isVertical || false,
-        isSelected: false,
-        isHighlighted: false,
-        isCorrect: false,
-        hasError: false
-      }))
-    );
-  }, []);
-  
+  const findClueForCell = useCallback((row: number, col: number, direction: 'horizontal' | 'vertical'): CrosswordClue | null => {
+    return state.clues.find(clue => {
+      if (clue.direction !== direction) return false;
+
+      const [startRow, startCol] = clue.startPosition;
+
+      if (direction === 'horizontal') {
+        return row === startRow && col >= startCol && col < startCol + clue.length;
+      } else {
+        return col === startCol && row >= startRow && row < startRow + clue.length;
+      }
+    }) || null;
+  }, [state.clues]);
+
   /**
-   * 🖱️ Manejar clic en celda
+   * 🎨 Resaltar palabra activa
+   */
+  const highlightWord = useCallback((grid: CrosswordCell[][], clue: CrosswordClue) => {
+    const [startRow, startCol] = clue.startPosition;
+
+    for (let i = 0; i < clue.length; i++) {
+      const row = clue.direction === 'horizontal' ? startRow : startRow + i;
+      const col = clue.direction === 'horizontal' ? startCol + i : startCol;
+
+      if (grid[row] && grid[row][col]) {
+        grid[row][col].isHighlighted = true;
+      }
+    }
+  }, []);
+
+  /**
+   * �🖱️ Manejar clic en celda
    */
   const handleCellClick = useCallback((row: number, col: number) => {
     if (state.grid[row][col].isBlocked) return;
-    
+
     setState(prev => {
       const newGrid = prev.grid.map((gridRow, r) =>
         gridRow.map((cell, c) => ({
@@ -569,23 +588,23 @@ export const CrosswordGameComponent: React.FC<CrosswordGameProps> = ({
           isHighlighted: false
         }))
       );
-      
+
       // 🎯 Encontrar pista activa
       const clueForCell = findClueForCell(row, col, prev.currentDirection);
       let activeClue = clueForCell;
       let currentDirection = prev.currentDirection;
-      
+
       // 🔄 Si ya estaba seleccionada, cambiar dirección
       if (prev.selectedCell && prev.selectedCell[0] === row && prev.selectedCell[1] === col) {
         currentDirection = currentDirection === 'horizontal' ? 'vertical' : 'horizontal';
         activeClue = findClueForCell(row, col, currentDirection);
       }
-      
+
       // 🎨 Resaltar palabra activa
       if (activeClue) {
         highlightWord(newGrid, activeClue);
       }
-      
+
       return {
         ...prev,
         grid: newGrid,
@@ -594,71 +613,96 @@ export const CrosswordGameComponent: React.FC<CrosswordGameProps> = ({
         activeClue
       };
     });
-  }, [state.grid, state.currentDirection]);
-  
+  }, [state.grid, findClueForCell, highlightWord]);
+
   /**
-   * 🔍 Encontrar pista para una celda específica
+   * ⏭️ Mover a la siguiente celda
    */
-  const findClueForCell = useCallback((row: number, col: number, direction: 'horizontal' | 'vertical'): CrosswordClue | null => {
-    return state.clues.find(clue => {
-      if (clue.direction !== direction) return false;
-      
-      const [startRow, startCol] = clue.startPosition;
-      
-      if (direction === 'horizontal') {
-        return row === startRow && col >= startCol && col < startCol + clue.length;
-      } else {
-        return col === startCol && row >= startRow && row < startRow + clue.length;
+  const moveToNextCell = useCallback(() => {
+    if (!state.selectedCell || !state.activeClue) return;
+
+    const [currentRow, currentCol] = state.selectedCell;
+    const [startRow, startCol] = state.activeClue.startPosition;
+    const direction = state.activeClue.direction;
+
+    let nextRow = currentRow;
+    let nextCol = currentCol;
+
+    if (direction === 'horizontal') {
+      nextCol++;
+      if (nextCol >= startCol + state.activeClue.length) {
+        return; // Final de la palabra
       }
-    }) || null;
-  }, [state.clues]);
-  
-  /**
-   * 🎨 Resaltar palabra activa
-   */
-  const highlightWord = useCallback((grid: CrosswordCell[][], clue: CrosswordClue) => {
-    const [startRow, startCol] = clue.startPosition;
-    
-    for (let i = 0; i < clue.length; i++) {
-      const row = clue.direction === 'horizontal' ? startRow : startRow + i;
-      const col = clue.direction === 'horizontal' ? startCol + i : startCol;
-      
-      if (grid[row] && grid[row][col]) {
-        grid[row][col].isHighlighted = true;
+    } else {
+      nextRow++;
+      if (nextRow >= startRow + state.activeClue.length) {
+        return; // Final de la palabra
       }
     }
-  }, []);
-  
+
+    if (state.grid[nextRow][nextCol].isBlocked) return;
+
+    handleCellClick(nextRow, nextCol);
+  }, [state.activeClue, state.grid, state.selectedCell, handleCellClick]);
+
   /**
-   * ⌨️ Manejar entrada de teclado
+   * ⏪ Mover a la celda anterior
    */
-  const handleKeyboardInput = useCallback((event: KeyboardEvent) => {
+  const moveToPreviousCell = useCallback(() => {
+    if (!state.selectedCell || !state.activeClue) return;
+
+    const [currentRow, currentCol] = state.selectedCell;
+    const [startRow, startCol] = state.activeClue.startPosition;
+    const direction = state.activeClue.direction;
+
+    let prevRow = currentRow;
+    let prevCol = currentCol;
+
+    if (direction === 'horizontal') {
+      prevCol--;
+      if (prevCol < startCol) {
+        return; // Inicio de la palabra
+      }
+    } else {
+      prevRow--;
+      if (prevRow < startRow) {
+        return; // Inicio de la palabra
+      }
+    }
+
+    handleCellClick(prevRow, prevCol);
+  }, [state.activeClue, state.selectedCell, handleCellClick]);
+
+  /**
+   * 🏹 Manejar navegación con flechas
+   */
+  const handleArrowNavigation = useCallback((key: string) => {
     if (!state.selectedCell) return;
-    
-    const key = event.key.toUpperCase();
-    
-    // 🔤 Letras
-    if (/^[A-ZÑ]$/.test(key)) {
-      event.preventDefault();
-      handleLetterInput(key);
+
+    const [row, col] = state.selectedCell;
+    let newRow = row;
+    let newCol = col;
+
+    switch (key) {
+      case 'ArrowUp':
+        newRow = Math.max(0, row - 1);
+        break;
+      case 'ArrowDown':
+        newRow = Math.min(state.grid.length - 1, row + 1);
+        break;
+      case 'ArrowLeft':
+        newCol = Math.max(0, col - 1);
+        break;
+      case 'ArrowRight':
+        newCol = Math.min(state.grid[0].length - 1, col + 1);
+        break;
     }
-    // ⌫ Backspace
-    else if (event.key === 'Backspace') {
-      event.preventDefault();
-      handleBackspace();
+
+    if (!state.grid[newRow][newCol].isBlocked) {
+      handleCellClick(newRow, newCol);
     }
-    // ⭐ Space para cambiar dirección
-    else if (event.key === ' ') {
-      event.preventDefault();
-      toggleDirection();
-    }
-    // 🏹 Flechas de navegación
-    else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
-      event.preventDefault();
-      handleArrowNavigation(event.key);
-    }
-  }, [state.selectedCell, state.currentDirection]);
-  
+  }, [state.grid, state.selectedCell, handleCellClick]);
+
   /**
    * 🔤 Manejar entrada de letra
    */
@@ -691,7 +735,7 @@ export const CrosswordGameComponent: React.FC<CrosswordGameProps> = ({
     
     // ⏭️ Avanzar a la siguiente celda
     moveToNextCell();
-  }, [state.selectedCell, showImmediateValidation]);
+  }, [state.selectedCell, showImmediateValidation, moveToNextCell]);
   
   /**
    * ⌫ Manejar borrado
@@ -718,8 +762,8 @@ export const CrosswordGameComponent: React.FC<CrosswordGameProps> = ({
     
     // ⏪ Retroceder a la celda anterior
     moveToPreviousCell();
-  }, [state.selectedCell]);
-  
+  }, [state.selectedCell, moveToPreviousCell]);
+
   /**
    * 🔄 Cambiar dirección de escritura
    */
@@ -750,93 +794,57 @@ export const CrosswordGameComponent: React.FC<CrosswordGameProps> = ({
       };
     });
   }, [state.selectedCell, state.currentDirection, findClueForCell, highlightWord]);
-  
+
   /**
-   * ⏭️ Mover a la siguiente celda
+   * ⌨️ Manejar entrada de teclado
    */
-  const moveToNextCell = useCallback(() => {
-    if (!state.selectedCell || !state.activeClue) return;
-    
-    const [currentRow, currentCol] = state.selectedCell;
-    const [startRow, startCol] = state.activeClue.startPosition;
-    
-    let nextRow = currentRow;
-    let nextCol = currentCol;
-    
-    if (state.currentDirection === 'horizontal') {
-      nextCol++;
-      if (nextCol >= startCol + state.activeClue.length) {
-        return; // Final de la palabra
-      }
-    } else {
-      nextRow++;
-      if (nextRow >= startRow + state.activeClue.length) {
-        return; // Final de la palabra
-      }
-    }
-    
-    // 🚫 Verificar que la celda no esté bloqueada
-    if (state.grid[nextRow][nextCol].isBlocked) return;
-    
-    handleCellClick(nextRow, nextCol);
-  }, [state.selectedCell, state.activeClue, state.currentDirection, state.grid, handleCellClick]);
-  
-  /**
-   * ⏪ Mover a la celda anterior
-   */
-  const moveToPreviousCell = useCallback(() => {
-    if (!state.selectedCell || !state.activeClue) return;
-    
-    const [currentRow, currentCol] = state.selectedCell;
-    const [startRow, startCol] = state.activeClue.startPosition;
-    
-    let prevRow = currentRow;
-    let prevCol = currentCol;
-    
-    if (state.currentDirection === 'horizontal') {
-      prevCol--;
-      if (prevCol < startCol) {
-        return; // Inicio de la palabra
-      }
-    } else {
-      prevRow--;
-      if (prevRow < startRow) {
-        return; // Inicio de la palabra
-      }
-    }
-    
-    handleCellClick(prevRow, prevCol);
-  }, [state.selectedCell, state.activeClue, state.currentDirection, handleCellClick]);
-  
-  /**
-   * 🏹 Manejar navegación con flechas
-   */
-  const handleArrowNavigation = useCallback((key: string) => {
+  const handleKeyboardInput = useCallback((event: KeyboardEvent) => {
     if (!state.selectedCell) return;
-    
-    const [row, col] = state.selectedCell;
-    let newRow = row;
-    let newCol = col;
-    
-    switch (key) {
-      case 'ArrowUp':
-        newRow = Math.max(0, row - 1);
-        break;
-      case 'ArrowDown':
-        newRow = Math.min(state.grid.length - 1, row + 1);
-        break;
-      case 'ArrowLeft':
-        newCol = Math.max(0, col - 1);
-        break;
-      case 'ArrowRight':
-        newCol = Math.min(state.grid[0].length - 1, col + 1);
-        break;
+
+    const key = event.key.toUpperCase();
+
+    if (/^[A-ZÑ]$/.test(key)) {
+      event.preventDefault();
+      handleLetterInput(key);
+      return;
     }
-    
-    if (!state.grid[newRow][newCol].isBlocked) {
-      handleCellClick(newRow, newCol);
+
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+      handleBackspace();
+      return;
     }
-  }, [state.selectedCell, state.grid, handleCellClick]);
+
+    if (event.key === ' ') {
+      event.preventDefault();
+      toggleDirection();
+      return;
+    }
+
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+      event.preventDefault();
+      handleArrowNavigation(event.key);
+    }
+  }, [handleArrowNavigation, handleBackspace, handleLetterInput, state.selectedCell, toggleDirection]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (state.loadingState !== 'success' || state.isCompleted) return;
+
+      handleKeyboardInput(event);
+    };
+
+    container.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      container.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyboardInput, state.isCompleted, state.loadingState]);
   
   /**
    * 💡 Solicitar pista

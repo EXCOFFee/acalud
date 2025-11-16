@@ -32,7 +32,8 @@ export class ClassroomRepository implements IClassroomRepository {
 
   async create(classroomData: CreateClassroomData): Promise<Classroom> {
     const classroom = this.repository.create(classroomData);
-    return this.repository.save(classroom);
+    const saved = await this.repository.save(classroom);
+    return (await this.findById(saved.id)) as Classroom;
   }
 
   async findById(id: string): Promise<Classroom | null> {
@@ -43,10 +44,31 @@ export class ClassroomRepository implements IClassroomRepository {
   }
 
   async findByInviteCode(code: string): Promise<Classroom | null> {
+    const normalizedCode = code?.toUpperCase();
     return this.repository.findOne({
-      where: { inviteCode: code, isActive: true },
+      where: { inviteCode: normalizedCode, isActive: true },
       relations: ['teacher', 'students'],
     });
+  }
+
+  async findTeacherClassrooms(teacherId: string): Promise<Classroom[]> {
+    return this.repository.find({
+      where: { teacherId, isActive: true },
+      relations: ['students', 'activities'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findStudentClassrooms(studentId: string): Promise<Classroom[]> {
+    return this.repository
+      .createQueryBuilder('classroom')
+      .leftJoinAndSelect('classroom.teacher', 'teacher')
+      .leftJoinAndSelect('classroom.activities', 'activities')
+      .leftJoin('classroom.students', 'student')
+      .where('student.id = :studentId', { studentId })
+      .andWhere('classroom.isActive = :isActive', { isActive: true })
+      .orderBy('classroom.createdAt', 'DESC')
+      .getMany();
   }
 
   async findWithFilters(filters: ClassroomFilters): Promise<PaginatedResult<Classroom>> {
@@ -144,7 +166,7 @@ export class ClassroomRepository implements IClassroomRepository {
       await this.repository.save(classroom);
     }
 
-    return this.findById(classroomId) as Promise<Classroom>;
+    return (await this.findById(classroomId)) as Classroom;
   }
 
   async getStudentCount(classroomId: string): Promise<number> {

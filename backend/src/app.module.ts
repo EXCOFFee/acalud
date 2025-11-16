@@ -13,6 +13,12 @@ import { GamificationModule } from './modules/gamification/gamification.module';
 import { GamesModule } from './modules/games/games.module';
 import { FilesModule } from './modules/files/files.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
+import { InstitutionalModule } from './modules/institutional/institutional.module';
+import { ActivityLibraryModule } from './modules/activity-library/activity-library.module';
+import { StoreModule } from './modules/store/store.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+// import { CommunicationsModule } from './modules/communications/communications.module'; // Comentado temporalmente para testing
+import { ModerationModule } from './modules/moderation/moderation.module';
 
 import { databaseConfig } from './config/database.config';
 import { appConfig } from './config/app.config';
@@ -36,7 +42,7 @@ import { appConfig } from './config/app.config';
         password: configService.get('database.password'),
         database: configService.get('database.name'),
         autoLoadEntities: true,
-        synchronize: configService.get('NODE_ENV') === 'development',
+        synchronize: false, // Desactivado temporalmente para testing
         logging: configService.get('NODE_ENV') === 'development',
       }),
       inject: [ConfigService],
@@ -83,6 +89,12 @@ import { appConfig } from './config/app.config';
     GamesModule,
     FilesModule,
     MonitoringModule,
+    InstitutionalModule,
+    ActivityLibraryModule,
+    StoreModule,
+    NotificationsModule,
+    // CommunicationsModule, // Comentado temporalmente - Error con JwtService
+    ModerationModule,
   ],
 })
 export class AppModule {}

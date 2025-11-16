@@ -11,17 +11,17 @@ import { Classroom } from '../../types';
 export interface IClassroomService {
   /**
    * Obtiene todas las aulas de un docente
-   * @param teacherId - ID del docente
+   * El backend obtiene el teacherId del JWT automáticamente
    * @returns Promise con array de aulas
    */
-  getClassroomsByTeacher(teacherId: string): Promise<Classroom[]>;
+  getClassroomsByTeacher(): Promise<Classroom[]>;
 
   /**
    * Obtiene todas las aulas donde está inscrito un estudiante
-   * @param studentId - ID del estudiante
+   * El backend obtiene el studentId del JWT automáticamente
    * @returns Promise con array de aulas
    */
-  getClassroomsByStudent(studentId: string): Promise<Classroom[]>;
+  getClassroomsByStudent(): Promise<Classroom[]>;
 
   /**
    * Obtiene un aula por su ID
@@ -65,15 +65,15 @@ export interface IClassroomService {
    * @param studentId - ID del estudiante
    * @returns Promise con el aula actualizada
    */
-  joinClassroomByCode(inviteCode: string, studentId: string): Promise<Classroom>;
+  joinClassroomByCode(inviteCode: string): Promise<Classroom>;
 
   /**
    * Remueve un estudiante de un aula
+   * El backend obtiene el studentId del JWT automáticamente
    * @param classroomId - ID del aula
-   * @param studentId - ID del estudiante
-   * @returns Promise con el aula actualizada
+   * @returns Promise<void>
    */
-  removeStudentFromClassroom(classroomId: string, studentId: string): Promise<Classroom>;
+  removeStudentFromClassroom(classroomId: string): Promise<void>;
 
   /**
    * Genera un nuevo código de invitación para un aula

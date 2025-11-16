@@ -38,7 +38,7 @@ export class CompleteActivityDto {
   })
   @IsObject({ message: 'Las respuestas deben ser un objeto JSON válido' })
   @IsNotEmpty({ message: 'Las respuestas son obligatorias' })
-  answers: Record<string, any>;
+  answers: Record<string, unknown>;
 
   @ApiProperty({
     description: 'Tiempo gastado en completar la actividad (en segundos)',
@@ -71,5 +71,5 @@ export class CompleteActivityDto {
   })
   @IsOptional()
   @IsObject({ message: 'Los datos adicionales deben ser un objeto JSON válido' })
-  additionalData?: Record<string, any>;
+  additionalData?: Record<string, unknown>;
 }

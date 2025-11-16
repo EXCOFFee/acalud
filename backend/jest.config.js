@@ -14,6 +14,10 @@ module.exports = {
     '!**/main.ts',
     '!**/test/**',
   ],
+  coveragePathIgnorePatterns: [
+    '<rootDir>/database/',
+    '<rootDir>/mcp/',
+  ],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],

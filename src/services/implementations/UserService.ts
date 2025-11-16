@@ -5,7 +5,7 @@
 // Utiliza el patrón Repository y Singleton
 
 import { IUserService } from '../interfaces/IUserService';
-import { User, UserStats, UserInventory, Achievement } from '../../types';
+import { User, UserStats, UserInventory } from '../../types';
 
 /**
  * Implementación concreta del servicio de usuarios
@@ -43,6 +43,8 @@ export class UserService implements IUserService {
       id: 'teacher-1',
       email: 'teacher@demo.com',
       name: 'Profesor Demo',
+      firstName: 'Profesor',
+      lastName: 'Demo',
       role: 'teacher',
       avatar: '',
       coins: 0,
@@ -56,6 +58,8 @@ export class UserService implements IUserService {
       id: 'student-1',
       email: 'student@demo.com',
       name: 'Estudiante Demo',
+      firstName: 'Estudiante',
+      lastName: 'Demo',
       role: 'student',
       avatar: '',
       coins: 150,
@@ -181,11 +185,24 @@ export class UserService implements IUserService {
    * Obtiene las estadísticas de un usuario
    */
   async getUserStats(userId: string): Promise<UserStats> {
-    const stats = this.userStats.get(userId);
-    if (!stats) {
+    try {
+      // Importar dinámicamente el httpClient
+      const { httpClient } = await import('../http.service');
+      const stats = await httpClient.get<UserStats>(`/users/${userId}/stats`);
+      
+      // Actualizar caché
+      this.userStats.set(userId, stats);
+      
+      return stats;
+    } catch (error: any) {
+      console.error('[UserService] Error al obtener estadísticas:', error);
+      // Fallback: buscar en caché si hay error
+      const cachedStats = this.userStats.get(userId);
+      if (cachedStats) {
+        return cachedStats;
+      }
       throw new Error('Estadísticas de usuario no encontradas');
     }
-    return stats;
   }
 
   /**

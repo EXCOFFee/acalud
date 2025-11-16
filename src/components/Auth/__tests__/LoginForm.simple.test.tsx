@@ -1,67 +1,63 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { LoginForm } from '../LoginForm';
-import { AuthProvider } from '../../../contexts/AuthContext';
 
-// Mock del contexto de autenticación
+const mockUseAuth = jest.fn();
+
+jest.mock('../../../contexts/useAuth', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 const mockOnSwitchToRegister = jest.fn();
 
-describe('LoginForm', () => {
-  const renderLoginForm = () => {
-    return render(
-      <AuthProvider>
-        <LoginForm onSwitchToRegister={mockOnSwitchToRegister} />
-      </AuthProvider>
-    );
+describe('LoginForm (estructura básica)', () => {
+  const renderLoginForm = async () => {
+    const utils = render(<LoginForm onSwitchToRegister={mockOnSwitchToRegister} />);
+    await screen.findByRole('button', { name: /iniciar sesión/i });
+    return utils;
   };
 
   beforeEach(() => {
     mockOnSwitchToRegister.mockClear();
+    mockUseAuth.mockReturnValue({ login: jest.fn(), isLoading: false });
   });
 
-  it('renders login form correctly', () => {
-    renderLoginForm();
-    
-    // Verificar que los elementos existen
-    const heading = screen.getByRole('heading', { name: /iniciar sesión/i });
-    const emailInput = screen.getByLabelText(/correo electrónico/i);
-    const passwordInput = screen.getByLabelText(/contraseña/i);
-    const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
-    
-    expect(heading).toBeTruthy();
-    expect(emailInput).toBeTruthy();
-    expect(passwordInput).toBeTruthy();
-    expect(submitButton).toBeTruthy();
+  it('renders login form correctly', async () => {
+    await renderLoginForm();
+
+    expect(screen.getByRole('heading', { name: /iniciar sesión/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/correo electrónico/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/contraseña/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /iniciar sesión/i })).toBeInTheDocument();
   });
 
-  it('shows demo buttons', () => {
-    renderLoginForm();
-    
-    const demoTeacher = screen.getByText(/demo docente/i);
-    const demoStudent = screen.getByText(/demo estudiante/i);
-    
-    expect(demoTeacher).toBeTruthy();
-    expect(demoStudent).toBeTruthy();
+  it('shows demo buttons', async () => {
+    await renderLoginForm();
+
+    expect(screen.getByText(/demo docente/i)).toBeInTheDocument();
+    expect(screen.getByText(/demo estudiante/i)).toBeInTheDocument();
   });
 
-  it('allows input in form fields', () => {
-    renderLoginForm();
-    
+  it('allows input in form fields', async () => {
+    await renderLoginForm();
+
     const emailInput = screen.getByLabelText(/correo electrónico/i) as HTMLInputElement;
     const passwordInput = screen.getByLabelText(/contraseña/i) as HTMLInputElement;
 
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
+    const user = userEvent.setup();
+    await user.type(emailInput, 'test@example.com');
+    await user.type(passwordInput, 'password123');
 
     expect(emailInput.value).toBe('test@example.com');
     expect(passwordInput.value).toBe('password123');
   });
 
-  it('has proper form structure', () => {
-    renderLoginForm();
-    
+  it('has proper form structure', async () => {
+    await renderLoginForm();
+
     const emailInput = screen.getByLabelText(/correo electrónico/i) as HTMLInputElement;
     const passwordInput = screen.getByLabelText(/contraseña/i) as HTMLInputElement;
-    
+
     expect(emailInput.type).toBe('email');
     expect(passwordInput.type).toBe('password');
     expect(emailInput.required).toBe(true);

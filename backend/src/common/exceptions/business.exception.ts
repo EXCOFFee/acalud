@@ -59,8 +59,8 @@ export abstract class BusinessException extends HttpException {
   constructor(
     message: string,                                    // 📝 Mensaje del error
     statusCode: HttpStatus,                            // 🔢 Código HTTP del error
-    public readonly errorCode: string,                 // 🏷️ Código interno del error
-    public readonly details?: Record<string, any>,     // 📋 Detalles adicionales (opcional)
+  public readonly errorCode: string,                 // 🏷️ Código interno del error
+  public readonly details?: Record<string, unknown>, // 📋 Detalles adicionales (opcional)
     path?: string,                                     // 🛣️ Ruta donde ocurrió (opcional)
     correlationId?: string,                           // 🆔 ID de seguimiento (opcional)
   ) {
