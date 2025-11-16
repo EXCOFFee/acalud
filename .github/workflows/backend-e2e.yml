@@ -27,7 +27,7 @@ jobs:
           --health-retries 5
 
     env:
-      DB_HOST: 127.0.0.1
+      DB_HOST: postgres
       DB_PORT: 5432
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
@@ -56,7 +56,7 @@ jobs:
         run: |
           cat <<'EOF' > .env.ci
           NODE_ENV=test
-          DB_HOST=127.0.0.1
+          DB_HOST=postgres
           DB_PORT=5432
           DB_USERNAME=postgres
           DB_PASSWORD=postgres
@@ -69,8 +69,8 @@ jobs:
 
       - name: Wait for database
         run: |
-          for i in {1..10}; do
-            if pg_isready -h 127.0.0.1 -p 5432 -U postgres; then
+          for i in {1..15}; do
+            if pg_isready -h postgres -p 5432 -U postgres; then
               exit 0
             fi
             sleep 3
