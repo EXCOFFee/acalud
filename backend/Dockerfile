@@ -1,12 +1,13 @@
 # ============================================================================
 # DOCKERFILE PARA BACKEND - ACALUD
 # ============================================================================
-# Imagen optimizada para producción con Node.js y PostgreSQL
+# Imagen optimizada para producción con Node.js y PostgreSQL usando pnpm
 
 # Etapa de construcción
 FROM node:18-alpine AS builder
 
-# Instalar dependencias del sistema
+# Instalar pnpm y dependencias del sistema
+RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN apk add --no-cache \
     python3 \
     make \
@@ -17,20 +18,20 @@ RUN apk add --no-cache \
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml* .npmrc* ./
 COPY tsconfig*.json ./
 
 # Instalar TODAS las dependencias (incluyendo devDependencies para build)
-RUN npm ci && npm cache clean --force
+RUN pnpm install --frozen-lockfile
 
 # Copiar código fuente
 COPY src/ ./src/
 
 # Construir la aplicación
-RUN npm run build
+RUN pnpm run build
 
 # Instalar solo dependencias de producción para la imagen final
-RUN npm ci --only=production && npm cache clean --force
+RUN pnpm install --prod --frozen-lockfile
 
 # Etapa de producción
 FROM node:18-alpine AS production

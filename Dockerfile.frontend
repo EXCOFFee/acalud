@@ -1,25 +1,28 @@
 # ============================================================================
 # DOCKERFILE PARA FRONTEND - ACALUD
 # ============================================================================
-# Imagen optimizada para React con Vite
+# Imagen optimizada para React con Vite usando pnpm
 
 # Etapa de construcción
 FROM node:18-alpine AS builder
+
+# Instalar pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Crear directorio de trabajo
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* .npmrc* ./
 
-# Instalar dependencias
-RUN npm ci --only=production && npm cache clean --force
+# Instalar dependencias de producción
+RUN pnpm install --frozen-lockfile --prod
 
 # Copiar código fuente
 COPY . .
 
 # Construir la aplicación para producción
-RUN npm run build
+RUN pnpm run build
 
 # Etapa de producción con Nginx
 FROM nginx:alpine AS production

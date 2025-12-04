@@ -66,12 +66,12 @@ try {
 # Instalar dependencias si no existen
 if (-not (Test-Path "node_modules")) {
     Write-Host "Instalando dependencias..." -ForegroundColor Yellow
-    npm install --silent
+    pnpm install --silent
 }
 
 # Iniciar frontend
 Write-Host "Iniciando frontend..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-Command", "npm run dev" -WindowStyle Hidden
+Start-Process powershell -ArgumentList "-Command", "pnpm run dev" -WindowStyle Hidden
 
 Start-Sleep -Seconds 5
 

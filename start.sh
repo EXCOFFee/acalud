@@ -137,7 +137,7 @@ echo -e "${GREEN}✅ Node.js encontrado: $node_version${NC}"
 # Instalar dependencias del frontend si no existen
 if [ ! -d "node_modules" ]; then
     echo -e "${YELLOW}📦 Instalando dependencias del frontend...${NC}"
-    npm install --silent
+    pnpm install --silent
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✅ Dependencias instaladas${NC}"
     else
@@ -148,7 +148,7 @@ fi
 
 # Iniciar el frontend en segundo plano
 echo -e "${YELLOW}🌐 Iniciando frontend...${NC}"
-npm run dev &> /dev/null &
+pnpm run dev &> /dev/null &
 FRONTEND_PID=$!
 
 # Esperar un poco para que el frontend inicie

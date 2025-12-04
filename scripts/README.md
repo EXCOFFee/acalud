@@ -86,8 +86,8 @@ Durante la ejecución verás:
    API Docs:  http://localhost:3001/api/docs
 
 📝 Próximos pasos:
-   npm run dev          # Iniciar en modo desarrollo
-   npm test             # Ejecutar tests
+   pnpm run dev          # Iniciar en modo desarrollo
+   pnpm test             # Ejecutar tests
    docker-compose up -d # Iniciar con Docker
 ```
 
@@ -95,7 +95,7 @@ Durante la ejecución verás:
 
 ### Obligatorios
 - **Node.js 18+** - Runtime de JavaScript
-- **npm** - Gestor de paquetes (incluido con Node.js)
+- **pnpm** - Gestor de paquetes (instalar: `corepack enable && corepack prepare pnpm@latest --activate`)
 - **Git** - Control de versiones
 
 ### Opcionales
@@ -142,12 +142,12 @@ Una vez completada la instalación:
 
 1. **Iniciar desarrollo**:
    ```bash
-   npm run dev
+   pnpm run dev
    ```
 
 2. **Ejecutar tests**:
    ```bash
-   npm test
+   pnpm test
    ```
 
 3. **Acceder a la aplicación**:

@@ -10,13 +10,13 @@ echo 📦 Verificando dependencias...
 
 if not exist "node_modules\" (
     echo ⚠️  Instalando dependencias del frontend...
-    call npm install
+    call pnpm install
 )
 
 if not exist "backend\node_modules\" (
     echo ⚠️  Instalando dependencias del backend...
     cd backend
-    call npm install
+    call pnpm install
     cd ..
 )
 
@@ -36,8 +36,8 @@ echo 💡 Presiona Ctrl+C para detener todos los servicios
 echo.
 
 REM Iniciar en paralelo usando start
-start "AcaLud Frontend" cmd /k "npm run dev"
-start "AcaLud Backend" cmd /k "cd backend && npm run start:dev"
+start "AcaLud Frontend" cmd /k "pnpm run dev"
+start "AcaLud Backend" cmd /k "cd backend && pnpm run start:dev"
 
 echo ✨ Servicios iniciados en ventanas separadas
 pause

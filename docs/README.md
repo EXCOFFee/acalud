@@ -71,7 +71,7 @@ docs/
 Para dudas o problemas:
 1. Revisa la documentación técnica en `MEJORAS_IMPLEMENTADAS.md`
 2. Consulta la guía de deployment en `DEPLOY.md`
-3. Verifica el estado de los tests ejecutando `npm test`
+3. Verifica el estado de los tests ejecutando `pnpm test`
 4. Consulta los logs en tiempo real durante desarrollo
 
 ---

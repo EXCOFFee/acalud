@@ -9,7 +9,7 @@ AcaLud es una plataforma educativa que combina gestión de aulas, actividades in
 > Si solo necesitas poner el proyecto en marcha en tu equipo, sigue esta sección. El resto del README conserva contenido histórico y detalles avanzados.
 
 ### Requisitos previos
-- Node.js **>= 20** y npm **>= 10**
+- Node.js **>= 20** y pnpm **>= 9** (instalar: `corepack enable && corepack prepare pnpm@latest --activate`)
 - Docker y Docker Compose (opcional pero recomendado)
 - PostgreSQL 14+ (solo para ejecución manual del backend)
 - Git
@@ -39,23 +39,23 @@ AcaLud es una plataforma educativa que combina gestión de aulas, actividades in
 1. **Backend**
 	```bash
 	cd backend
-	npm install
-	npm run start:dev
+	pnpm install
+	pnpm run start:dev
 	```
 	El backend escucha por defecto en `http://localhost:3001`.
 
 2. **Frontend**
 	```bash
 	cd ../
-	npm install
-	npm run dev
+	pnpm install
+	pnpm run dev
 	```
 	El cliente Vite queda disponible en `http://localhost:5173`.
 
 ### Validación rápida
-- Frontend: `npm run test`
-- Backend: `cd backend && npm test`
-- E2E backend: `cd backend && npm run test:e2e`
+- Frontend: `pnpm test`
+- Backend: `pnpm --filter acalud-backend test`
+- E2E backend: `pnpm --filter acalud-backend run test:e2e`
 
 Consulta `docs/INSTRUCCIONES_GITHUB.md` para lineamientos de contribución y `docs/DEPLOY.md` para despliegues productivos.
 
@@ -107,31 +107,31 @@ Consulta `docs/INSTRUCCIONES_GITHUB.md` para lineamientos de contribución y `do
 
 ## ✅ Requisitos Previos
 
-- ✅ Configurar juegos educativos (Crucigrama, Simulación)docker-compose up -d
-
-
-docker-compose down### Frontend
+- ✅ Configurar juegos educativos (Crucigrama, Simulación)
 
 ```bash
+docker-compose up -d
+docker-compose down
+```
 
-# Eliminar volúmenes (¡Cuidado! Esto borra la DB)npm run test
+### Frontend
 
-docker-compose down -vnpm run test:coverage
-
+```bash
+pnpm test
+pnpm run test:coverage
 ```
 
 # Limpiar imágenes
 
-docker system prune -f## 📊 Monitoreo
+```bash
+docker system prune -f
+```
 
+## 📊 Monitoreo
 
-
-# Volver a iniciar### Health Checks
-
-docker-compose up -d- **Frontend**: http://localhost:3000/health
-
-```- **Backend**: http://localhost:3001/api/v1/health
-
+### Health Checks
+- **Frontend**: http://localhost:3000/health
+- **Backend**: http://localhost:3001/api/v1/health
 - **Database**: Incluido en Docker health checks
 
 ## 📄 Licencia

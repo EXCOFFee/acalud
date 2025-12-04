@@ -21,12 +21,12 @@ echo "📦 Verificando dependencias..."
 
 if [ ! -d "node_modules" ]; then
     echo "⚠️  Instalando dependencias del frontend..."
-    npm install
+    pnpm install
 fi
 
 if [ ! -d "backend/node_modules" ]; then
     echo "⚠️  Instalando dependencias del backend..."
-    cd backend && npm install && cd ..
+    cd backend && pnpm install && cd ..
 fi
 
 echo "✅ Dependencias verificadas"
@@ -34,11 +34,11 @@ echo ""
 
 # Iniciar servicios en paralelo
 echo "🎯 Iniciando Frontend (Puerto 5173)..."
-npm run dev &
+pnpm run dev &
 FRONTEND_PID=$!
 
 echo "🎯 Iniciando Backend (Puerto 3000)..."
-cd backend && npm run start:dev &
+cd backend && pnpm run start:dev &
 BACKEND_PID=$!
 cd ..
 
