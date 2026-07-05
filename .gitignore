@@ -1,0 +1,57 @@
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Builds
+dist/
+build/
+out/
+.next/
+apps/web/out/
+apps/api/dist/
+
+# Prisma / generados
+apps/api/src/**/generated/
+packages/contracts/generated/
+
+# Entornos y secretos (NUNCA versionar — ADR-005 §7)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.crt
+secrets/
+
+# Capacitor / Android (el proyecto android/ se genera; los artefactos no se versionan)
+apps/web/android/app/build/
+apps/web/android/build/
+apps/web/android/.gradle/
+apps/web/android/local.properties
+*.keystore
+*.jks
+*.apk
+*.aab
+
+# Testing / coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# Tooling local del agente (no es parte del proyecto Acalud)
+.claude/
+.agents/
+skills-lock.json
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+.vscode/*
+!.vscode/extensions.json

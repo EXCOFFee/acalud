@@ -1,0 +1,22 @@
+{
+  "name": "@acalud/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Contrato OpenAPI de Acalud + tipos generados compartidos web/api. Fuente única: docs/02-arquitectura/2.4-contratos/openapi.yaml.",
+  "main": "src/index.ts",
+  "scripts": {
+    "lint": "redocly lint",
+    "generate": "openapi-typescript ../../docs/02-arquitectura/2.4-contratos/openapi.yaml -o generated/types.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:unit": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^1.34.0",
+    "openapi-typescript": "^7.4.0",
+    "typescript": "5.7.3",
+    "vitest": "^3.0.0"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "acalud",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Acalud — plataforma web y mobile de juegos educativos (monolito modular hexagonal). Ver docs/ (fuente de verdad).",
+  "packageManager": "pnpm@10.25.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "test:unit": "pnpm -r run test:unit",
+    "test:integration": "pnpm -r run test:integration",
+    "test:e2e": "pnpm -r run test:e2e",
+    "deps:boundaries": "pnpm --filter @acalud/api run deps:boundaries",
+    "contract:lint": "pnpm --filter @acalud/contracts run lint"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3"
+  }
+}

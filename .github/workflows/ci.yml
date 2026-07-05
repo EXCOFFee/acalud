@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Los 8 gates de calidad (5.1 §4). Ninguna etapa de 5.2 avanza con el pipeline en rojo.
+permissions:
+  contents: read
+
+jobs:
+  # 1 · Lint + regla de fronteras hexagonales (import boundaries, ADR-002)
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: pnpm lint
+      - name: Fronteras hexagonales (dependency-cruiser)
+        run: pnpm deps:boundaries
+
+  # 2 · Typecheck (tsc --noEmit) en web y api
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: pnpm typecheck
+
+  # 3 · Contrato OpenAPI (lint Redocly de la spec 2.4; Spectral crashea en OpenAPI 3.1)
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: pnpm contract:lint
+
+  # 4 · Tests unitarios (dominio + arquitectura)
+  test-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: pnpm test:unit
+
+  # 5 · Tests de integración (Testcontainers + PostgreSQL real desde la tarea 0.2)
+  test-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: pnpm test:integration
+
+  # 6 · Scanner de secretos (gitleaks) — ningún secreto en el repo (ADR-005 §7)
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 7 · Audit de dependencias — gate bloqueante para CVE critical (NFR-S3)
+  deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Audit (falla con CVE critical)
+        run: pnpm audit --audit-level critical
+
+  # 8 · Build de web (static export) + api
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: pnpm build

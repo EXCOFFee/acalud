@@ -1,0 +1,958 @@
+openapi: 3.1.0
+info:
+  title: Acalud API
+  version: 0.1.0
+  description: >
+    Contrato de la API del monolito modular (ADR-002). Fuente de verdad para los
+    contract tests (pirámide ADR-002). Cada operación referencia su CU (1.1).
+    Errores en RFC 9457 (application/problem+json). Campos JSON en snake_case español
+    (Glosario 0.2). Autenticación dual (ADR-004): cookie httpOnly (web) o Bearer (APK).
+servers:
+  - url: /api/v1
+
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+
+tags:
+  - name: auth        # BC1 · CU-001..004, E01, E02
+  - name: catalogo    # BC2 · CU-006..009
+  - name: vitrina     # BC2 · CU-017..018
+  - name: compras     # BC3/BC4 · CU-010..013
+  - name: instituciones # BC7 · CU-023..033
+  - name: comunidad   # BC6 · CU-014..016, 015
+  - name: admin       # CU-019..022, E03, E04, E05 (requiere rol admin + MFA)
+  - name: sistema     # health/ready
+
+paths:
+  # ───────────────────────── AUTH (BC1) ─────────────────────────
+  /auth/registro:
+    post:
+      tags: [auth]
+      summary: Registrar docente (CU-001)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegistroInput' }
+      responses:
+        '201': { description: Cuenta creada no_verificada; respuesta idéntica exista o no el email (anti-enumeración A1) }
+        '422': { $ref: '#/components/responses/Problem422' }
+        '429': { $ref: '#/components/responses/Problem429' }
+
+  /auth/verificacion:
+    post:
+      tags: [auth]
+      summary: Verificar email (CU-E02)
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties: { token: { type: string } }
+      responses:
+        '200': { description: Cuenta verificada; crea sesión (Set-Cookie / token en cuerpo) }
+        '410': { description: Enlace inválido o vencido (mensaje único E1), content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+
+  /auth/verificacion/reenvio:
+    post:
+      tags: [auth]
+      summary: Reenviar verificación (rate limit PA 3/hora)
+      security: []
+      requestBody: { content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string, format: email } } } } } }
+      responses:
+        '202': { description: Respuesta única anti-enumeración }
+        '429': { $ref: '#/components/responses/Problem429' }
+
+  /auth/sesion:
+    post:
+      tags: [auth]
+      summary: Iniciar sesión (CU-002)
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, contrasena]
+              properties:
+                email: { type: string, format: email }
+                contrasena: { type: string }
+                codigo_mfa: { type: string, description: Obligatorio para cuentas admin (S-06) }
+      responses:
+        '200':
+          description: 'Sesión creada. Web: Set-Cookie httpOnly. APK: token en cuerpo.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string, description: Solo canal Bearer }
+                  cuenta: { $ref: '#/components/schemas/Perfil' }
+                  capacidades_limitadas: { type: boolean, description: true si no_verificada (PA-06) }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '423': { description: Cuenta bloqueada temporalmente (PA-02 E2), content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+    delete:
+      tags: [auth]
+      summary: Cerrar sesión (CU-003, invalidación server-side, idempotente)
+      responses: { '204': { description: Sesión invalidada } }
+
+  /auth/recuperacion:
+    post:
+      tags: [auth]
+      summary: Solicitar recuperación (CU-E01, anti-enumeración, rate 3/h)
+      security: []
+      requestBody: { content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string, format: email } } } } } }
+      responses: { '202': { description: Respuesta única }, '429': { $ref: '#/components/responses/Problem429' } }
+
+  /auth/recuperacion/restablecer:
+    post:
+      tags: [auth]
+      summary: Restablecer contraseña (CU-E01 paso 4-5; invalida todas las sesiones)
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, contrasena_nueva]
+              properties: { token: { type: string }, contrasena_nueva: { type: string } }
+      responses:
+        '200': { description: Contraseña restablecida }
+        '410': { description: Token inválido/vencido (mensaje único) }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /auth/mfa/enrolamiento:
+    post:
+      tags: [auth]
+      summary: Enrolar TOTP (solo admin, S-06)
+      responses: { '200': { description: Secreto + QR + códigos de respaldo (una sola vez) } }
+
+  /me:
+    get:
+      tags: [auth]
+      summary: Perfil propio
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Perfil' } } }, description: OK }
+    patch:
+      tags: [auth]
+      summary: Actualizar perfil (CU-004; email/contraseña van por sus endpoints)
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/PerfilPatch' } } } }
+      responses: { '200': { description: Actualizado }, '422': { $ref: '#/components/responses/Problem422' } }
+
+  /me/contrasena:
+    post:
+      tags: [auth]
+      summary: Cambiar contraseña (CU-004 A2; exige actual; invalida otras sesiones)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contrasena_actual, contrasena_nueva]
+              properties: { contrasena_actual: { type: string }, contrasena_nueva: { type: string } }
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Problem403' } }
+
+  /me/email:
+    post:
+      tags: [auth]
+      summary: Cambiar email (CU-004 A1; re-verificación; el anterior sigue activo hasta confirmar)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email_nuevo, contrasena_actual]
+              properties: { email_nuevo: { type: string, format: email }, contrasena_actual: { type: string } }
+      responses: { '202': { description: Verificación enviada al email nuevo } }
+
+  /me/pedidos:
+    get:
+      tags: [auth]
+      summary: Historial personal (CU-005; solo pedidos propios, IDOR-safe)
+      parameters: [ { $ref: '#/components/parameters/pagina' }, { $ref: '#/components/parameters/tamanio' } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  datos: { type: array, items: { $ref: '#/components/schemas/PedidoResumen' } }
+                  paginacion: { $ref: '#/components/schemas/Paginacion' }
+
+  # ─────────────────────── CATÁLOGO Y VITRINA (BC2) ───────────────────────
+  /catalogo/juegos:
+    get:
+      tags: [catalogo]
+      summary: Listado público de juegos publicados
+      security: []
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: area, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/pagina' }
+        - { $ref: '#/components/parameters/tamanio' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { datos: { type: array, items: { $ref: '#/components/schemas/JuegoResumen' } }, paginacion: { $ref: '#/components/schemas/Paginacion' } } } } } }
+
+  /catalogo/juegos/{juego_id}:
+    get:
+      tags: [catalogo]
+      summary: Ficha del juego (demos, recursos, tramos vigentes)
+      security: []
+      parameters: [ { $ref: '#/components/parameters/juego_id' } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/JuegoDetalle' } } } }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /catalogo/juegos/{juego_id}/demos:
+    get:
+      tags: [catalogo]
+      summary: Acceder a demo (CU-006 pública sin sesión / CU-007 completa con sesión; registra DemoProbada)
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/juego_id' }
+        - { name: tipo, in: query, required: true, schema: { type: string, enum: [publica, completa] } }
+      responses:
+        '200': { description: URL de visualización embebida de corta vida }
+        '401': { description: Demo completa sin sesión → login con retorno (CU-007 E2) }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /catalogo/recursos/{recurso_id}/descarga:
+    post:
+      tags: [catalogo]
+      summary: Solicitar enlace firmado (CU-008 libre / CU-009 licenciado con derecho en vivo)
+      security: []
+      parameters: [ { name: recurso_id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses:
+        '200':
+          description: Enlace firmado PD-04 (5 min, un uso). Registra la descarga (vía personal|institucional|anónima).
+          content: { application/json: { schema: { type: object, properties: { url_firmada: { type: string }, expira_en: { type: string, format: date-time } } } } }
+        '403': { description: Recurso licenciado sin derecho (CU-009 E1/E2) — CTA a la ficha del juego }
+
+  /vitrina/editoriales:
+    get:
+      tags: [vitrina]
+      summary: Grilla de editoriales aliadas (CU-017)
+      security: []
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/EditorialResumen' } } } } } }
+
+  /vitrina/editoriales/{editorial_id}:
+    get:
+      tags: [vitrina]
+      summary: Ficha con productos exhibidos — sin precio ni compra por diseño (CU-017)
+      security: []
+      parameters: [ { $ref: '#/components/parameters/editorial_id' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/EditorialDetalle' } } } }, '404': { $ref: '#/components/responses/Problem404' } }
+
+  /me/favoritos/{editorial_id}:
+    put:
+      tags: [vitrina]
+      summary: Marcar favorito (CU-018, idempotente)
+      parameters: [ { $ref: '#/components/parameters/editorial_id' } ]
+      responses: { '204': { description: Favorito presente (existiera o no) } }
+    delete:
+      tags: [vitrina]
+      summary: Desmarcar favorito (idempotente)
+      parameters: [ { $ref: '#/components/parameters/editorial_id' } ]
+      responses: { '204': { description: Favorito ausente } }
+
+  /me/favoritos:
+    get:
+      tags: [vitrina]
+      summary: Mis favoritos (incluye no disponibles marcados)
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/EditorialResumen' } } } } } }
+
+  # ─────────────────────── COMPRAS Y LOGÍSTICA (BC3/BC4) ───────────────────────
+  /carrito:
+    get:
+      tags: [compras]
+      summary: Ver carrito con totales calculados server-side (CU-010)
+      parameters: [ { $ref: '#/components/parameters/contexto' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CarritoView' } } } } }
+
+  /carrito/lineas/{juego_id}:
+    put:
+      tags: [compras]
+      summary: Fijar cantidad de una línea (CU-010; upsert; el cliente NUNCA manda precios)
+      parameters: [ { $ref: '#/components/parameters/juego_id' }, { $ref: '#/components/parameters/contexto' } ]
+      requestBody: { content: { application/json: { schema: { type: object, required: [cantidad], properties: { cantidad: { type: integer, minimum: 1, maximum: 99 } } } } } }
+      responses:
+        '200': { description: Carrito recalculado, content: { application/json: { schema: { $ref: '#/components/schemas/CarritoView' } } } }
+        '422': { $ref: '#/components/responses/Problem422' }
+    delete:
+      tags: [compras]
+      summary: Quitar línea
+      parameters: [ { $ref: '#/components/parameters/juego_id' }, { $ref: '#/components/parameters/contexto' } ]
+      responses: { '200': { description: Carrito recalculado } }
+
+  /envios/cotizaciones:
+    post:
+      tags: [compras]
+      summary: Cotizar envío (CU-011; MiCorreo con fallback transparente a tabla)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [codigo_postal, modalidad]
+              properties:
+                codigo_postal: { type: string, pattern: '^[A-Z]?\d{4}[A-Z]{0,3}$' }
+                modalidad: { type: string, enum: [domicilio, sucursal] }
+                contexto: { $ref: '#/components/schemas/Contexto' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CotizacionView' } } } }
+        '422': { description: CP inválido / peso faltante (CU-011 E1) }
+
+  /checkout:
+    post:
+      tags: [compras]
+      summary: Iniciar checkout (CU-012 / CU-024 por contexto) — crea Pedido pendiente_pago + preferencia MP sandbox
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [modalidad_envio, codigo_postal, domicilio]
+              properties:
+                contexto: { $ref: '#/components/schemas/Contexto' }
+                modalidad_envio: { type: string, enum: [domicilio, sucursal] }
+                codigo_postal: { type: string }
+                domicilio: { $ref: '#/components/schemas/Domicilio' }
+      responses:
+        '201':
+          description: Pedido creado; redirigir a MP
+          content: { application/json: { schema: { type: object, properties: { pedido_id: { type: string, format: uuid }, init_point: { type: string, format: uri } } } } }
+        '403': { description: Cuenta no verificada (PA-06) o sin rol encargado en contexto institucional (CU-024 E1) }
+        '409': { description: Ya existe un pedido pendiente_pago para este carrito (idempotencia por pedido) }
+        '422': { description: Stock insuficiente / línea no disponible / precio cambió (se informa y recalcula) }
+        '503': { description: 'Adaptador de pagos indisponible (sin fallback por diseño, ADR-006)' }
+
+  /webhooks/mercadopago:
+    post:
+      tags: [compras]
+      summary: Webhook de MP (CU-012 pasos 4-6) — verificación de firma + idempotencia por payment_id
+      security: []
+      parameters: [ { name: x-signature, in: header, required: true, schema: { type: string } } ]
+      requestBody: { content: { application/json: { schema: { type: object, description: Payload de MP; se persiste crudo en pagos_procesados } } } }
+      responses:
+        '200': { description: Procesado o ya procesado (idempotente E1) — MP no debe reintentar }
+        '401': { description: Firma inválida — se audita y descarta }
+
+  /pedidos/{pedido_id}:
+    get:
+      tags: [compras]
+      summary: Detalle + línea de tiempo (CU-013; propio o de institución con membresía; ajeno → 404)
+      parameters: [ { $ref: '#/components/parameters/pedido_id' } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PedidoDetalle' } } } }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /pedidos/{pedido_id}/comprobante:
+    get:
+      tags: [compras]
+      summary: Enlace firmado al comprobante (PDF; incluye CAE si existe)
+      parameters: [ { $ref: '#/components/parameters/pedido_id' } ]
+      responses: { '200': { description: URL firmada PD-04 }, '404': { $ref: '#/components/responses/Problem404' } }
+
+  # ─────────────────────── INSTITUCIONAL (BC7) ───────────────────────
+  /instituciones:
+    post:
+      tags: [instituciones]
+      summary: Registrar institución (CU-023; crea membresía encargado en la misma transacción)
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/InstitucionInput' } } } }
+      responses:
+        '201': { description: Institución activa (S-11) }
+        '409': { description: 'CUIT ya registrado (E1, sin revelar encargado)' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /instituciones/{institucion_id}/pedidos:
+    get:
+      tags: [instituciones]
+      summary: Historial institucional (CU-025; solo rol encargado del contexto)
+      parameters: [ { $ref: '#/components/parameters/institucion_id' }, { $ref: '#/components/parameters/pagina' }, { $ref: '#/components/parameters/tamanio' } ]
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Problem403' } }
+
+  /instituciones/{institucion_id}/invitaciones:
+    post:
+      tags: [instituciones]
+      summary: Invitar docente (CU-026; membresía invitada + email; PI-01)
+      parameters: [ { $ref: '#/components/parameters/institucion_id' } ]
+      requestBody: { content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string, format: email } } } } } }
+      responses:
+        '201': { description: Invitación creada }
+        '409': { description: Membresía activa o invitación vigente existente (E1) }
+
+  /invitaciones/{token}/aceptacion:
+    post:
+      tags: [instituciones]
+      summary: Aceptar invitación (CU-026 paso 3-4; exige sesión de la cuenta del email invitado)
+      security: []
+      parameters: [ { name: token, in: path, required: true, schema: { type: string } } ]
+      responses:
+        '200': { description: Membresía activa }
+        '403': { description: Sesión de otra cuenta (E-CU026-EXC-001) — informa destinataria sin aceptar }
+        '410': { description: Invitación vencida (PI-01) }
+
+  /instituciones/{institucion_id}/docentes:
+    get:
+      tags: [instituciones]
+      summary: Listado de membresías (CU-027; desvinculadas bajo filtro)
+      parameters: [ { $ref: '#/components/parameters/institucion_id' }, { name: estado, in: query, schema: { type: string, enum: [activa, invitada, desvinculada, vencida] } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/MembresiaView' } } } } } }
+
+  /instituciones/{institucion_id}/docentes/{membresia_id}:
+    delete:
+      tags: [instituciones]
+      summary: Desvincular (CU-028; conserva historial S-03; único encargado no puede autodesvincularse S-15)
+      parameters: [ { $ref: '#/components/parameters/institucion_id' }, { name: membresia_id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '204': { description: Desvinculada }, '409': { description: Ya desvinculada / encargado único (E) } }
+
+  /instituciones/{institucion_id}/sesiones-uso:
+    post:
+      tags: [instituciones]
+      summary: Cargar sesión de uso (CU-029; juego debe estar en catálogo institucional S-13; rangos PI-05)
+      parameters: [ { $ref: '#/components/parameters/institucion_id' } ]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/SesionUsoInput' } } } }
+      responses:
+        '201': { description: Registrada (advertencia de posible duplicado en cuerpo si aplica) }
+        '422': { description: Juego fuera de catálogo (E1) o rangos inválidos (E2) }
+
+  /me/sesiones-uso:
+    get:
+      tags: [instituciones]
+      summary: Mis sesiones (CU-030; indica editables vs inmutables PI-02)
+      parameters: [ { name: institucion_id, in: query, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/SesionUsoView' } } } } } }
+
+  /sesiones-uso/{sesion_id}:
+    patch:
+      tags: [instituciones]
+      summary: Editar sesión propia dentro de 48 h (CU-029 A1 / S-14)
+      parameters: [ { name: sesion_id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/SesionUsoInput' } } } }
+      responses: { '200': { description: OK }, '409': { description: Ventana vencida — inmutable } }
+    delete:
+      tags: [instituciones]
+      summary: Borrar sesión propia dentro de 48 h
+      parameters: [ { name: sesion_id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '204': { description: OK }, '409': { description: Ventana vencida } }
+
+  /instituciones/{institucion_id}/reportes/uso:
+    get:
+      tags: [instituciones]
+      summary: Reporte por juego o docente (CU-031; incluye desvinculados señalizados)
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { name: corte, in: query, required: true, schema: { type: string, enum: [juego, docente] } }
+        - { name: desde, in: query, schema: { type: string, format: date } }
+        - { name: hasta, in: query, schema: { type: string, format: date } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ReporteUsoFila' } } } } } }
+
+  /instituciones/{institucion_id}/reportes/uso/export:
+    get:
+      tags: [instituciones]
+      summary: Exportar XLSX/PDF (CU-032; síncrono; tope PI-04; 0 filas = archivo válido)
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { name: formato, in: query, required: true, schema: { type: string, enum: [xlsx, pdf] } }
+        - { name: corte, in: query, required: true, schema: { type: string, enum: [juego, docente] } }
+        - { name: desde, in: query, schema: { type: string, format: date } }
+        - { name: hasta, in: query, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Archivo (Content-Disposition attachment; nombre con institución+rango+timestamp) }
+        '422': { description: Excede PI-04 — acotar filtros }
+
+  /instituciones/{institucion_id}/dashboard:
+    get:
+      tags: [instituciones]
+      summary: KPIs + series (CU-033; rango default 30 días; variación vs período anterior)
+      parameters: [ { $ref: '#/components/parameters/institucion_id' }, { name: desde, in: query, schema: { type: string, format: date } }, { name: hasta, in: query, schema: { type: string, format: date } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DashboardView' } } } } }
+
+  # ─────────────────────── COMUNIDAD (BC6) ───────────────────────
+  /encuestas:
+    get:
+      tags: [comunidad]
+      summary: Encuestas vigentes (CU-014) y cerradas con resultados (CU-016)
+      parameters: [ { name: estado, in: query, schema: { type: string, enum: [publicada, cerrada] } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/EncuestaResumen' } } } } } }
+
+  /encuestas/{encuesta_id}/respuestas:
+    post:
+      tags: [comunidad]
+      summary: Responder (CU-014; una por cuenta S-17; UNIQUE en BD)
+      parameters: [ { $ref: '#/components/parameters/encuesta_id' } ]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/RespuestaInput' } } } }
+      responses:
+        '201': { description: Registrada }
+        '409': { description: Ya participó (E1) }
+        '410': { description: Encuesta cerrada entre apertura y envío (E2) }
+
+  /encuestas/{encuesta_id}/resultados:
+    get:
+      tags: [comunidad]
+      summary: Resultados agregados sin identidades, solo cerradas (CU-016 / S-18)
+      parameters: [ { $ref: '#/components/parameters/encuesta_id' } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ResultadosView' } } } }
+        '409': { description: Encuesta aún vigente — resultados al cierre }
+
+  /propuestas:
+    post:
+      tags: [comunidad]
+      summary: Enviar propuesta (CU-015; multipart con adjunto PD-01; rate PD-02)
+      requestBody:
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/PropuestaInput' }
+      responses:
+        '201': { description: Recibida con número }
+        '422': { description: Adjunto inválido (E1) }
+        '429': { $ref: '#/components/responses/Problem429' }
+
+  /me/propuestas:
+    get:
+      tags: [comunidad]
+      summary: Mis propuestas con estado y mensaje del Admin
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/PropuestaView' } } } } } }
+
+  /propuestas/{propuesta_id}:
+    delete:
+      tags: [comunidad]
+      summary: Retirar mientras esté recibida (S-19)
+      parameters: [ { name: propuesta_id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '204': { description: Retirada }, '409': { description: Ya en revisión — inmutable } }
+
+  # ─────────────────────── ADMIN (MFA obligatorio) ───────────────────────
+  /admin/juegos:
+    post: { tags: [admin], summary: Alta de juego en borrador (CU-019), responses: { '201': { description: OK } } }
+    get:  { tags: [admin], summary: Listado admin (incluye borradores/despublicados), responses: { '200': { description: OK } } }
+
+  /admin/juegos/{juego_id}:
+    patch: { tags: [admin], summary: Editar juego (precio afecta carritos vivos; nunca pedidos), parameters: [ { $ref: '#/components/parameters/juego_id' } ], responses: { '200': { description: OK } } }
+    delete: { tags: [admin], summary: Eliminar solo sin ventas (E2 → 409 despublicá), parameters: [ { $ref: '#/components/parameters/juego_id' } ], responses: { '204': { description: OK }, '409': { description: Tiene ventas — despublicar } } }
+
+  /admin/juegos/{juego_id}/publicacion:
+    post:
+      tags: [admin]
+      summary: Publicar (valida PG-04 — peso obligatorio S-21) / despublicar
+      parameters: [ { $ref: '#/components/parameters/juego_id' } ]
+      requestBody: { content: { application/json: { schema: { type: object, required: [publicado], properties: { publicado: { type: boolean } } } } } }
+      responses: { '200': { description: OK }, '422': { description: Faltantes PG-04 listados (E1) } }
+
+  /admin/juegos/{juego_id}/tramos:
+    put:
+      tags: [admin]
+      summary: Reemplazo total del set de tramos (CU-022; todo-o-nada; % creciente)
+      parameters: [ { $ref: '#/components/parameters/juego_id' } ]
+      requestBody: { content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Tramo' } } } } }
+      responses: { '200': { description: Set reemplazado }, '422': { description: Regla violada — nada persistido (E1) } }
+
+  /admin/juegos/{juego_id}/stock/ajustes:
+    post:
+      tags: [admin]
+      summary: Ajuste manual con motivo (CU-E04; nunca stock < 0)
+      parameters: [ { $ref: '#/components/parameters/juego_id' } ]
+      requestBody: { content: { application/json: { schema: { type: object, required: [cantidad, motivo], properties: { cantidad: { type: integer, description: signada }, motivo: { type: string, enum: [recepcion, merma, correccion] } } } } } }
+      responses: { '201': { description: Movimiento registrado }, '422': { description: Dejaría stock negativo (E1) } }
+
+  /admin/pedidos:
+    get: { tags: [admin], summary: Cola operable filtrable por estado (CU-E03), parameters: [ { name: estado, in: query, schema: { type: string } } ], responses: { '200': { description: OK } } }
+
+  /admin/pedidos/{pedido_id}/transiciones:
+    post:
+      tags: [admin]
+      summary: Transición de la máquina de estados (CU-E03; inválida → 409; despacho exige tracking)
+      parameters: [ { $ref: '#/components/parameters/pedido_id' } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hacia]
+              properties:
+                hacia: { type: string, enum: [en_preparacion, despachado, entregado, cancelado, pagado] }
+                numero_tracking: { type: string }
+                nota: { type: string }
+      responses:
+        '200': { description: Transición aplicada + evento de auditoría }
+        '409': { description: Transición inválida (E1) o cancelación repetida }
+        '422': { description: Despacho sin tracking (E2) }
+
+  /admin/encuestas:
+    post: { tags: [admin], summary: Alta en borrador (CU-020), responses: { '201': { description: OK } } }
+  /admin/encuestas/{encuesta_id}/estado:
+    post:
+      tags: [admin]
+      summary: Publicar / cerrar (estructura congelada con respuestas)
+      parameters: [ { $ref: '#/components/parameters/encuesta_id' } ]
+      requestBody: { content: { application/json: { schema: { type: object, required: [estado], properties: { estado: { type: string, enum: [publicada, cerrada] } } } } } }
+      responses: { '200': { description: OK }, '409': { description: Edición con respuestas (E1) } }
+
+  /admin/propuestas/{propuesta_id}/resolucion:
+    post:
+      tags: [admin]
+      summary: Resolver propuesta (CU-021; mensaje obligatorio; dispara email)
+      parameters: [ { name: propuesta_id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      requestBody: { content: { application/json: { schema: { type: object, required: [estado, mensaje], properties: { estado: { type: string, enum: [en_revision, aceptada, rechazada] }, mensaje: { type: string } } } } } }
+      responses: { '200': { description: OK }, '409': { description: Transición inválida (E1) } }
+
+  /admin/emails/fallidos:
+    get: { tags: [admin], summary: Panel de emails con reintentos agotados (CU-E05), responses: { '200': { description: OK } } }
+
+  # ─────────────────────── SISTEMA ───────────────────────
+  /health:
+    get: { tags: [sistema], summary: Liveness (NFR-O3), security: [], responses: { '200': { description: OK } } }
+  /ready:
+    get: { tags: [sistema], summary: 'Readiness — toca BD (keep-alive Supabase, ADR-005)', security: [], responses: { '200': { description: OK }, '503': { description: Dependencia caída } } }
+
+components:
+  securitySchemes:
+    cookieAuth: { type: apiKey, in: cookie, name: acalud_sesion }
+    bearerAuth: { type: http, scheme: bearer }
+
+  parameters:
+    pagina:  { name: pagina, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+    tamanio: { name: tamanio, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+    juego_id: { name: juego_id, in: path, required: true, schema: { type: string, format: uuid } }
+    pedido_id: { name: pedido_id, in: path, required: true, schema: { type: string, format: uuid } }
+    institucion_id: { name: institucion_id, in: path, required: true, schema: { type: string, format: uuid } }
+    editorial_id: { name: editorial_id, in: path, required: true, schema: { type: string, format: uuid } }
+    encuesta_id: { name: encuesta_id, in: path, required: true, schema: { type: string, format: uuid } }
+    contexto:
+      name: contexto
+      in: query
+      description: Contexto de compra (ADR-002 Strategy). Omitido = personal.
+      schema: { type: string, format: uuid, description: institucion_id }
+
+  responses:
+    Problem401: { description: No autenticado, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+    Problem403: { description: Sin permiso (se audita), content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+    Problem404: { description: No existe o no es tuyo (IDOR-safe), content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+    Problem422: { description: Validación de negocio, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+    Problem429: { description: Rate limit (PA/PC/PD/PG), content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        trace_id: { type: string }
+
+    Paginacion:
+      type: object
+      properties: { pagina: { type: integer }, tamanio: { type: integer }, total: { type: integer } }
+
+    Contexto:
+      type: [string, 'null']
+      format: uuid
+      description: institucion_id para compra institucional (CU-024); null/ausente = personal
+
+    RegistroInput:
+      type: object
+      required: [email, contrasena, nombre, apellido]
+      properties:
+        email: { type: string, format: email }
+        contrasena: { type: string, minLength: 12, maxLength: 128 }
+        nombre: { type: string }
+        apellido: { type: string }
+
+    Perfil:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        nombre: { type: string }
+        apellido: { type: string }
+        estado: { type: string, enum: [no_verificada, verificada] }
+        es_admin: { type: boolean }
+        membresias: { type: array, items: { $ref: '#/components/schemas/MembresiaPropia' } }
+        domicilio: { $ref: '#/components/schemas/Domicilio' }
+
+    PerfilPatch:
+      type: object
+      properties:
+        nombre: { type: string }
+        apellido: { type: string }
+        telefono: { type: string }
+        domicilio: { $ref: '#/components/schemas/Domicilio' }
+
+    Domicilio:
+      type: object
+      required: [calle, numero, codigo_postal, provincia, localidad]
+      properties:
+        calle: { type: string }
+        numero: { type: string }
+        codigo_postal: { type: string }
+        provincia: { type: string }
+        localidad: { type: string }
+
+    MembresiaPropia:
+      type: object
+      properties:
+        membresia_id: { type: string, format: uuid }
+        institucion_id: { type: string, format: uuid }
+        institucion_nombre: { type: string }
+        rol: { type: string, enum: [encargado, docente] }
+        estado: { type: string, enum: [invitada, activa, desvinculada, vencida] }
+
+    JuegoResumen:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string }
+        precio_lista: { type: number }
+        area: { type: string }
+        edad_objetivo: { type: string }
+        imagen_url: { type: string }
+        tiene_demo_publica: { type: boolean }
+
+    JuegoDetalle:
+      allOf:
+        - $ref: '#/components/schemas/JuegoResumen'
+        - type: object
+          properties:
+            descripcion: { type: string }
+            peso_gramos: { type: integer }
+            stock_disponible: { type: boolean, description: 'booleano, no cantidad — no filtrar información de inventario' }
+            imagenes: { type: array, items: { type: string } }
+            demos: { type: array, items: { type: object, properties: { tipo: { type: string, enum: [publica, completa] }, formato: { type: string, enum: [html5, pdf, video] } } } }
+            recursos: { type: array, items: { type: object, properties: { id: { type: string }, nombre: { type: string }, tipo: { type: string, enum: [libre, licenciado] }, desbloqueado: { type: boolean } } } }
+            tramos: { type: array, items: { $ref: '#/components/schemas/Tramo' } }
+
+    Tramo:
+      type: object
+      required: [cantidad_minima, descuento_pct]
+      properties:
+        cantidad_minima: { type: integer, minimum: 2 }
+        descuento_pct: { type: integer, minimum: 1, maximum: 90 }
+
+    CarritoView:
+      type: object
+      properties:
+        lineas:
+          type: array
+          items:
+            type: object
+            properties:
+              juego_id: { type: string, format: uuid }
+              nombre: { type: string }
+              cantidad: { type: integer }
+              precio_lista: { type: number }
+              descuento_pct: { type: integer }
+              precio_unitario: { type: number }
+              subtotal: { type: number }
+              disponible: { type: boolean }
+        total: { type: number }
+        ahorro_total: { type: number }
+        contexto: { $ref: '#/components/schemas/Contexto' }
+
+    CotizacionView:
+      type: object
+      properties:
+        monto: { type: number }
+        modalidad: { type: string }
+        origen: { type: string, enum: [micorreo, tabla_local], description: Telemetría visible en API para tests; UI no lo destaca }
+
+    PedidoResumen:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        numero: { type: string }
+        fecha: { type: string, format: date-time }
+        estado: { $ref: '#/components/schemas/EstadoPedido' }
+        total: { type: number }
+        comprador_tipo: { type: string, enum: [personal, institucion] }
+
+    EstadoPedido:
+      type: string
+      enum: [pendiente_pago, pagado, rechazado, expirado, en_preparacion, despachado, entregado, cancelado, en_revision]
+
+    PedidoDetalle:
+      allOf:
+        - $ref: '#/components/schemas/PedidoResumen'
+        - type: object
+          properties:
+            lineas: { type: array, items: { type: object, properties: { nombre: { type: string }, cantidad: { type: integer }, precio_unitario_snapshot: { type: number } } } }
+            domicilio_snapshot: { $ref: '#/components/schemas/Domicilio' }
+            envio: { type: object, properties: { costo: { type: number }, numero_tracking: { type: [string, 'null'] } } }
+            linea_de_tiempo:
+              type: array
+              items:
+                type: object
+                properties:
+                  evento: { type: string }
+                  fecha: { type: string, format: date-time }
+                  origen: { type: string, enum: [interno, micorreo, manual] }
+            tracking_actualizado_en: { type: [string, 'null'], format: date-time, description: Marca del caché ante degradación (CU-013 E1) }
+
+    InstitucionInput:
+      type: object
+      required: [razon_social, cuit, nivel_educativo, domicilio]
+      properties:
+        razon_social: { type: string }
+        cuit: { type: string, pattern: '^\d{2}-\d{8}-\d$' }
+        nivel_educativo: { type: string, enum: [inicial, primario, secundario, superior, mixto] }
+        domicilio: { $ref: '#/components/schemas/Domicilio' }
+
+    MembresiaView:
+      type: object
+      properties:
+        membresia_id: { type: string, format: uuid }
+        nombre: { type: [string, 'null'] }
+        email: { type: string }
+        rol: { type: string }
+        estado: { type: string }
+        fecha_alta: { type: [string, 'null'], format: date }
+        sesiones_cargadas: { type: integer }
+
+    SesionUsoInput:
+      type: object
+      required: [juego_id, fecha, curso, cantidad_alumnos, duracion_min]
+      properties:
+        juego_id: { type: string, format: uuid }
+        fecha: { type: string, format: date, description: No futura; máx. 90 días atrás (PI-03) }
+        curso: { type: string }
+        cantidad_alumnos: { type: integer, minimum: 1, maximum: 100 }
+        duracion_min: { type: integer, minimum: 5, maximum: 240 }
+        observaciones: { type: [string, 'null'], maxLength: 1000 }
+
+    SesionUsoView:
+      allOf:
+        - $ref: '#/components/schemas/SesionUsoInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            institucion_id: { type: string, format: uuid }
+            editable: { type: boolean, description: Dentro de la ventana PI-02 }
+
+    ReporteUsoFila:
+      type: object
+      properties:
+        clave: { type: string, description: Nombre del juego o del docente según corte }
+        desvinculado: { type: boolean }
+        sesiones: { type: integer }
+        contraparte_distintos: { type: integer, description: docentes distintos (corte juego) o juegos distintos (corte docente) }
+        alumnos_alcanzados: { type: integer, description: 'Σ exposiciones, no individuos únicos (nota metodológica CU-031)' }
+        minutos_totales: { type: integer }
+        ultima_sesion: { type: [string, 'null'], format: date }
+
+    DashboardView:
+      type: object
+      properties:
+        kpis:
+          type: object
+          properties:
+            sesiones: { $ref: '#/components/schemas/KpiConVariacion' }
+            docentes_activos: { $ref: '#/components/schemas/KpiConVariacion' }
+            alumnos_alcanzados: { $ref: '#/components/schemas/KpiConVariacion' }
+            minutos: { $ref: '#/components/schemas/KpiConVariacion' }
+        serie_semanal: { type: array, items: { type: object, properties: { semana: { type: string }, sesiones: { type: integer } } } }
+        top_juegos: { type: array, maxItems: 5, items: { type: object, properties: { nombre: { type: string }, sesiones: { type: integer } } } }
+        top_docentes: { type: array, maxItems: 5, items: { type: object, properties: { nombre: { type: string }, sesiones: { type: integer } } } }
+
+    KpiConVariacion:
+      type: object
+      properties: { valor: { type: number }, variacion_pct: { type: [number, 'null'] } }
+
+    EditorialResumen:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string }
+        logo_url: { type: string }
+        descripcion_breve: { type: string }
+        disponible: { type: boolean }
+        es_favorita: { type: [boolean, 'null'], description: null sin sesión }
+
+    EditorialDetalle:
+      allOf:
+        - $ref: '#/components/schemas/EditorialResumen'
+        - type: object
+          properties:
+            descripcion: { type: string }
+            sitio_externo: { type: string, format: uri }
+            productos_exhibidos:
+              type: array
+              items: { type: object, properties: { nombre: { type: string }, descripcion: { type: string }, imagen_url: { type: string } } }
+              description: Sin precio ni acción de compra por diseño (CU-017)
+
+    EncuestaResumen:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        titulo: { type: string }
+        estado: { type: string, enum: [publicada, cerrada] }
+        vigente_hasta: { type: string, format: date }
+        ya_respondida: { type: [boolean, 'null'] }
+        preguntas: { type: array, items: { $ref: '#/components/schemas/Pregunta' } }
+
+    Pregunta:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        orden: { type: integer }
+        tipo: { type: string, enum: [opcion_unica, opcion_multiple, escala_1_5, texto_libre] }
+        texto: { type: string }
+        obligatoria: { type: boolean }
+        opciones: { type: array, items: { type: string } }
+
+    RespuestaInput:
+      type: object
+      required: [respuestas]
+      properties:
+        respuestas:
+          type: array
+          items:
+            type: object
+            required: [pregunta_id]
+            properties:
+              pregunta_id: { type: string, format: uuid }
+              opciones: { type: array, items: { type: string } }
+              escala: { type: [integer, 'null'], minimum: 1, maximum: 5 }
+              texto: { type: [string, 'null'], maxLength: 1000 }
+
+    ResultadosView:
+      type: object
+      description: Agregados sin identidades ni texto libre (S-18)
+      properties:
+        participantes: { type: integer }
+        muestra_chica: { type: boolean, description: participantes < 5 (nota CU-016) }
+        por_pregunta:
+          type: array
+          items:
+            type: object
+            properties:
+              pregunta_id: { type: string }
+              distribucion: { type: array, items: { type: object, properties: { opcion: { type: string }, conteo: { type: integer }, porcentaje: { type: number } } } }
+              promedio_escala: { type: [number, 'null'] }
+
+    PropuestaInput:
+      type: object
+      required: [titulo, descripcion, area, edad_objetivo]
+      properties:
+        titulo: { type: string }
+        descripcion: { type: string }
+        area: { type: string }
+        edad_objetivo: { type: string }
+        adjunto: { type: string, format: binary, description: PDF/JPG/PNG ≤10 MB (PD-01) }
+
+    PropuestaView:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        numero: { type: string }
+        titulo: { type: string }
+        estado: { type: string, enum: [recibida, en_revision, aceptada, rechazada, retirada] }
+        mensaje_admin: { type: [string, 'null'] }
+        enviada_en: { type: string, format: date-time }

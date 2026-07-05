@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://REEMPLAZAR-CON-URL-DE-RENDER.onrender.com/api/:path*"
+    }
+  ]
+}

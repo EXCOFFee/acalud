@@ -1,0 +1,15 @@
+# Normaliza finales de línea a LF en el repo (el CI corre en Linux; .editorconfig pide LF).
+* text=auto eol=lf
+
+# Binarios
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.keystore binary
+*.jks binary
+
+# Scripts de shell siempre LF
+*.sh text eol=lf
