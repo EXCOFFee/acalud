@@ -21,6 +21,12 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/explicit-function-return-type': 'off',
+      // Permite params/vars intencionalmente sin usar con prefijo `_` (p. ej. un método de
+      // puerto cuya firma exige un parámetro que un adapter concreto no necesita).
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
     },
   },
 );
