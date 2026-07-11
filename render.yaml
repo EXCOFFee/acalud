@@ -12,7 +12,10 @@ services:
     rootDir: .
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @acalud/api build
     # Aplica migraciones (idempotente) y arranca. Si la BD no responde, falla rápido.
-    startCommand: node apps/api/scripts/migrate.mjs && node apps/api/dist/main.js
+    # --dns-result-order=ipv4first: Render es IPv4; fuerza resolver IPv4 (los poolers de
+    # Supabase pueden ser dual-stack). Ojo: en Render, DATABASE_URL y DIRECT_URL deben ser el
+    # Session Pooler (aws-...pooler.supabase.com:5432), NO la directa db.xxx (IPv6-only).
+    startCommand: node --dns-result-order=ipv4first apps/api/scripts/migrate.mjs && node --dns-result-order=ipv4first apps/api/dist/main.js
     healthCheckPath: /api/v1/health
     autoDeploy: true
     envVars:
