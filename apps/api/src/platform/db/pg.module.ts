@@ -1,5 +1,6 @@
 import { Global, Inject, Module, type OnModuleDestroy, type Provider } from '@nestjs/common';
 import { Pool } from 'pg';
+import { sslDesde } from './ssl';
 
 /** Token de inyección del pool de PostgreSQL (acceso exclusivo desde el backend, ADR-003). */
 export const PG_POOL = Symbol('PG_POOL');
@@ -10,6 +11,7 @@ const poolProvider: Provider = {
     new Pool({
       connectionString: process.env.DATABASE_URL,
       max: 10,
+      ssl: sslDesde(process.env.DATABASE_URL),
     }),
 };
 

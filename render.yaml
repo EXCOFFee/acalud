@@ -1,0 +1,36 @@
+# Render Blueprint del backend (ADR-005: un único web service always-on en el free tier).
+# Crear en Render con "New → Blueprint" apuntando a este repo. Los secretos (sync:false) se
+# cargan en el dashboard, NUNCA en el repo.
+services:
+  - type: web
+    name: acalud-api
+    runtime: node
+    plan: free
+    # Render no tiene región en Sudamérica; oregon/virginia son las más cercanas a
+    # Supabase sa-east-1 (São Paulo). Ajustable en el dashboard.
+    region: virginia
+    rootDir: .
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @acalud/api build
+    # Aplica migraciones (idempotente) y arranca. Si la BD no responde, falla rápido.
+    startCommand: node apps/api/scripts/migrate.mjs && node apps/api/dist/main.js
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Runtime: Session Pooler de Supabase (5432). Secreto → cargar en el dashboard.
+      - key: DATABASE_URL
+        sync: false
+      # Migraciones: conexión directa (o el mismo pooler). Secreto.
+      - key: DIRECT_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      # URL pública de la web en Vercel (para CORS same-site).
+      - key: WEB_BASE_URL
+        sync: false
+      # Integraciones: fakes por ahora (ADR-006).
+      - key: SHIPPING_ADAPTER
+        value: tabla
+      - key: RECEIPT_ARCA_ENABLED
+        value: "false"

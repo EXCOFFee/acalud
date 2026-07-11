@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "deps:boundaries": "depcruise src --config .dependency-cruiser.cjs",
+    "db:migrate": "node scripts/migrate.mjs",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
