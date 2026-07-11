@@ -19,15 +19,26 @@ function depcruise(target: string): { code: number; salida: string } {
   }
 }
 
-describe('Fronteras hexagonales (ADR-002)', () => {
-  it('el código real de src/ no viola ninguna frontera', () => {
-    const { code, salida } = depcruise('src');
-    expect(code, salida).toBe(0);
-  });
+// depcruise cruza todo src/ (crece con el proyecto): timeout amplio para estos tests.
+const TIMEOUT_DEPCRUISE = 60_000;
 
-  it('un import ilegal domain→infrastructure rompe la verificación', () => {
-    const { code, salida } = depcruise('test/architecture/__fixtures__/import-ilegal');
-    expect(code).not.toBe(0);
-    expect(salida).toContain('no-domain-a-infra');
-  });
+describe('Fronteras hexagonales (ADR-002)', () => {
+  it(
+    'el código real de src/ no viola ninguna frontera',
+    () => {
+      const { code, salida } = depcruise('src');
+      expect(code, salida).toBe(0);
+    },
+    TIMEOUT_DEPCRUISE,
+  );
+
+  it(
+    'un import ilegal domain→infrastructure rompe la verificación',
+    () => {
+      const { code, salida } = depcruise('test/architecture/__fixtures__/import-ilegal');
+      expect(code).not.toBe(0);
+      expect(salida).toContain('no-domain-a-infra');
+    },
+    TIMEOUT_DEPCRUISE,
+  );
 });

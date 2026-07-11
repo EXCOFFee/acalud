@@ -1,8 +1,19 @@
+import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
 // Tests de integración: PostgreSQL REAL vía Testcontainers (ADR-002 / CLAUDE.md).
-// Prohibido mockear la BD para estos tests. Requieren Docker (local o CI).
+// SWC emite la metadata de decoradores (emitDecoratorMetadata) que NestJS DI necesita y
+// que esbuild (el transformador por defecto de Vitest) no genera. Requieren Docker.
 export default defineConfig({
+  plugins: [
+    swc.vite({
+      jsc: {
+        target: 'es2022',
+        parser: { syntax: 'typescript', decorators: true },
+        transform: { legacyDecorator: true, decoratorMetadata: true },
+      },
+    }),
+  ],
   test: {
     globals: true,
     environment: 'node',
