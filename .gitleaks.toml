@@ -1,0 +1,13 @@
+# Configuración de gitleaks (gate `secrets` del CI, 5.1 §4). Extiende las reglas por defecto
+# y declara falsos positivos conocidos.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Falsos positivos conocidos"
+paths = [
+  # Blocklist de contraseñas filtradas (PA-01 / ASVS 2.1.7): strings comunes y públicos, de
+  # baja entropía por diseño — no son secretos. La regla generic-api-key marca alguno por
+  # entropía; se excluye este archivo del escaneo.
+  '''apps/api/src/modules/identidad/infrastructure/adapters/contrasena-filtrada\.lista-local\.ts''',
+]
