@@ -9,6 +9,7 @@ out/
 .next/
 apps/web/out/
 apps/api/dist/
+*.tsbuildinfo
 
 # Prisma / generados
 apps/api/src/**/generated/
