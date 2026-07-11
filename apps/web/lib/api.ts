@@ -54,6 +54,8 @@ export const api = {
     pedir<void>('POST', '/auth/registro', d),
   login: (d: { email: string; contrasena: string }) =>
     pedir<{ capacidades_limitadas: boolean }>('POST', '/auth/sesion', d),
+  verificar: (token: string) =>
+    pedir<{ capacidades_limitadas: boolean }>('POST', '/auth/verificacion', { token }),
   logout: () => pedir<void>('DELETE', '/auth/sesion'),
   me: () => pedir<PerfilPropio>('GET', '/me'),
 };

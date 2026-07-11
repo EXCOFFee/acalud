@@ -2,12 +2,25 @@ import { Body, Controller, Delete, HttpCode, HttpException, Post, Req, Res } fro
 import type { Request, Response } from 'express';
 import { ZodValidationPipe } from '../../../../platform/http/zod-validation.pipe';
 import type { PerfilCuenta } from '../../domain/cuenta';
-import { ContrasenaFiltrada, CredencialesInvalidas, CuentaBloqueada } from '../../domain/errores';
+import {
+  ContrasenaFiltrada,
+  CredencialesInvalidas,
+  CuentaBloqueada,
+  TokenInvalido,
+} from '../../domain/errores';
 import { CerrarSesion } from '../../application/cerrar-sesion';
 import { IniciarSesion } from '../../application/iniciar-sesion';
 import { RegistrarDocente } from '../../application/registrar-docente';
+import { VerificarEmail } from '../../application/verificar-email';
 import { COOKIE_SESION, leerCookie } from './cookies';
-import { type LoginInput, loginSchema, type RegistroInput, registroSchema } from './esquemas';
+import {
+  type LoginInput,
+  loginSchema,
+  type RegistroInput,
+  registroSchema,
+  type VerificacionInput,
+  verificacionSchema,
+} from './esquemas';
 
 const VIGENCIA_SESION_MS = 7 * 24 * 60 * 60 * 1000; // PA-05
 
@@ -21,6 +34,9 @@ function mapearError(error: unknown): never {
   }
   if (error instanceof CuentaBloqueada) {
     throw new HttpException({ title: 'Cuenta bloqueada', detail: error.message }, 423);
+  }
+  if (error instanceof TokenInvalido) {
+    throw new HttpException({ title: 'Enlace inválido', detail: error.message }, 410);
   }
   throw error;
 }
@@ -37,6 +53,7 @@ export class AuthController {
     private readonly registrar: RegistrarDocente,
     private readonly iniciar: IniciarSesion,
     private readonly cerrar: CerrarSesion,
+    private readonly verificar: VerificarEmail,
   ) {}
 
   /** CU-001. Respuesta idéntica exista o no el email (anti-enumeración). */
@@ -51,6 +68,22 @@ export class AuthController {
       mapearError(error);
     }
     return { mensaje: 'Si el email es válido, te enviamos instrucciones para verificar la cuenta.' };
+  }
+
+  /** CU-E02. Verifica el email por token, activa la cuenta e inicia sesión (cookie + token). */
+  @Post('verificacion')
+  @HttpCode(200)
+  async verificacion(
+    @Body(new ZodValidationPipe(verificacionSchema)) input: VerificacionInput,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<RespuestaLogin> {
+    try {
+      const sesion = await this.verificar.ejecutar(input.token);
+      this.setCookieSesion(res, sesion.token);
+      return { token: sesion.token, cuenta: sesion.perfil, capacidades_limitadas: false };
+    } catch (error) {
+      mapearError(error);
+    }
   }
 
   /** CU-002. Sesión dual: token en el cuerpo (Bearer/APK) + cookie httpOnly (web). */

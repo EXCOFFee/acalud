@@ -4,6 +4,7 @@ import { PG_POOL } from '../../../platform/db/pg.module';
 import { CerrarSesion } from '../application/cerrar-sesion';
 import { IniciarSesion } from '../application/iniciar-sesion';
 import { RegistrarDocente } from '../application/registrar-docente';
+import { VerificarEmail } from '../application/verificar-email';
 import { CUENTA_REPOSITORY, type CuentaRepository } from '../domain/ports/cuenta.repository';
 import { SESION_REPOSITORY, type SesionRepository } from '../domain/ports/sesion.repository';
 import {
@@ -85,6 +86,12 @@ import { UnidadDeTrabajoPg } from './persistencia/unidad-de-trabajo.pg';
         reloj: Reloj,
       ): CerrarSesion => new CerrarSesion(sesiones, gen, reloj),
       inject: [SESION_REPOSITORY, GENERADOR_TOKEN, RELOJ],
+    },
+    {
+      provide: VerificarEmail,
+      useFactory: (uow: UnidadDeTrabajo, gen: GeneradorTokenOpaco, reloj: Reloj): VerificarEmail =>
+        new VerificarEmail(uow, gen, reloj),
+      inject: [UNIDAD_DE_TRABAJO, GENERADOR_TOKEN, RELOJ],
     },
     AuthGuard,
   ],

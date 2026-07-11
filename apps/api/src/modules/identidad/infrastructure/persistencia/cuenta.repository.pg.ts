@@ -76,4 +76,8 @@ export class CuentaRepositoryPg implements CuentaRepository {
       [id, s.intentosFallidos, s.intentosDesde, s.bloqueadaHasta, s.ultimoLogin],
     );
   }
+
+  async verificar(id: string): Promise<void> {
+    await this.db.query(`UPDATE cuentas SET estado = 'verificada' WHERE id = $1`, [id]);
+  }
 }

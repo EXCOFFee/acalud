@@ -23,15 +23,30 @@ export interface AuditoriaPort {
   registrar(evento: EventoAuditoria): Promise<void>;
 }
 
+export type TipoTokenDeUso = 'verificacion_email' | 'recuperacion_password' | 'cambio_email';
+
 export interface TokenDeUsoNuevo {
   cuentaId: string;
-  tipo: 'verificacion_email' | 'recuperacion_password' | 'cambio_email';
+  tipo: TipoTokenDeUso;
   tokenHash: string;
   expiraEn: Date;
   emailNuevo?: string | null;
 }
+
+export interface TokenVigente {
+  id: string;
+  cuentaId: string;
+}
+
 export interface TokenRepository {
   crear(token: TokenDeUsoNuevo): Promise<void>;
+  /** Busca un token no usado y no vencido por su hash y tipo (CU-E02). */
+  buscarVigentePorHash(
+    tokenHash: string,
+    tipo: TipoTokenDeUso,
+    ahora: Date,
+  ): Promise<TokenVigente | null>;
+  marcarUsado(id: string): Promise<void>;
 }
 
 /** Repositorios y puertos de escritura disponibles dentro de una transacción (UoW, ADR-002). */

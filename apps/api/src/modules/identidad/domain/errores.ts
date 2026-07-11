@@ -23,3 +23,11 @@ export class CuentaBloqueada extends ErrorDeDominio {
     super('Cuenta temporalmente bloqueada');
   }
 }
+
+/** Token de verificación/recuperación inexistente, vencido o ya usado (CU-E02 E1). → 410 */
+export class TokenInvalido extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Enlace inválido o vencido');
+  }
+}

@@ -12,6 +12,8 @@ export interface CuentaRepository {
   buscarPorId(id: string): Promise<Cuenta | null>;
   crear(datos: DatosNuevaCuenta): Promise<Cuenta>;
   actualizarSeguridad(id: string, seguridad: EstadoSeguridad): Promise<void>;
+  /** Marca la cuenta como verificada (CU-E02). */
+  verificar(id: string): Promise<void>;
 }
 
 export const CUENTA_REPOSITORY = Symbol('CuentaRepository');

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PgModule } from './platform/db/pg.module';
 import { HealthModule } from './platform/health/health.module';
 import { EmailModule } from './platform/email/email.module';
+import { OutboxModule } from './platform/outbox/outbox.module';
 import { IdentidadModule } from './modules/identidad/infrastructure/identidad.module';
 import { ComprasModule } from './modules/compras/infrastructure/compras.module';
 import { LogisticaModule } from './modules/logistica/infrastructure/logistica.module';
@@ -17,6 +18,7 @@ import { ComprobantesModule } from './modules/comprobantes/infrastructure/compro
     PgModule,
     HealthModule,
     EmailModule,
+    OutboxModule,
     IdentidadModule,
     ComprasModule,
     LogisticaModule,

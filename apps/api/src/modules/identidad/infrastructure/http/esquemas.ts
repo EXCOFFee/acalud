@@ -15,3 +15,8 @@ export const loginSchema = z.object({
   contrasena: z.string().min(1),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
+
+export const verificacionSchema = z.object({
+  token: z.string().min(1),
+});
+export type VerificacionInput = z.infer<typeof verificacionSchema>;
