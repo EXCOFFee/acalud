@@ -17,7 +17,7 @@ importa el puerto, jamás el SDK del proveedor.
 | `PaymentProvider` | `MercadoPagoSandbox` | fija | **Sin fallback** (decisión de Visión §9: sin MP no hay demo de pago; el checkout informa indisponibilidad) | ★ Alta → Opus/Fable |
 | `ShippingProvider` | `MiCorreoAdapter` · `TarifaLocalAdapter` | `SHIPPING_ADAPTER=micorreo\|tabla` + conmutación automática | Tabla local (peso×zona), conmutación por timeout PC-01, 5xx o circuit breaker abierto | Media → Sonnet, revisión humana |
 | `ReceiptProvider` | `PdfInterno` · `ArcaHomologacion` (compuesto: PDF siempre; ARCA además, si está activo) | `RECEIPT_ARCA_ENABLED=true\|false` | PDF interno; reintentos ARCA PC-06 en outbox | ★ Alta (ARCA) → Opus/Fable |
-| `EmailProvider` | `SmtpAdapter` (Gmail/SMTP) · `ResendAdapter` (HTTP) · `EmailFakeAdapter` | `EMAIL_PROVIDER=gmail\|smtp\|resend\|fake` | Cola outbox con reintentos PG-03 + panel de fallidos | Media → Sonnet |
+| `EmailProvider` | `GmailApiAdapter` (HTTP/OAuth2, prod) · `SmtpAdapter` (Gmail/SMTP, solo local) · `ResendAdapter` (HTTP) · `EmailFakeAdapter` | `EMAIL_PROVIDER=gmail-api\|gmail\|smtp\|resend\|fake` | Cola outbox con reintentos PG-03 + panel de fallidos | Media → Sonnet |
 
 ## Contratos y detalles por adapter
 
@@ -43,12 +43,15 @@ rechazo de esquema no se reintenta, un timeout sí. El certificado y la clave pr
 por secretos de Render (ADR-005), jamás al repo.
 
 **EmailProvider:** consumido solo por el worker del outbox (CU-E05). Elección resuelta:
-**SMTP (Gmail con App Password)** como proveedor por defecto en la demo — gratis y entrega a
-cualquier casilla sin dominio propio (Google firma SPF/DKIM), ~500/día. `ResendAdapter` (HTTP)
-queda disponible pero sin dominio verificado solo entrega al dueño de la cuenta; migrar a
-Resend con dominio propio = cambiar `EMAIL_PROVIDER` + `EMAIL_FROM`, sin tocar el resto.
-Credenciales (`EMAIL_SMTP_USER`/`EMAIL_SMTP_PASS` o `EMAIL_API_KEY`) por secretos de entorno,
-jamás al repo. En dev/tests, `EmailFakeAdapter` (no manda nada real).
+**API HTTP de Gmail (OAuth2 con refresh token)** como proveedor de producción — envía desde la
+propia casilla del usuario por HTTPS, gratis y a cualquier destinatario sin dominio propio, y
+sin depender de dar de alta un tercero. Es HTTP, así que funciona desde Render, que **bloquea
+el SMTP saliente** (25/465/587) en todos sus planes: por eso el `SmtpAdapter` (Gmail con App
+Password) sirve en local pero da `Connection timeout` desde Render y queda como opción de
+desarrollo. `ResendAdapter` (HTTP) también disponible, pero sin dominio verificado solo entrega
+al dueño. Cambiar de proveedor = `EMAIL_PROVIDER` + credenciales, sin tocar el resto. Credenciales
+(`GMAIL_CLIENT_ID`/`GMAIL_CLIENT_SECRET`/`GMAIL_REFRESH_TOKEN`, o `EMAIL_SMTP_*`) por secretos de
+entorno, jamás al repo. En dev/tests, `EmailFakeAdapter` (no manda nada real).
 
 ## Política transversal de fallo (insumo directo de 4.1)
 
@@ -84,3 +87,4 @@ jamás al repo. En dev/tests, `EmailFakeAdapter` (no manda nada real).
 |---|---|---|
 | 1.0.0 | 2026-07-04 | Decisión aceptada |
 | 1.1.0 | 2026-07-12 | EmailProvider resuelto (5.1): SMTP/Gmail por defecto (gratis, entrega a cualquiera sin dominio) + ResendAdapter disponible + fake en dev/tests; selección por `EMAIL_PROVIDER` |
+| 1.2.0 | 2026-07-12 | Render bloquea SMTP saliente (verificado en prod: `Connection timeout`) → API HTTP de Gmail (OAuth2) pasa a ser el proveedor de producción; SmtpAdapter/Gmail queda solo para local |
