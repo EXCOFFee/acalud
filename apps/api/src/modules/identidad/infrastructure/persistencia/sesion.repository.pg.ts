@@ -60,6 +60,13 @@ export class SesionRepositoryPg implements SesionRepository {
     );
   }
 
+  async revocarTodasDeCuenta(cuentaId: string, ahora: Date): Promise<void> {
+    await this.db.query(
+      `UPDATE sesiones SET revocada_en = $2 WHERE cuenta_id = $1 AND revocada_en IS NULL`,
+      [cuentaId, ahora],
+    );
+  }
+
   async renovar(sesionId: string, expiraEn: Date): Promise<void> {
     await this.db.query(`UPDATE sesiones SET expira_en = $2 WHERE id = $1`, [sesionId, expiraEn]);
   }

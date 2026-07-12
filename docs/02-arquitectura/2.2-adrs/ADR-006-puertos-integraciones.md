@@ -17,7 +17,7 @@ importa el puerto, jamás el SDK del proveedor.
 | `PaymentProvider` | `MercadoPagoSandbox` | fija | **Sin fallback** (decisión de Visión §9: sin MP no hay demo de pago; el checkout informa indisponibilidad) | ★ Alta → Opus/Fable |
 | `ShippingProvider` | `MiCorreoAdapter` · `TarifaLocalAdapter` | `SHIPPING_ADAPTER=micorreo\|tabla` + conmutación automática | Tabla local (peso×zona), conmutación por timeout PC-01, 5xx o circuit breaker abierto | Media → Sonnet, revisión humana |
 | `ReceiptProvider` | `PdfInterno` · `ArcaHomologacion` (compuesto: PDF siempre; ARCA además, si está activo) | `RECEIPT_ARCA_ENABLED=true\|false` | PDF interno; reintentos ARCA PC-06 en outbox | ★ Alta (ARCA) → Opus/Fable |
-| `EmailProvider` | `ResendAdapter` o `BrevoAdapter` (uno, a verificar en 5.1) | fija | Cola outbox con reintentos PG-03 + panel de fallidos | Media → Sonnet |
+| `EmailProvider` | `SmtpAdapter` (Gmail/SMTP) · `ResendAdapter` (HTTP) · `EmailFakeAdapter` | `EMAIL_PROVIDER=gmail\|smtp\|resend\|fake` | Cola outbox con reintentos PG-03 + panel de fallidos | Media → Sonnet |
 
 ## Contratos y detalles por adapter
 
@@ -42,8 +42,13 @@ homologación real; los errores de ARCA se clasifican transient/permanent (ADR-0
 rechazo de esquema no se reintenta, un timeout sí. El certificado y la clave privada entran
 por secretos de Render (ADR-005), jamás al repo.
 
-**EmailProvider:** consumido solo por el worker del outbox (CU-E05); la elección
-Resend/Brevo se resuelve en 5.1 verificando límites vigentes; cambiarlo después = un adapter.
+**EmailProvider:** consumido solo por el worker del outbox (CU-E05). Elección resuelta:
+**SMTP (Gmail con App Password)** como proveedor por defecto en la demo — gratis y entrega a
+cualquier casilla sin dominio propio (Google firma SPF/DKIM), ~500/día. `ResendAdapter` (HTTP)
+queda disponible pero sin dominio verificado solo entrega al dueño de la cuenta; migrar a
+Resend con dominio propio = cambiar `EMAIL_PROVIDER` + `EMAIL_FROM`, sin tocar el resto.
+Credenciales (`EMAIL_SMTP_USER`/`EMAIL_SMTP_PASS` o `EMAIL_API_KEY`) por secretos de entorno,
+jamás al repo. En dev/tests, `EmailFakeAdapter` (no manda nada real).
 
 ## Política transversal de fallo (insumo directo de 4.1)
 
@@ -78,3 +83,4 @@ Resend/Brevo se resuelve en 5.1 verificando límites vigentes; cambiarlo despué
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0.0 | 2026-07-04 | Decisión aceptada |
+| 1.1.0 | 2026-07-12 | EmailProvider resuelto (5.1): SMTP/Gmail por defecto (gratis, entrega a cualquiera sin dominio) + ResendAdapter disponible + fake en dev/tests; selección por `EMAIL_PROVIDER` |

@@ -56,6 +56,9 @@ export const api = {
     pedir<{ capacidades_limitadas: boolean }>('POST', '/auth/sesion', d),
   verificar: (token: string) =>
     pedir<{ capacidades_limitadas: boolean }>('POST', '/auth/verificacion', { token }),
+  recuperar: (email: string) => pedir<{ mensaje: string }>('POST', '/auth/recuperacion', { email }),
+  restablecer: (token: string, contrasena_nueva: string) =>
+    pedir<{ mensaje: string }>('POST', '/auth/recuperacion/restablecer', { token, contrasena_nueva }),
   logout: () => pedir<void>('DELETE', '/auth/sesion'),
   me: () => pedir<PerfilPropio>('GET', '/me'),
 };

@@ -4,6 +4,8 @@ import { PG_POOL } from '../../../platform/db/pg.module';
 import { CerrarSesion } from '../application/cerrar-sesion';
 import { IniciarSesion } from '../application/iniciar-sesion';
 import { RegistrarDocente } from '../application/registrar-docente';
+import { RestablecerContrasena } from '../application/restablecer-contrasena';
+import { SolicitarRecuperacion } from '../application/solicitar-recuperacion';
 import { VerificarEmail } from '../application/verificar-email';
 import { CUENTA_REPOSITORY, type CuentaRepository } from '../domain/ports/cuenta.repository';
 import { SESION_REPOSITORY, type SesionRepository } from '../domain/ports/sesion.repository';
@@ -92,6 +94,26 @@ import { UnidadDeTrabajoPg } from './persistencia/unidad-de-trabajo.pg';
       useFactory: (uow: UnidadDeTrabajo, gen: GeneradorTokenOpaco, reloj: Reloj): VerificarEmail =>
         new VerificarEmail(uow, gen, reloj),
       inject: [UNIDAD_DE_TRABAJO, GENERADOR_TOKEN, RELOJ],
+    },
+    {
+      provide: SolicitarRecuperacion,
+      useFactory: (
+        uow: UnidadDeTrabajo,
+        gen: GeneradorTokenOpaco,
+        reloj: Reloj,
+      ): SolicitarRecuperacion => new SolicitarRecuperacion(uow, gen, reloj),
+      inject: [UNIDAD_DE_TRABAJO, GENERADOR_TOKEN, RELOJ],
+    },
+    {
+      provide: RestablecerContrasena,
+      useFactory: (
+        uow: UnidadDeTrabajo,
+        hasher: HasherContrasena,
+        gen: GeneradorTokenOpaco,
+        filtrada: VerificadorContrasenaFiltrada,
+        reloj: Reloj,
+      ): RestablecerContrasena => new RestablecerContrasena(uow, hasher, gen, filtrada, reloj),
+      inject: [UNIDAD_DE_TRABAJO, HASHER, GENERADOR_TOKEN, VERIFICADOR_FILTRADA, RELOJ],
     },
     AuthGuard,
   ],

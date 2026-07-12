@@ -47,6 +47,8 @@ export interface TokenRepository {
     ahora: Date,
   ): Promise<TokenVigente | null>;
   marcarUsado(id: string): Promise<void>;
+  /** Invalida los tokens vigentes de un tipo para una cuenta (CU-E01: al emitir uno nuevo). */
+  invalidarVigentesPorCuenta(cuentaId: string, tipo: TipoTokenDeUso): Promise<void>;
 }
 
 /** Repositorios y puertos de escritura disponibles dentro de una transacción (UoW, ADR-002). */

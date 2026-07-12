@@ -11,13 +11,19 @@ import {
 import { CerrarSesion } from '../../application/cerrar-sesion';
 import { IniciarSesion } from '../../application/iniciar-sesion';
 import { RegistrarDocente } from '../../application/registrar-docente';
+import { RestablecerContrasena } from '../../application/restablecer-contrasena';
+import { SolicitarRecuperacion } from '../../application/solicitar-recuperacion';
 import { VerificarEmail } from '../../application/verificar-email';
 import { COOKIE_SESION, leerCookie } from './cookies';
 import {
   type LoginInput,
   loginSchema,
+  type RecuperacionInput,
+  recuperacionSchema,
   type RegistroInput,
   registroSchema,
+  type RestablecerInput,
+  restablecerSchema,
   type VerificacionInput,
   verificacionSchema,
 } from './esquemas';
@@ -54,6 +60,8 @@ export class AuthController {
     private readonly iniciar: IniciarSesion,
     private readonly cerrar: CerrarSesion,
     private readonly verificar: VerificarEmail,
+    private readonly solicitarRecuperacion: SolicitarRecuperacion,
+    private readonly restablecer: RestablecerContrasena,
   ) {}
 
   /** CU-001. Respuesta idéntica exista o no el email (anti-enumeración). */
@@ -84,6 +92,33 @@ export class AuthController {
     } catch (error) {
       mapearError(error);
     }
+  }
+
+  /** CU-E01. Solicitar recuperación. Respuesta idéntica exista o no el email (anti-enumeración). */
+  @Post('recuperacion')
+  @HttpCode(202)
+  async recuperacion(
+    @Body(new ZodValidationPipe(recuperacionSchema)) input: RecuperacionInput,
+  ): Promise<{ mensaje: string }> {
+    await this.solicitarRecuperacion.ejecutar(input.email);
+    return { mensaje: 'Si el email está registrado, te enviamos instrucciones para restablecer la contraseña.' };
+  }
+
+  /** CU-E01 (pasos 4-5). Fija la contraseña nueva e invalida todas las sesiones. */
+  @Post('recuperacion/restablecer')
+  @HttpCode(200)
+  async restablecerContrasena(
+    @Body(new ZodValidationPipe(restablecerSchema)) input: RestablecerInput,
+  ): Promise<{ mensaje: string }> {
+    try {
+      await this.restablecer.ejecutar({
+        token: input.token,
+        contrasenaNueva: input.contrasena_nueva,
+      });
+    } catch (error) {
+      mapearError(error);
+    }
+    return { mensaje: 'Tu contraseña fue actualizada. Ya podés ingresar con la nueva.' };
   }
 
   /** CU-002. Sesión dual: token en el cuerpo (Bearer/APK) + cookie httpOnly (web). */

@@ -14,6 +14,8 @@ export interface CuentaRepository {
   actualizarSeguridad(id: string, seguridad: EstadoSeguridad): Promise<void>;
   /** Marca la cuenta como verificada (CU-E02). */
   verificar(id: string): Promise<void>;
+  /** Reemplaza el hash de contraseña (CU-E01, restablecer). */
+  actualizarContrasena(id: string, hashPassword: string): Promise<void>;
 }
 
 export const CUENTA_REPOSITORY = Symbol('CuentaRepository');

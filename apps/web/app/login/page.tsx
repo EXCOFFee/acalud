@@ -72,6 +72,9 @@ export default function LoginPage() {
         <button className="boton boton--primario boton--bloque" type="submit" disabled={cargando}>
           {cargando ? 'Ingresando…' : 'Ingresar'}
         </button>
+        <p style={{ textAlign: 'center', margin: '0.9rem 0 0' }}>
+          <Link href="/recuperar">¿Olvidaste tu contraseña?</Link>
+        </p>
       </form>
     </AuthShell>
   );

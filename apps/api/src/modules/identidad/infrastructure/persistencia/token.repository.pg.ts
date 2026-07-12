@@ -36,4 +36,12 @@ export class TokenRepositoryPg implements TokenRepository {
   async marcarUsado(id: string): Promise<void> {
     await this.db.query(`UPDATE tokens_de_uso SET usado = true WHERE id = $1`, [id]);
   }
+
+  async invalidarVigentesPorCuenta(cuentaId: string, tipo: TipoTokenDeUso): Promise<void> {
+    await this.db.query(
+      `UPDATE tokens_de_uso SET usado = true
+        WHERE cuenta_id = $1 AND tipo = $2 AND usado = false`,
+      [cuentaId, tipo],
+    );
+  }
 }

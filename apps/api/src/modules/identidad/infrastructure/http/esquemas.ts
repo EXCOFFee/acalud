@@ -20,3 +20,16 @@ export const verificacionSchema = z.object({
   token: z.string().min(1),
 });
 export type VerificacionInput = z.infer<typeof verificacionSchema>;
+
+export const recuperacionSchema = z.object({
+  email: z.string().email(),
+});
+export type RecuperacionInput = z.infer<typeof recuperacionSchema>;
+
+// El campo se llama `contrasena_nueva` por contrato (2.4 openapi). La fortaleza real (filtrada)
+// se valida en el caso de uso; acá solo la longitud PA-01.
+export const restablecerSchema = z.object({
+  token: z.string().min(1),
+  contrasena_nueva: z.string().min(LONGITUD_MIN_CONTRASENA).max(LONGITUD_MAX_CONTRASENA),
+});
+export type RestablecerInput = z.infer<typeof restablecerSchema>;

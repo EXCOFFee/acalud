@@ -37,6 +37,29 @@ export function renderizar(tipo: string, payload: Record<string, unknown>): Plan
         ),
       };
     }
+    case 'recuperacion_password': {
+      const token = String(payload['token'] ?? '');
+      const link = `${WEB}/restablecer?token=${encodeURIComponent(token)}`;
+      return {
+        asunto: 'Restablecé tu contraseña de Acalud',
+        html: base(
+          `<h1 style="font-size:22px;margin:0 0 12px;">Restablecer contraseña</h1>
+           <p style="margin:0 0 20px;">Pediste recuperar el acceso a tu cuenta. El enlace vence en 30 minutos y se usa una sola vez.</p>
+           <p style="margin:0 0 20px;">${boton(link, 'Elegir una contraseña nueva')}</p>
+           <p style="color:#566661;font-size:13px;margin:0;">Si no fuiste vos, ignorá este mail: tu contraseña sigue igual.<br>Enlace directo:<br>${link}</p>`,
+        ),
+      };
+    }
+    case 'recuperacion_confirmada':
+      return {
+        asunto: 'Tu contraseña de Acalud fue cambiada',
+        html: base(
+          `<h1 style="font-size:22px;margin:0 0 12px;">Contraseña actualizada</h1>
+           <p style="margin:0 0 20px;">Tu contraseña se cambió correctamente y se cerraron todas las sesiones abiertas.</p>
+           <p style="margin:0;">${boton(`${WEB}/login`, 'Ingresar')}</p>
+           <p style="color:#566661;font-size:13px;margin:16px 0 0;">Si no fuiste vos, recuperá el acceso de inmediato y avisanos.</p>`,
+        ),
+      };
     case 'cuenta-existente':
       return {
         asunto: 'Ya tenés una cuenta en Acalud',

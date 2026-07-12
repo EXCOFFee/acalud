@@ -80,4 +80,8 @@ export class CuentaRepositoryPg implements CuentaRepository {
   async verificar(id: string): Promise<void> {
     await this.db.query(`UPDATE cuentas SET estado = 'verificada' WHERE id = $1`, [id]);
   }
+
+  async actualizarContrasena(id: string, hashPassword: string): Promise<void> {
+    await this.db.query(`UPDATE cuentas SET hash_password = $2 WHERE id = $1`, [id, hashPassword]);
+  }
 }
