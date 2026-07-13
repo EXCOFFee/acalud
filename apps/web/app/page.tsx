@@ -9,6 +9,9 @@ export default function Home() {
           Acalud
         </span>
         <div className="nav__acciones">
+          <Link className="boton boton--fantasma" href="/catalogo">
+            Catálogo
+          </Link>
           <Link className="boton boton--fantasma" href="/login">
             Ingresar
           </Link>
@@ -28,11 +31,11 @@ export default function Home() {
           Todo en un lugar.
         </p>
         <div style={{ display: 'flex', gap: '0.7rem', marginTop: '1.8rem', flexWrap: 'wrap' }}>
-          <Link className="boton boton--primario" href="/registro">
-            Crear cuenta
+          <Link className="boton boton--primario" href="/catalogo">
+            Ver catálogo
           </Link>
-          <Link className="boton boton--fantasma" href="/login">
-            Ya tengo cuenta
+          <Link className="boton boton--fantasma" href="/registro">
+            Crear cuenta
           </Link>
         </div>
       </main>

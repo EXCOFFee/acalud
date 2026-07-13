@@ -385,3 +385,174 @@ a {
   text-transform: uppercase;
   color: var(--acento);
 }
+
+/* ============================ Catálogo (BC2) ============================ */
+.filtros {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 1.3rem 0 0.3rem;
+}
+.filtros input,
+.filtros select {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--r-sm);
+  background: var(--superficie);
+  color: var(--tinta);
+  font: inherit;
+}
+.filtros input {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.catalogo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 1.1rem;
+  margin-top: 1.5rem;
+}
+
+.juego {
+  display: flex;
+  flex-direction: column;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--r);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--sombra-suave);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+.juego:hover,
+.juego:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: var(--sombra);
+  border-color: var(--marca);
+}
+.thumb {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--marca) 0%, var(--marca-fuerte) 55%, var(--acento) 150%);
+  color: #fff;
+  line-height: 1;
+}
+.juego .thumb {
+  aspect-ratio: 16 / 10;
+  font-size: 3rem;
+}
+.juego__cuerpo {
+  padding: 0.85rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+.juego__nombre {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+.juego__meta {
+  font-size: 0.82rem;
+  color: var(--tinta-suave);
+}
+.juego__pie {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.55rem;
+}
+.juego__precio {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--acento-suave);
+  color: var(--acento);
+  white-space: nowrap;
+}
+.chip--ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.chip--off {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+/* Ficha del juego */
+.ficha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 1.8rem;
+  margin-top: 1.4rem;
+}
+@media (max-width: 760px) {
+  .ficha {
+    grid-template-columns: 1fr;
+  }
+}
+.ficha .thumb {
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-lg);
+  font-size: 5rem;
+}
+.ficha__precio {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 2rem;
+  margin: 0.2rem 0;
+}
+.tabla-tramos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-top: 0.4rem;
+}
+.tabla-tramos th,
+.tabla-tramos td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--borde);
+}
+.lista-recursos {
+  list-style: none;
+  padding: 0;
+  margin: 0.4rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.lista-recursos li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--r-sm);
+  background: var(--superficie-2);
+  font-size: 0.9rem;
+}
+.estado-carga {
+  color: var(--tinta-suave);
+  margin-top: 2rem;
+}

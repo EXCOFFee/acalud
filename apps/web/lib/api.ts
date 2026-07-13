@@ -49,6 +49,36 @@ export interface PerfilPropio {
   capacidades_limitadas: boolean;
 }
 
+export interface JuegoResumen {
+  id: string;
+  nombre: string;
+  precio_lista: number;
+  area: string | null;
+  edad_objetivo: string | null;
+  imagen_url: string | null;
+  tiene_demo_publica: boolean;
+}
+
+export interface Tramo {
+  cantidad_minima: number;
+  descuento_pct: number;
+}
+
+export interface JuegoDetalle extends JuegoResumen {
+  descripcion: string;
+  peso_gramos: number;
+  stock_disponible: boolean;
+  imagenes: string[];
+  demos: { tipo: string; formato: string }[];
+  recursos: { id: string; nombre: string; tipo: string; desbloqueado: boolean }[];
+  tramos: Tramo[];
+}
+
+export interface ListadoJuegos {
+  datos: JuegoResumen[];
+  paginacion: { pagina: number; tamanio: number; total: number };
+}
+
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
@@ -61,4 +91,17 @@ export const api = {
     pedir<{ mensaje: string }>('POST', '/auth/recuperacion/restablecer', { token, contrasena_nueva }),
   logout: () => pedir<void>('DELETE', '/auth/sesion'),
   me: () => pedir<PerfilPropio>('GET', '/me'),
+  listarJuegos: (params?: {
+    q?: string | undefined;
+    area?: string | undefined;
+    pagina?: number | undefined;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.q) qs.set('q', params.q);
+    if (params?.area) qs.set('area', params.area);
+    if (params?.pagina) qs.set('pagina', String(params.pagina));
+    const cola = qs.toString() ? `?${qs.toString()}` : '';
+    return pedir<ListadoJuegos>('GET', `/catalogo/juegos${cola}`);
+  },
+  verJuego: (id: string) => pedir<JuegoDetalle>('GET', `/catalogo/juegos/${id}`),
 };
