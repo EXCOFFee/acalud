@@ -64,14 +64,27 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # 7 · Audit de dependencias — gate bloqueante para CVE critical (NFR-S3)
+  # 7 · Auditoría de dependencias — gate bloqueante para CVE critical (NFR-S3).
+  #      osv-scanner (OSV.dev) reemplaza a `pnpm audit`: npm retiró su endpoint de audit (410).
   deps:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-node-pnpm
-      - name: Audit (falla con CVE critical)
-        run: pnpm audit --audit-level critical
+      - name: osv-scanner (escaneo del lockfile contra OSV.dev)
+        run: |
+          set +e
+          docker run --rm -v "$PWD:/src" ghcr.io/google/osv-scanner:v1.9.2 \
+            --lockfile=/src/pnpm-lock.yaml --format=json > osv.json
+          code=$?
+          echo "osv-scanner exit: $code"
+          # 0 = sin vulns · 1 = vulns encontradas (la severidad la clasifica el gate) · otro = error real
+          if [ "$code" != "0" ] && [ "$code" != "1" ]; then
+            echo "::error::osv-scanner falló (exit $code) — el gate no se evalúa a ciegas"
+            head -c 2000 osv.json
+            exit 1
+          fi
+      - name: Gate — bloquea si hay CVE critical (CVSS >= 9.0)
+        run: node .github/scripts/gate-osv-critical.mjs osv.json
 
   # 8 · Build de web (static export) + api
   build:
