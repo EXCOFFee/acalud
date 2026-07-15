@@ -26,7 +26,6 @@ import { RelojSistema } from './adapters/reloj.sistema';
 import { GeneradorTokenCrypto } from './adapters/token-opaco.crypto';
 import { CuentaRepositoryPg } from './persistencia/cuenta.repository.pg';
 import { AuthController } from './http/auth.controller';
-import { AuthGuard } from './http/auth.guard';
 import { MeController } from './http/me.controller';
 import { SesionRepositoryPg } from './persistencia/sesion.repository.pg';
 import { UnidadDeTrabajoPg } from './persistencia/unidad-de-trabajo.pg';
@@ -115,7 +114,6 @@ import { UnidadDeTrabajoPg } from './persistencia/unidad-de-trabajo.pg';
       ): RestablecerContrasena => new RestablecerContrasena(uow, hasher, gen, filtrada, reloj),
       inject: [UNIDAD_DE_TRABAJO, HASHER, GENERADOR_TOKEN, VERIFICADOR_FILTRADA, RELOJ],
     },
-    AuthGuard,
   ],
 })
 export class IdentidadModule {}

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PgModule } from './platform/db/pg.module';
+import { AuthModule } from './platform/auth/auth.module';
 import { HealthModule } from './platform/health/health.module';
 import { EmailModule } from './platform/email/email.module';
 import { OutboxModule } from './platform/outbox/outbox.module';
@@ -17,6 +18,7 @@ import { ComprobantesModule } from './modules/comprobantes/infrastructure/compro
 @Module({
   imports: [
     PgModule,
+    AuthModule,
     HealthModule,
     EmailModule,
     OutboxModule,

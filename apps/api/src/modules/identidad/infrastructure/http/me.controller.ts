@@ -1,5 +1,6 @@
 import { Controller, Get, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
-import { AuthGuard, type RequestAutenticada } from './auth.guard';
+import { AuthGuard } from '../../../../platform/auth/auth.guard';
+import type { RequestAutenticada } from '../../../../platform/auth/autenticado';
 
 interface RespuestaPerfil {
   id: string;
@@ -18,7 +19,7 @@ interface RespuestaPerfil {
 export class MeController {
   @Get()
   perfil(@Req() req: RequestAutenticada): RespuestaPerfil {
-    const cuenta = req.cuenta;
+    const cuenta = req.autenticado;
     if (cuenta === undefined) throw new UnauthorizedException();
     return {
       ...cuenta,

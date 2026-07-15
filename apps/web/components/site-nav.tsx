@@ -12,6 +12,9 @@ export function SiteNav() {
         <Link className="boton boton--fantasma" href="/catalogo">
           Catálogo
         </Link>
+        <Link className="boton boton--fantasma" href="/carrito">
+          Carrito
+        </Link>
         <Link className="boton boton--primario" href="/login">
           Ingresar
         </Link>

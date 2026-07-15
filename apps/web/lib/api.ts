@@ -79,6 +79,24 @@ export interface ListadoJuegos {
   paginacion: { pagina: number; tamanio: number; total: number };
 }
 
+export interface LineaCarrito {
+  juego_id: string;
+  nombre: string;
+  cantidad: number;
+  precio_lista: number;
+  descuento_pct: number;
+  precio_unitario: number;
+  subtotal: number;
+  disponible: boolean;
+}
+
+export interface CarritoView {
+  lineas: LineaCarrito[];
+  total: number;
+  ahorro_total: number;
+  contexto: string | null;
+}
+
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
@@ -104,4 +122,8 @@ export const api = {
     return pedir<ListadoJuegos>('GET', `/catalogo/juegos${cola}`);
   },
   verJuego: (id: string) => pedir<JuegoDetalle>('GET', `/catalogo/juegos/${id}`),
+  verCarrito: () => pedir<CarritoView>('GET', '/carrito'),
+  ponerLinea: (juegoId: string, cantidad: number) =>
+    pedir<CarritoView>('PUT', `/carrito/lineas/${juegoId}`, { cantidad }),
+  quitarLinea: (juegoId: string) => pedir<CarritoView>('DELETE', `/carrito/lineas/${juegoId}`),
 };

@@ -283,6 +283,7 @@ paths:
       requestBody: { content: { application/json: { schema: { type: object, required: [cantidad], properties: { cantidad: { type: integer, minimum: 1, maximum: 99 } } } } } }
       responses:
         '200': { description: Carrito recalculado, content: { application/json: { schema: { $ref: '#/components/schemas/CarritoView' } } } }
+        '404': { description: Juego inexistente o no publicado }
         '422': { $ref: '#/components/responses/Problem422' }
     delete:
       tags: [compras]

@@ -24,7 +24,9 @@ export default function LoginPage() {
     setCargando(true);
     try {
       await api.login(datos);
-      router.push('/cuenta');
+      // Volver a donde el usuario venía (ej. /carrito); solo rutas internas (anti open-redirect).
+      const volver = new URLSearchParams(window.location.search).get('volver');
+      router.push(volver && volver.startsWith('/') ? volver : '/cuenta');
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401) setError('Email o contraseña incorrectos.');

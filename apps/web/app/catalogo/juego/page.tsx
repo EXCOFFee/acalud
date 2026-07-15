@@ -2,15 +2,40 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Alerta } from '@/components/ui';
 import { emojiArea, precioARS, SiteNav } from '@/components/site-nav';
-import { api, type JuegoDetalle } from '@/lib/api';
+import { api, ApiError, type JuegoDetalle } from '@/lib/api';
 
 const FORMATO: Record<string, string> = { html5: 'interactiva', pdf: 'PDF', video: 'video' };
 
 export default function FichaJuegoPage() {
+  const router = useRouter();
   const [juego, setJuego] = useState<JuegoDetalle | null>(null);
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error' | 'no-encontrado'>('cargando');
+  const [cantidad, setCantidad] = useState(1);
+  const [agregando, setAgregando] = useState(false);
+  const [agregado, setAgregado] = useState(false);
+  const [errorCarrito, setErrorCarrito] = useState<string | null>(null);
+
+  async function agregarAlCarrito(): Promise<void> {
+    if (!juego) return;
+    setAgregando(true);
+    setErrorCarrito(null);
+    setAgregado(false);
+    try {
+      await api.ponerLinea(juego.id, cantidad);
+      setAgregado(true);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.replace('/login?volver=/carrito');
+      } else {
+        setErrorCarrito('No pudimos agregar al carrito. Probá de nuevo.');
+      }
+    } finally {
+      setAgregando(false);
+    }
+  }
 
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('id');
@@ -72,14 +97,57 @@ export default function FichaJuegoPage() {
 
               <p style={{ color: 'var(--tinta-suave)', lineHeight: 1.6 }}>{juego.descripcion}</p>
 
-              <button
-                className="boton boton--primario boton--bloque"
-                type="button"
-                disabled
-                title="El carrito llega en la próxima etapa"
-              >
-                Agregar al carrito (próximamente)
-              </button>
+              {juego.stock_disponible ? (
+                <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <label htmlFor="cantidad" className="juego__meta">
+                    Cantidad
+                  </label>
+                  <input
+                    id="cantidad"
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={cantidad}
+                    onChange={(e) =>
+                      setCantidad(Math.max(1, Math.min(99, Number(e.target.value) || 1)))
+                    }
+                    style={{
+                      width: '4.5rem',
+                      padding: '0.5rem',
+                      border: '1px solid var(--borde)',
+                      borderRadius: 'var(--r-sm)',
+                      background: 'var(--superficie)',
+                      color: 'var(--tinta)',
+                      font: 'inherit',
+                    }}
+                  />
+                  <button
+                    className="boton boton--primario"
+                    type="button"
+                    onClick={agregarAlCarrito}
+                    disabled={agregando}
+                    style={{ flex: 1, minWidth: '10rem' }}
+                  >
+                    {agregando ? 'Agregando…' : 'Agregar al carrito'}
+                  </button>
+                </div>
+              ) : (
+                <button className="boton boton--primario boton--bloque" type="button" disabled>
+                  Sin stock
+                </button>
+              )}
+              {agregado ? (
+                <div style={{ marginTop: '0.7rem' }}>
+                  <Alerta tipo="ok">
+                    Agregado al carrito. <Link href="/carrito">Ver carrito</Link>.
+                  </Alerta>
+                </div>
+              ) : null}
+              {errorCarrito ? (
+                <div style={{ marginTop: '0.7rem' }}>
+                  <Alerta tipo="error">{errorCarrito}</Alerta>
+                </div>
+              ) : null}
 
               {juego.demos.length > 0 ? (
                 <p style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '1rem' }}>
