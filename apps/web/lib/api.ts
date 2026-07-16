@@ -126,4 +126,18 @@ export const api = {
   ponerLinea: (juegoId: string, cantidad: number) =>
     pedir<CarritoView>('PUT', `/carrito/lineas/${juegoId}`, { cantidad }),
   quitarLinea: (juegoId: string) => pedir<CarritoView>('DELETE', `/carrito/lineas/${juegoId}`),
+  iniciarCheckout: (d: {
+    modalidad_envio: 'domicilio' | 'sucursal';
+    codigo_postal: string;
+    domicilio: {
+      calle: string;
+      numero: string;
+      codigo_postal: string;
+      provincia: string;
+      localidad: string;
+    };
+  }) => pedir<{ pedido_id: string; init_point: string }>('POST', '/checkout', d),
+  // Demo del pago fake (Etapa 1): simula la notificación de MP. En prod es el webhook firmado.
+  confirmarPagoDemo: (paymentId: string) =>
+    pedir<{ resultado: string }>('POST', '/webhooks/mercadopago', { payment_id: paymentId }),
 };

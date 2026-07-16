@@ -20,6 +20,8 @@ export interface PagoExterno {
   readonly payment_id: string;
   readonly estado: EstadoPagoExterno;
   readonly monto: number;
+  /** `external_reference` de MP = pedido_id: liga el pago con el pedido (CU-012). */
+  readonly referencia_externa: string;
 }
 
 export interface PaymentProvider {

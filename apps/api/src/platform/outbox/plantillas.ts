@@ -60,6 +60,23 @@ export function renderizar(tipo: string, payload: Record<string, unknown>): Plan
            <p style="color:#566661;font-size:13px;margin:16px 0 0;">Si no fuiste vos, recuperá el acceso de inmediato y avisanos.</p>`,
         ),
       };
+    case 'confirmacion_compra': {
+      const numero = String(payload['numero'] ?? '');
+      const total = Number(payload['total'] ?? 0).toLocaleString('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+        maximumFractionDigits: 0,
+      });
+      return {
+        asunto: `Tu compra en Acalud (${numero})`,
+        html: base(
+          `<h1 style="font-size:22px;margin:0 0 12px;">¡Gracias por tu compra! 🎲</h1>
+           <p style="margin:0 0 8px;">Confirmamos el pago de tu pedido <strong>${numero}</strong>.</p>
+           <p style="margin:0 0 20px;">Total: <strong>${total}</strong>. Te avisamos cuando lo despachemos.</p>
+           <p style="margin:0;">${boton(`${WEB}/cuenta`, 'Ver mis pedidos')}</p>`,
+        ),
+      };
+    }
     case 'cuenta-existente':
       return {
         asunto: 'Ya tenés una cuenta en Acalud',

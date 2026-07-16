@@ -137,15 +137,19 @@ export default function CarritoPage() {
                 </div>
               </div>
 
-              <button
+              <Link
                 className="boton boton--primario boton--bloque"
-                type="button"
-                disabled
-                title="El checkout llega en la próxima entrega"
+                href="/checkout"
                 style={{ marginTop: '1rem' }}
+                aria-disabled={carrito.lineas.some((l) => !l.disponible)}
               >
-                Finalizar compra (próximamente)
-              </button>
+                Finalizar compra
+              </Link>
+              {carrito.lineas.some((l) => !l.disponible) ? (
+                <p className="juego__meta" style={{ marginTop: '0.4rem' }}>
+                  Ajustá las cantidades sin stock antes de continuar.
+                </p>
+              ) : null}
             </>
           )
         ) : null}
