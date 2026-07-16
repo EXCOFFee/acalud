@@ -49,6 +49,9 @@ pnpm-debug.log*
 .agents/
 skills-lock.json
 
+# Android keystore + sus claves (firma de la APK, 5.3) — NUNCA al repo
+keystore.properties
+
 # Editor / OS
 .DS_Store
 Thumbs.db

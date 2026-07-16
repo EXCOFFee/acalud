@@ -1,7 +1,44 @@
-// Cliente HTTP de la API. En producción, las llamadas son relativas (`/api/v1/...`) y el
-// rewrite de Vercel las lleva a Render (same-site) → la cookie httpOnly viaja sola (ADR-004).
-// Para dev local se puede apuntar a otra base con NEXT_PUBLIC_API_BASE.
+import { Capacitor } from '@capacitor/core';
+
+// Cliente HTTP de la API. En WEB las llamadas son relativas (`/api/v1/...`) y el rewrite de
+// Vercel las lleva a Render same-site → la cookie httpOnly viaja sola (ADR-004). En la APK
+// (Capacitor) la cookie NO cruza origen, así que se usa **Bearer**: se guarda el token opaco de
+// la sesión y se envía en `Authorization`. La base absoluta (APK/dev) se fija con NEXT_PUBLIC_API_BASE.
 const BASE = process.env.NEXT_PUBLIC_API_BASE ?? '';
+
+function esNativo(): boolean {
+  try {
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
+
+const CLAVE_TOKEN = 'acalud_token';
+let tokenSesion: string | null = null;
+
+/** Guarda o limpia el token de sesión — SOLO en la APK; la web nunca lo toca (usa cookie). */
+export function guardarTokenSesion(token: string | null): void {
+  if (!esNativo()) return;
+  tokenSesion = token;
+  try {
+    if (token) localStorage.setItem(CLAVE_TOKEN, token);
+    else localStorage.removeItem(CLAVE_TOKEN);
+  } catch {
+    /* sin localStorage (SSR/export) */
+  }
+}
+
+function tokenActual(): string | null {
+  if (!esNativo()) return null;
+  if (tokenSesion !== null) return tokenSesion;
+  try {
+    tokenSesion = localStorage.getItem(CLAVE_TOKEN);
+  } catch {
+    /* sin localStorage */
+  }
+  return tokenSesion;
+}
 
 export interface ProblemDetails {
   title?: string;
@@ -21,11 +58,14 @@ export class ApiError extends Error {
 }
 
 async function pedir<T>(metodo: string, ruta: string, cuerpo?: unknown): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (cuerpo !== undefined) headers['Content-Type'] = 'application/json';
+  const token = tokenActual(); // solo en APK; en web es null → viaja la cookie
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const init: RequestInit = { method: metodo, credentials: 'include' };
-  if (cuerpo !== undefined) {
-    init.headers = { 'Content-Type': 'application/json' };
-    init.body = JSON.stringify(cuerpo);
-  }
+  if (Object.keys(headers).length > 0) init.headers = headers;
+  if (cuerpo !== undefined) init.body = JSON.stringify(cuerpo);
 
   const res = await fetch(`${BASE}/api/v1${ruta}`, init);
   if (!res.ok) {
@@ -100,14 +140,23 @@ export interface CarritoView {
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
-  login: (d: { email: string; contrasena: string }) =>
-    pedir<{ capacidades_limitadas: boolean }>('POST', '/auth/sesion', d),
-  verificar: (token: string) =>
-    pedir<{ capacidades_limitadas: boolean }>('POST', '/auth/verificacion', { token }),
+  login: async (d: { email: string; contrasena: string }) => {
+    const r = await pedir<{ token: string; capacidades_limitadas: boolean }>('POST', '/auth/sesion', d);
+    guardarTokenSesion(r.token); // no-op en web; guarda el Bearer en la APK
+    return r;
+  },
+  verificar: async (token: string) => {
+    const r = await pedir<{ token: string; capacidades_limitadas: boolean }>('POST', '/auth/verificacion', { token });
+    guardarTokenSesion(r.token);
+    return r;
+  },
   recuperar: (email: string) => pedir<{ mensaje: string }>('POST', '/auth/recuperacion', { email }),
   restablecer: (token: string, contrasena_nueva: string) =>
     pedir<{ mensaje: string }>('POST', '/auth/recuperacion/restablecer', { token, contrasena_nueva }),
-  logout: () => pedir<void>('DELETE', '/auth/sesion'),
+  logout: async () => {
+    await pedir<void>('DELETE', '/auth/sesion');
+    guardarTokenSesion(null);
+  },
   me: () => pedir<PerfilPropio>('GET', '/me'),
   listarJuegos: (params?: {
     q?: string | undefined;

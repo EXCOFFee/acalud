@@ -12,9 +12,15 @@ export function configurarApp(app: INestApplication): void {
   // Errores en RFC 9457 Problem Details con trace_id (2.4 §4).
   app.useGlobalFilters(new ProblemDetailsFilter());
 
-  // La web comparte sitio con la API vía rewrites de Vercel (ADR-004); la APK usa Bearer.
+  // La web comparte sitio con la API vía rewrites de Vercel (ADR-004); la APK usa Bearer
+  // desde el WebView de Capacitor, cuyo origen es https://localhost (Android) o
+  // capacitor://localhost (iOS). Se permiten explícitamente (nunca '*' con credentials).
   app.enableCors({
-    origin: process.env.WEB_BASE_URL ?? 'http://localhost:3001',
+    origin: [
+      process.env.WEB_BASE_URL ?? 'http://localhost:3001',
+      'https://localhost',
+      'capacitor://localhost',
+    ],
     credentials: true,
   });
 
