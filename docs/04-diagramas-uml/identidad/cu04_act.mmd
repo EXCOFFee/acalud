@@ -1,0 +1,15 @@
+flowchart TD
+    Start([Inicio]) --> Load[Precargar datos vigentes del perfil]
+    Load --> Edit[Docente modifica los campos editables]
+    Edit --> ValName{¿Nombre completo presente?}
+    ValName -- No --> ErrName[Señalar nombre obligatorio]
+    ErrName --> Edit
+    ValName -- Sí --> ValRef{¿Nivel y materia válidos?}
+    ValRef -- No --> ErrRef[Señalar valores inexistentes]
+    ErrRef --> Edit
+    ValRef -- Sí --> Exists{¿Existe perfil docente?}
+    Exists -- No --> Create[Crear registro de perfil]
+    Exists -- Sí --> Update[Actualizar registro de perfil]
+    Create --> Confirm[Confirmar guardado]
+    Update --> Confirm
+    Confirm --> End([Fin])

@@ -1,0 +1,22 @@
+erDiagram
+  audit_log {
+    uuid id PK
+    uuid actor_user_id FK
+    varchar action
+    varchar entity_type
+    uuid entity_id
+    jsonb old_values "null"
+    jsonb new_values "null"
+    timestamp created_at
+  }
+  notifications {
+    uuid id PK
+    uuid recipient_user_id FK
+    varchar type
+    varchar title
+    text message
+    varchar related_entity_type "null"
+    uuid related_entity_id "null"
+    boolean is_read
+    timestamp created_at
+  }

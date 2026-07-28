@@ -1,0 +1,51 @@
+erDiagram
+  carts {
+    uuid id PK
+    uuid user_id FK "UK"
+    timestamp created_at
+    timestamp updated_at
+  }
+  cart_items {
+    uuid id PK
+    uuid cart_id FK
+    uuid product_id FK
+    integer quantity
+  }
+  orders {
+    uuid id PK
+    uuid user_id FK
+    uuid institution_id FK "null"
+    enum order_type "b2c|b2b"
+    enum status "pending|paid|shipped|delivered|cancelled"
+    decimal total_amount
+    decimal shipping_cost
+    varchar shipping_method
+    varchar shipping_carrier
+    varchar shipping_street
+    varchar shipping_city
+    varchar shipping_postal_code
+    varchar payment_preference_id "null"
+    varchar payment_id_mp "null"
+    varchar tracking_code "null"
+    timestamp created_at
+  }
+  order_items {
+    uuid id PK
+    uuid order_id FK
+    uuid product_id FK
+    integer quantity
+    decimal unit_price
+    decimal discount_applied
+  }
+  order_tracking_events {
+    uuid id PK
+    uuid order_id FK
+    varchar status
+    varchar location
+    text description
+    timestamp event_date
+    timestamp fetched_at
+  }
+  carts ||--o{ cart_items : "contiene"
+  orders ||--o{ order_items : "compone 1..N"
+  orders ||--o{ order_tracking_events : "rastrea"

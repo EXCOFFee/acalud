@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    actor D as Docente
+    participant W as Interfaz Web/App
+    participant API as Servicio de Registro
+    participant DB as Base de Datos
+    participant Mail as Servicio de Correo
+
+    D->>W: Selecciona "Registrarme como Docente"
+    W->>D: Presenta formulario (nombre, email, contraseña)
+    D->>W: Completa y envía el formulario
+    W->>W: Valida formato y política de contraseña
+    W->>API: Solicita registro de cuenta
+    API->>DB: Verifica unicidad del email
+    alt Email ya registrado
+        DB-->>API: El email existe
+        API-->>W: Rechaza (email en uso)
+        W-->>D: Informa que el email ya está registrado
+    else Email disponible
+        DB-->>API: El email no existe
+        API->>API: Calcula resumen de contraseña (bcrypt)
+        API->>DB: Crea la cuenta (rol docente)
+        DB-->>API: Cuenta creada
+        API->>Mail: Solicita correo de bienvenida
+        API-->>W: Registro exitoso
+        W-->>D: Confirma el registro e inicia sesión
+    end

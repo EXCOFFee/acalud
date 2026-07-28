@@ -1,0 +1,18 @@
+sequenceDiagram
+    autonumber
+    actor D as Docente
+    participant W as Interfaz Web/App
+    participant API as Servicio de Sesión
+    participant DB as Base de Datos
+
+    D->>W: Selecciona "Cerrar sesión"
+    W->>D: Solicita confirmación
+    D->>W: Confirma
+    W->>API: Solicita cierre de sesión
+    API->>DB: Registra el testigo como revocado
+    DB-->>API: Testigo invalidado
+    API-->>W: Cierre confirmado
+    W->>W: Limpia el estado de autenticación local
+    W->>W: Convierte el carrito a anónimo
+    Note over W: En web, propaga el cierre a otras pestañas
+    W-->>D: Redirige a la página de inicio

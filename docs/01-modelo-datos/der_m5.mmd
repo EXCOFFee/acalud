@@ -1,0 +1,35 @@
+erDiagram
+  polls {
+    uuid id PK
+    text question
+    enum status "draft|active|closed"
+    uuid target_level_id FK "null"
+    timestamp created_at
+  }
+  poll_options {
+    uuid id PK
+    uuid poll_id FK
+    varchar text
+  }
+  poll_responses {
+    uuid id PK
+    uuid poll_id FK
+    uuid option_id FK
+    uuid user_id FK
+    timestamp created_at
+  }
+  proposals {
+    uuid id PK
+    uuid user_id FK
+    varchar title
+    text description
+    uuid subject_id FK "null"
+    uuid target_level_id FK "null"
+    enum status "pending|reviewed|approved|rejected"
+    text admin_feedback "null"
+    timestamp created_at
+    timestamp updated_at
+  }
+  polls ||--o{ poll_options : "presenta 2..10"
+  polls ||--o{ poll_responses : "recibe"
+  poll_options ||--o{ poll_responses : "elegida_en"

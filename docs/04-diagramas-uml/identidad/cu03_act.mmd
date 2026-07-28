@@ -1,0 +1,13 @@
+flowchart TD
+    Start([Inicio]) --> Click[Docente selecciona cerrar sesión]
+    Click --> Confirm{¿Confirma el cierre?}
+    Confirm -- No --> Cancel[Permanecer en la sesión]
+    Cancel --> End([Fin])
+    Confirm -- Sí --> Revoke[Revocar el testigo en el servidor]
+    Revoke --> Clear[Limpiar estado de autenticación local]
+    Clear --> Anon[Convertir carrito a anónimo]
+    Anon --> Web{¿Plataforma web?}
+    Web -- Sí --> Propagate[Propagar cierre a otras pestañas]
+    Web -- No --> Redirect[Redirigir a inicio]
+    Propagate --> Redirect
+    Redirect --> End

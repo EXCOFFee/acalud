@@ -1,0 +1,17 @@
+flowchart TD
+    Start([Inicio]) --> Form[/Mostrar formulario de registro/]
+    Form --> Fill[Docente completa nombre, email y contraseña]
+    Fill --> ValFormat{¿Formato y contraseña válidos?}
+    ValFormat -- No --> ErrFormat[Señalar campos inválidos]
+    ErrFormat --> Fill
+    ValFormat -- Sí --> ChkEmail{¿Email ya registrado?}
+    ChkEmail -- Sí --> ErrEmail[Informar email en uso]
+    ErrEmail --> Fill
+    ChkEmail -- No --> Hash[Calcular resumen de contraseña]
+    Hash --> Create[Crear cuenta con rol docente]
+    Create --> Cart{¿Había carrito anónimo?}
+    Cart -- Sí --> Migrate[Incorporar productos a la cuenta]
+    Cart -- No --> Welcome[Enviar correo de bienvenida]
+    Migrate --> Welcome
+    Welcome --> Login[Iniciar sesión automáticamente]
+    Login --> End([Fin])

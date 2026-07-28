@@ -1,0 +1,35 @@
+sequenceDiagram
+    autonumber
+    actor D as Docente
+    participant W as Interfaz Web/App
+    participant API as Servicio de Cuenta
+    participant DB as Base de Datos
+    participant Mail as Servicio de Correo
+
+    D->>W: Solicita cambiar su correo
+    W->>D: Pide nuevo correo y contraseña vigente
+    D->>W: Los proporciona
+    W->>API: Solicita el cambio de correo
+    API->>API: Verifica la contraseña vigente
+    alt Contraseña incorrecta
+        API-->>W: Rechaza la operación
+        W-->>D: Informa el error
+    else Contraseña correcta
+        API->>DB: Verifica unicidad del nuevo correo
+        alt Correo ya registrado
+            DB-->>API: El correo existe
+            API-->>W: Rechaza sin revelar la otra cuenta
+            W-->>D: Informa la imposibilidad
+        else Correo disponible
+            API->>DB: Genera testigo de verificación
+            API->>Mail: Envía enlace al nuevo correo
+            API-->>W: Solicitud registrada
+            W-->>D: Indica revisar el nuevo correo
+            D->>Mail: Accede al enlace de verificación
+            Mail->>API: Valida el testigo
+            API->>DB: Hace efectivo el nuevo correo
+            API->>Mail: Notifica al correo anterior
+            API-->>W: Cambio confirmado
+            W-->>D: Confirma el cambio
+        end
+    end

@@ -1,0 +1,45 @@
+erDiagram
+  users {
+    uuid id PK
+    varchar email UK
+    varchar password_hash
+    varchar full_name
+    enum role "docente|admin"
+    boolean email_verified
+    varchar street
+    varchar city
+    varchar postal_code
+    timestamp created_at
+  }
+  teacher_profiles {
+    uuid id PK
+    uuid user_id FK "UK"
+    uuid level_id FK "null"
+    uuid subject_id FK "null"
+    varchar school_name "null"
+    boolean email_notifications
+  }
+  levels {
+    uuid id PK
+    varchar name UK
+  }
+  subjects {
+    uuid id PK
+    varchar name UK
+  }
+  login_attempts {
+    uuid id PK
+    varchar email
+    varchar ip_address
+    varchar result
+    timestamp attempted_at
+  }
+  revoked_tokens {
+    uuid id PK
+    varchar token_id UK
+    timestamp revoked_at
+    timestamp expires_at
+  }
+  users ||--o| teacher_profiles : "tiene 0..1"
+  levels ||--o{ teacher_profiles : "clasifica"
+  subjects ||--o{ teacher_profiles : "clasifica"

@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    actor D as Docente
+    participant W as Interfaz Web/App
+    participant API as Servicio de Perfil
+    participant DB as Base de Datos
+
+    D->>W: Accede a "Mi perfil"
+    W->>API: Solicita los datos del perfil
+    API->>DB: Consulta la cuenta y el perfil
+    DB-->>API: Datos vigentes
+    API-->>W: Entrega los datos
+    W-->>D: Precarga el formulario
+    D->>W: Modifica nombre, nivel, materia o institución
+    D->>W: Guarda los cambios
+    W->>W: Valida que el nombre no esté vacío
+    W->>API: Solicita actualizar el perfil
+    alt No existe perfil docente
+        API->>DB: Crea el registro de perfil
+    else Perfil existente
+        API->>DB: Actualiza el registro de perfil
+    end
+    DB-->>API: Cambios guardados
+    API-->>W: Actualización exitosa
+    W-->>D: Confirma el guardado

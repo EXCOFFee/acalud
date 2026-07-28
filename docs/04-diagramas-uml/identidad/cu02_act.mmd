@@ -1,0 +1,16 @@
+flowchart TD
+    Start([Inicio]) --> Fill[Ingresar email y contraseña]
+    Fill --> Blocked{¿Cuenta bloqueada?}
+    Blocked -- Sí --> ErrBlock[Informar bloqueo temporal]
+    ErrBlock --> End([Fin])
+    Blocked -- No --> Verify{¿Credenciales válidas?}
+    Verify -- No --> Count[Registrar intento fallido]
+    Count --> Limit{¿Alcanzó 3 intentos?}
+    Limit -- Sí --> Lock[Bloquear cuenta 15 minutos]
+    Lock --> End
+    Limit -- No --> ErrCred[Informar credenciales inválidas]
+    ErrCred --> Fill
+    Verify -- Sí --> Session[Registrar acceso y crear sesión]
+    Session --> Sync[Sincronizar carrito anónimo]
+    Sync --> Access[Conceder acceso a la cuenta]
+    Access --> End

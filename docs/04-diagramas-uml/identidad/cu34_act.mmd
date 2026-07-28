@@ -1,0 +1,17 @@
+flowchart TD
+    Start([Inicio]) --> Req[Solicitar nuevo correo y contraseña vigente]
+    Req --> ValPass{¿Contraseña correcta?}
+    ValPass -- No --> ErrPass[Rechazar sin enviar enlace]
+    ErrPass --> End([Fin])
+    ValPass -- Sí --> Unique{¿Nuevo correo disponible?}
+    Unique -- No --> ErrDup[Informar imposibilidad]
+    ErrDup --> End
+    Unique -- Sí --> Token[Generar testigo de verificación]
+    Token --> Send[Enviar enlace al nuevo correo]
+    Send --> Wait[Correo anterior sigue vigente]
+    Wait --> Verify{¿Enlace verificado y vigente?}
+    Verify -- No --> Expired[Informar vencimiento y permitir reintento]
+    Expired --> End
+    Verify -- Sí --> Apply[Hacer efectivo el nuevo correo]
+    Apply --> Notify[Notificar al correo anterior]
+    Notify --> End
