@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Contrato OpenAPI de Acalud + tipos generados compartidos web/api. Fuente única: docs/02-arquitectura/2.4-contratos/openapi.yaml.",
+  "description": "Contrato OpenAPI de Acalud + tipos generados compartidos web/api. Fuente única (interina, v1 en español): docs/_archivo-v1/02-arquitectura/2.4-contratos/openapi.yaml; en la Fase 2 se regenera en inglés en docs/06-contratos/openapi.yaml.",
   "main": "src/index.ts",
   "scripts": {
     "lint": "redocly lint",
-    "generate": "openapi-typescript ../../docs/02-arquitectura/2.4-contratos/openapi.yaml -o generated/types.ts",
+    "generate": "openapi-typescript ../../docs/_archivo-v1/02-arquitectura/2.4-contratos/openapi.yaml -o generated/types.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:unit": "vitest run --passWithNoTests",

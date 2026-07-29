@@ -1,9 +1,13 @@
 # Lint del contrato OpenAPI (gate `contract`, 5.1 §4).
 # Se usa Redocly en lugar de Spectral porque Spectral 6.x crashea al parsear OpenAPI 3.1
 # (bug de su motor JSONPath `nimma`); 2.4 §validación permite "Spectral o equivalente".
+#
+# INTERINO: el contrato de la v1 (API en español) quedó archivado al reorganizar docs/. Se
+# apunta ahí para mantener el gate operativo. En la Fase 2 el contrato se regenera en inglés
+# en docs/06-contratos/openapi.yaml y esta ruta se re-apunta definitivamente.
 apis:
   acalud:
-    root: ../../docs/02-arquitectura/2.4-contratos/openapi.yaml
+    root: ../../docs/_archivo-v1/02-arquitectura/2.4-contratos/openapi.yaml
 
 extends:
   - recommended
