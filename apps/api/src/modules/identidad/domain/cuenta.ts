@@ -8,21 +8,6 @@ export interface DatosCuenta {
   readonly apellido: string;
   readonly estado: EstadoCuenta;
   readonly esAdmin: boolean;
-  readonly intentosFallidos: number;
-  readonly intentosDesde: Date | null;
-  readonly bloqueadaHasta: Date | null;
-}
-
-/** Nuevo estado de seguridad a persistir tras un intento de login (PA-02). */
-export interface EstadoSeguridad {
-  readonly intentosFallidos: number;
-  readonly intentosDesde: Date | null;
-  readonly bloqueadaHasta: Date | null;
-  /** Si no es null, se actualiza `ultimo_login` (solo en login exitoso). */
-  readonly ultimoLogin: Date | null;
-  readonly bloqueada: boolean;
-  /** true si este intento fue el que gatilló el bloqueo (para enviar el aviso una sola vez). */
-  readonly recienBloqueada: boolean;
 }
 
 export interface PerfilCuenta {
@@ -34,14 +19,10 @@ export interface PerfilCuenta {
   es_admin: boolean;
 }
 
-const UMBRAL_BLOQUEO = 5; // PA-02: 5 intentos fallidos
-const VENTANA_MS = 15 * 60 * 1000; // en 15 minutos
-const BLOQUEO_MS = 15 * 60 * 1000; // → bloqueo de 15 minutos
-
 /**
- * Aggregate `Cuenta` (BC1 Identidad). Concentra las invariantes de seguridad del login
- * (PA-02) sin conocer ni HTTP ni la BD. Los efectos (hash, persistencia) los hacen los
- * puertos; acá vive la decisión de negocio.
+ * Aggregate `Cuenta` (users). Concentra las invariantes de la cuenta sin conocer ni HTTP ni la
+ * BD. El bloqueo por fuerza bruta ya no vive acá: se calcula sobre `login_attempts` según la
+ * política de dominio (ver politica-bloqueo.ts, decisión Δ3).
  */
 export class Cuenta {
   constructor(private readonly datos: DatosCuenta) {}
@@ -62,48 +43,9 @@ export class Cuenta {
     return this.datos.esAdmin;
   }
 
-  /** PA-06: la cuenta no verificada navega logueada pero con capacidades limitadas. */
+  /** El correo aún no fue confirmado. La verificación NO condiciona el acceso (addendum II §2). */
   get capacidadesLimitadas(): boolean {
     return this.datos.estado === 'no_verificada';
-  }
-
-  estaBloqueada(ahora: Date): boolean {
-    return (
-      this.datos.bloqueadaHasta !== null &&
-      this.datos.bloqueadaHasta.getTime() > ahora.getTime()
-    );
-  }
-
-  /** Aplica un intento fallido con ventana deslizante de 15 min (PA-02). */
-  registrarFallo(ahora: Date): EstadoSeguridad {
-    const dentroDeVentana =
-      this.datos.intentosDesde !== null &&
-      ahora.getTime() - this.datos.intentosDesde.getTime() <= VENTANA_MS;
-
-    const intentos = dentroDeVentana ? this.datos.intentosFallidos + 1 : 1;
-    const intentosDesde = dentroDeVentana ? this.datos.intentosDesde : ahora;
-    const alcanzaUmbral = intentos >= UMBRAL_BLOQUEO;
-
-    return {
-      intentosFallidos: intentos,
-      intentosDesde,
-      bloqueadaHasta: alcanzaUmbral ? new Date(ahora.getTime() + BLOQUEO_MS) : null,
-      ultimoLogin: null,
-      bloqueada: alcanzaUmbral,
-      recienBloqueada: alcanzaUmbral,
-    };
-  }
-
-  /** Estado de seguridad tras un login exitoso: resetea el contador y marca último login. */
-  resetearSeguridad(ahora: Date): EstadoSeguridad {
-    return {
-      intentosFallidos: 0,
-      intentosDesde: null,
-      bloqueadaHasta: null,
-      ultimoLogin: ahora,
-      bloqueada: false,
-      recienBloqueada: false,
-    };
   }
 
   aPerfil(): PerfilCuenta {

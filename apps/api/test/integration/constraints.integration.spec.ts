@@ -21,8 +21,8 @@ afterAll(async () => {
 // ── Helpers de datos ────────────────────────────────────────────────────────
 async function crearCuenta(email = `${randomUUID()}@escuela.edu.ar`): Promise<string> {
   const r = await db.query<{ id: string }>(
-    `INSERT INTO cuentas (email, hash_password, nombre, apellido)
-     VALUES ($1, 'hash', 'Nombre', 'Apellido') RETURNING id`,
+    `INSERT INTO users (email, password_hash, full_name)
+     VALUES ($1, 'hash', 'Nombre Apellido') RETURNING id`,
     [email],
   );
   return primeraFila(r).id;
@@ -71,7 +71,7 @@ describe('Idempotencia y unicidad (2.3 §6)', () => {
     await expect(insertar()).rejects.toThrow(/duplicate key|unique/i);
   });
 
-  it('UNIQUE cuentas(email) es case-insensitive (CU-001 A1)', async () => {
+  it('UNIQUE users(email) es case-insensitive (CU-001 A1)', async () => {
     const email = `${randomUUID()}@ESCUELA.edu.ar`;
     await crearCuenta(email);
     await expect(crearCuenta(email.toLowerCase())).rejects.toThrow(/duplicate key|unique/i);

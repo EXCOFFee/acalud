@@ -37,12 +37,12 @@ describe('CU-001 · Registrar Docente', () => {
     const res = await registrar(email);
     expect(res.status).toBe(201);
 
-    const cuenta = await ctx.pg.query(`SELECT estado FROM cuentas WHERE email = $1`, [email]);
-    expect(cuenta.rows[0]?.estado).toBe('no_verificada');
+    const cuenta = await ctx.pg.query(`SELECT email_verified FROM users WHERE email = $1`, [email]);
+    expect(cuenta.rows[0]?.email_verified).toBe(false);
 
     const evento = await ctx.pg.query(
       `SELECT 1 FROM eventos_auditoria WHERE tipo = 'DocenteRegistrado' AND sujeto_id =
-         (SELECT id FROM cuentas WHERE email = $1)`,
+         (SELECT id FROM users WHERE email = $1)`,
       [email],
     );
     expect(evento.rows).toHaveLength(1);
@@ -64,7 +64,7 @@ describe('CU-001 · Registrar Docente', () => {
     expect(segunda.status).toBe(201);
 
     // No se crea una segunda cuenta.
-    const cuentas = await ctx.pg.query(`SELECT count(*)::int AS n FROM cuentas WHERE email = $1`, [
+    const cuentas = await ctx.pg.query(`SELECT count(*)::int AS n FROM users WHERE email = $1`, [
       email,
     ]);
     expect(cuentas.rows[0]?.n).toBe(1);
@@ -82,7 +82,7 @@ describe('CU-001 · Registrar Docente', () => {
     const res = await registrar(email, '123456789012'); // contraseña en la lista de filtradas
     expect(res.status).toBe(422);
 
-    const cuentas = await ctx.pg.query(`SELECT count(*)::int AS n FROM cuentas WHERE email = $1`, [
+    const cuentas = await ctx.pg.query(`SELECT count(*)::int AS n FROM users WHERE email = $1`, [
       email,
     ]);
     expect(cuentas.rows[0]?.n).toBe(0);
@@ -106,7 +106,7 @@ describe('CU-002 · Iniciar sesión', () => {
 
     const evento = await ctx.pg.query(
       `SELECT 1 FROM eventos_auditoria WHERE tipo = 'SesionIniciada' AND sujeto_id =
-         (SELECT id FROM cuentas WHERE email = $1)`,
+         (SELECT id FROM users WHERE email = $1)`,
       [email],
     );
     expect(evento.rows).toHaveLength(1);
@@ -120,26 +120,30 @@ describe('CU-002 · Iniciar sesión', () => {
     expect(res.body.capacidades_limitadas).toBe(true);
   });
 
-  it('@scenario:AUT-CU002-EXC-001 · 5 intentos fallidos bloquean la cuenta 15 min', async () => {
+  it('@scenario:AUT-CU002-EXC-001 · 3 intentos fallidos bloquean el ingreso 15 min (CU-02 A2.6/A3)', async () => {
     const email = emailNuevo();
     await registrar(email);
 
-    for (let i = 0; i < 4; i++) {
+    // Los dos primeros fallos responden credenciales inválidas (mensaje genérico).
+    for (let i = 0; i < 2; i++) {
       const r = await login(email, 'password-incorrecta-larga');
-      expect(r.status).toBe(401); // credenciales inválidas (mensaje genérico)
+      expect(r.status).toBe(401);
     }
-    // El 5º fallo bloquea → 423.
-    const quinto = await login(email, 'password-incorrecta-larga');
-    expect(quinto.status).toBe(423);
+    // El 3º fallo alcanza el umbral y bloquea → 423.
+    const tercero = await login(email, 'password-incorrecta-larga');
+    expect(tercero.status).toBe(423);
 
     // Un intento posterior, incluso con la contraseña correcta, no evalúa credenciales → 423.
     const conCorrecta = await login(email, CONTRASENA_OK);
     expect(conCorrecta.status).toBe(423);
 
-    const cuenta = await ctx.pg.query(`SELECT bloqueada_hasta FROM cuentas WHERE email = $1`, [
-      email,
-    ]);
-    expect(cuenta.rows[0]?.bloqueada_hasta).not.toBeNull();
+    // El bloqueo se sostiene en el registro de intentos (Δ3), no en una columna de la cuenta.
+    const fallos = await ctx.pg.query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM login_attempts
+        WHERE lower(email) = lower($1) AND result = 'failed'`,
+      [email],
+    );
+    expect(fallos.rows[0]?.n).toBe(3);
 
     const aviso = await ctx.pg.query(
       `SELECT 1 FROM outbox_emails WHERE destinatario = $1 AND tipo = 'aviso-bloqueo'`,

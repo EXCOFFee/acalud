@@ -34,7 +34,7 @@ async function usuarioVerificado(): Promise<{ token: string; email: string }> {
   await ctx.request
     .post('/api/v1/auth/registro')
     .send({ email, contrasena: PW, nombre: 'N', apellido: 'A' });
-  await ctx.pg.query(`UPDATE cuentas SET estado = 'verificada' WHERE email = $1`, [email]);
+  await ctx.pg.query(`UPDATE users SET email_verified = true WHERE email = $1`, [email]);
   const login = await ctx.request.post('/api/v1/auth/sesion').send({ email, contrasena: PW });
   return { token: login.body.token as string, email };
 }

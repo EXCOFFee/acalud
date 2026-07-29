@@ -72,16 +72,16 @@ class PedidoRepositorioPg implements PedidoRepositorio {
       email: string;
       lineas: { juego_id: string; cantidad: number }[];
     }>(
-      `SELECT p.id, p.numero, p.estado, p.monto_total::float8 AS monto_total, p.carrito_id, c.email,
+      `SELECT p.id, p.numero, p.estado, p.monto_total::float8 AS monto_total, p.carrito_id, u.email,
               COALESCE(
                 json_agg(json_build_object('juego_id', pl.juego_id, 'cantidad', pl.cantidad) ORDER BY pl.id)
                   FILTER (WHERE pl.id IS NOT NULL), '[]'
               ) AS lineas
          FROM pedidos p
-         JOIN cuentas c ON c.id = p.cuenta_id
+         JOIN users u ON u.id = p.cuenta_id
          LEFT JOIN pedido_lineas pl ON pl.pedido_id = p.id
         WHERE p.id = $1
-        GROUP BY p.id, p.numero, p.estado, p.monto_total, p.carrito_id, c.email`,
+        GROUP BY p.id, p.numero, p.estado, p.monto_total, p.carrito_id, u.email`,
       [pedidoId],
     );
     return r.rows[0] ?? null;

@@ -7,7 +7,12 @@ import { RegistrarDocente } from '../application/registrar-docente';
 import { RestablecerContrasena } from '../application/restablecer-contrasena';
 import { SolicitarRecuperacion } from '../application/solicitar-recuperacion';
 import { VerificarEmail } from '../application/verificar-email';
-import { CUENTA_REPOSITORY, type CuentaRepository } from '../domain/ports/cuenta.repository';
+import {
+  CUENTA_REPOSITORY,
+  type CuentaRepository,
+  INTENTOS_LOGIN_REPOSITORY,
+  type IntentosLoginRepository,
+} from '../domain/ports/cuenta.repository';
 import { SESION_REPOSITORY, type SesionRepository } from '../domain/ports/sesion.repository';
 import {
   GENERADOR_TOKEN,
@@ -25,6 +30,7 @@ import { VerificadorFiltradaListaLocal } from './adapters/contrasena-filtrada.li
 import { RelojSistema } from './adapters/reloj.sistema';
 import { GeneradorTokenCrypto } from './adapters/token-opaco.crypto';
 import { CuentaRepositoryPg } from './persistencia/cuenta.repository.pg';
+import { IntentosLoginRepositoryPg } from './persistencia/intentos-login.repository.pg';
 import { AuthController } from './http/auth.controller';
 import { MeController } from './http/me.controller';
 import { SesionRepositoryPg } from './persistencia/sesion.repository.pg';
@@ -69,15 +75,28 @@ import { UnidadDeTrabajoPg } from './persistencia/unidad-de-trabajo.pg';
       inject: [UNIDAD_DE_TRABAJO, HASHER, GENERADOR_TOKEN, VERIFICADOR_FILTRADA, RELOJ],
     },
     {
+      provide: INTENTOS_LOGIN_REPOSITORY,
+      useFactory: (pool: Pool): IntentosLoginRepository => new IntentosLoginRepositoryPg(pool),
+      inject: [PG_POOL],
+    },
+    {
       provide: IniciarSesion,
       useFactory: (
         cuentas: CuentaRepository,
+        intentos: IntentosLoginRepository,
         uow: UnidadDeTrabajo,
         hasher: HasherContrasena,
         gen: GeneradorTokenOpaco,
         reloj: Reloj,
-      ): IniciarSesion => new IniciarSesion(cuentas, uow, hasher, gen, reloj),
-      inject: [CUENTA_REPOSITORY, UNIDAD_DE_TRABAJO, HASHER, GENERADOR_TOKEN, RELOJ],
+      ): IniciarSesion => new IniciarSesion(cuentas, intentos, uow, hasher, gen, reloj),
+      inject: [
+        CUENTA_REPOSITORY,
+        INTENTOS_LOGIN_REPOSITORY,
+        UNIDAD_DE_TRABAJO,
+        HASHER,
+        GENERADOR_TOKEN,
+        RELOJ,
+      ],
     },
     {
       provide: CerrarSesion,

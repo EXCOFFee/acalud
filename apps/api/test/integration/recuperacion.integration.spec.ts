@@ -64,8 +64,8 @@ describe('CU-E01 · Recuperar contraseña', () => {
     // La sesión previamente activa quedó invalidada.
     expect((await ctx.request.get('/api/v1/me').set('Authorization', `Bearer ${sesionVieja}`)).status).toBe(401);
     // Doble efecto: la cuenta quedó verificada (evita cuentas zombies).
-    const cuenta = await ctx.pg.query(`SELECT estado FROM cuentas WHERE email = $1`, [email]);
-    expect(cuenta.rows[0]?.estado).toBe('verificada');
+    const cuenta = await ctx.pg.query(`SELECT email_verified FROM users WHERE email = $1`, [email]);
+    expect(cuenta.rows[0]?.email_verified).toBe(true);
   });
 
   it('el token de recuperación es de un solo uso (410 al reusar)', async () => {

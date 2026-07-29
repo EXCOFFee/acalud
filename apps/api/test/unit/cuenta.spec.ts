@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { Cuenta, type DatosCuenta } from '../../src/modules/identidad/domain/cuenta';
+import {
+  estaBloqueadoPorIntentos,
+  UMBRAL_INTENTOS_FALLIDOS,
+  VENTANA_BLOQUEO_MS,
+  ventanaDesde,
+} from '../../src/modules/identidad/domain/politica-bloqueo';
 
 const T0 = new Date('2026-01-01T10:00:00Z');
 
@@ -12,47 +18,45 @@ function cuenta(overrides: Partial<DatosCuenta> = {}): Cuenta {
     apellido: 'A',
     estado: 'verificada',
     esAdmin: false,
-    intentosFallidos: 0,
-    intentosDesde: null,
-    bloqueadaHasta: null,
     ...overrides,
   });
 }
 
-describe('Cuenta · bloqueo por fuerza bruta (PA-02)', () => {
-  it('el 5º intento fallido dentro de la ventana bloquea 15 min', () => {
-    const c = cuenta({ intentosFallidos: 4, intentosDesde: new Date(T0.getTime() - 60_000) });
-    const seg = c.registrarFallo(T0);
-    expect(seg.intentosFallidos).toBe(5);
-    expect(seg.bloqueada).toBe(true);
-    expect(seg.recienBloqueada).toBe(true);
-    expect(seg.bloqueadaHasta?.getTime()).toBe(T0.getTime() + 15 * 60_000);
+// El bloqueo ya no vive en el agregado: se calcula sobre los intentos recientes de
+// `login_attempts` (decisión Δ3). CU-02 A2.6/A3.1: tres intentos, quince minutos.
+describe('Política de bloqueo por fuerza bruta (CU-02 RN-007)', () => {
+  it('el 3º intento fallido dentro de la ventana bloquea el ingreso', () => {
+    expect(UMBRAL_INTENTOS_FALLIDOS).toBe(3);
+    expect(estaBloqueadoPorIntentos(2)).toBe(false);
+    expect(estaBloqueadoPorIntentos(3)).toBe(true); // borde exacto del umbral
+    expect(estaBloqueadoPorIntentos(4)).toBe(true);
   });
 
-  it('un fallo fuera de la ventana de 15 min reinicia la racha', () => {
-    const c = cuenta({ intentosFallidos: 4, intentosDesde: new Date(T0.getTime() - 16 * 60_000) });
-    const seg = c.registrarFallo(T0);
-    expect(seg.intentosFallidos).toBe(1);
-    expect(seg.bloqueada).toBe(false);
+  it('sin fallos recientes no hay bloqueo', () => {
+    expect(estaBloqueadoPorIntentos(0)).toBe(false);
   });
 
-  it('estaBloqueada respeta bloqueada_hasta', () => {
-    expect(cuenta({ bloqueadaHasta: new Date(T0.getTime() + 60_000) }).estaBloqueada(T0)).toBe(true);
-    expect(cuenta({ bloqueadaHasta: new Date(T0.getTime() - 60_000) }).estaBloqueada(T0)).toBe(
-      false,
-    );
-    expect(cuenta().estaBloqueada(T0)).toBe(false);
+  it('la ventana que se consulta es de 15 minutos hacia atrás', () => {
+    expect(VENTANA_BLOQUEO_MS).toBe(15 * 60_000);
+    expect(ventanaDesde(T0).getTime()).toBe(T0.getTime() - 15 * 60_000);
   });
+});
 
-  it('resetearSeguridad limpia el contador y marca último login', () => {
-    const seg = cuenta({ intentosFallidos: 3 }).resetearSeguridad(T0);
-    expect(seg.intentosFallidos).toBe(0);
-    expect(seg.bloqueadaHasta).toBeNull();
-    expect(seg.ultimoLogin).toEqual(T0);
-  });
-
-  it('la cuenta no_verificada tiene capacidades limitadas (PA-06)', () => {
+describe('Cuenta', () => {
+  it('la cuenta con correo sin confirmar tiene capacidades limitadas', () => {
     expect(cuenta({ estado: 'no_verificada' }).capacidadesLimitadas).toBe(true);
     expect(cuenta({ estado: 'verificada' }).capacidadesLimitadas).toBe(false);
+  });
+
+  it('aPerfil expone los datos públicos de la cuenta', () => {
+    const perfil = cuenta({ esAdmin: true }).aPerfil();
+    expect(perfil).toEqual({
+      id: 'c1',
+      email: 'a@b.com',
+      nombre: 'N',
+      apellido: 'A',
+      estado: 'verificada',
+      es_admin: true,
+    });
   });
 });

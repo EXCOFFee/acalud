@@ -1,5 +1,4 @@
 import type { Pool, PoolClient } from 'pg';
-import type { EstadoCuenta } from '../../domain/cuenta';
 import type {
   DatosNuevaSesion,
   SesionConCuenta,
@@ -8,14 +7,21 @@ import type {
 
 type Ejecutor = Pool | PoolClient;
 
-interface FilaSesionCuenta {
+interface FilaSesionUsuario {
   sesion_id: string;
   id: string;
   email: string;
-  nombre: string;
-  apellido: string;
-  estado: EstadoCuenta;
-  es_admin: boolean;
+  full_name: string;
+  email_verified: boolean;
+  role: 'docente' | 'admin';
+}
+
+/** Ver la nota de `cuenta.repository.pg`: partición temporal de `full_name`. */
+function partirNombre(fullName: string): { nombre: string; apellido: string } {
+  const corte = fullName.indexOf(' ');
+  return corte === -1
+    ? { nombre: fullName, apellido: '' }
+    : { nombre: fullName.slice(0, corte), apellido: fullName.slice(corte + 1) };
 }
 
 export class SesionRepositoryPg implements SesionRepository {
@@ -23,51 +29,53 @@ export class SesionRepositoryPg implements SesionRepository {
 
   async crear(datos: DatosNuevaSesion): Promise<void> {
     await this.db.query(
-      `INSERT INTO sesiones (cuenta_id, token_hash, ip, user_agent, expira_en)
+      `INSERT INTO sessions (user_id, token_hash, ip_address, user_agent, expires_at)
        VALUES ($1, $2, $3, $4, $5)`,
       [datos.cuentaId, datos.tokenHash, datos.ip, datos.userAgent, datos.expiraEn],
     );
   }
 
   async buscarActivaPorTokenHash(tokenHash: string, ahora: Date): Promise<SesionConCuenta | null> {
-    const r = await this.db.query<FilaSesionCuenta>(
-      `SELECT s.id AS sesion_id, c.id, c.email, c.nombre, c.apellido, c.estado, c.es_admin
-         FROM sesiones s
-         JOIN cuentas c ON c.id = s.cuenta_id
-        WHERE s.token_hash = $1 AND s.revocada_en IS NULL AND s.expira_en > $2`,
+    const r = await this.db.query<FilaSesionUsuario>(
+      `SELECT s.id AS sesion_id, u.id, u.email, u.full_name, u.email_verified, u.role
+         FROM sessions s
+         JOIN users u ON u.id = s.user_id
+        WHERE s.token_hash = $1 AND s.expires_at > $2`,
       [tokenHash, ahora],
     );
     const fila = r.rows[0];
     if (!fila) return null;
+    const { nombre, apellido } = partirNombre(fila.full_name);
     return {
       sesionId: fila.sesion_id,
       perfil: {
         id: fila.id,
         email: fila.email,
-        nombre: fila.nombre,
-        apellido: fila.apellido,
-        estado: fila.estado,
-        es_admin: fila.es_admin,
+        nombre,
+        apellido,
+        estado: fila.email_verified ? 'verificada' : 'no_verificada',
+        es_admin: fila.role === 'admin',
       },
-      capacidadesLimitadas: fila.estado === 'no_verificada',
+      capacidadesLimitadas: !fila.email_verified,
     };
   }
 
-  async revocarPorTokenHash(tokenHash: string, ahora: Date): Promise<void> {
-    await this.db.query(
-      `UPDATE sesiones SET revocada_en = $2 WHERE token_hash = $1 AND revocada_en IS NULL`,
-      [tokenHash, ahora],
-    );
+  /**
+   * El cierre de sesión ELIMINA el registro (addendum §4): la credencial deja de existir, sin
+   * ventana residual ni dependencia de una lista de revocación. Idempotente.
+   */
+  async revocarPorTokenHash(tokenHash: string, _ahora: Date): Promise<void> {
+    await this.db.query(`DELETE FROM sessions WHERE token_hash = $1`, [tokenHash]);
   }
 
-  async revocarTodasDeCuenta(cuentaId: string, ahora: Date): Promise<void> {
-    await this.db.query(
-      `UPDATE sesiones SET revocada_en = $2 WHERE cuenta_id = $1 AND revocada_en IS NULL`,
-      [cuentaId, ahora],
-    );
+  async revocarTodasDeCuenta(cuentaId: string, _ahora: Date): Promise<void> {
+    await this.db.query(`DELETE FROM sessions WHERE user_id = $1`, [cuentaId]);
   }
 
   async renovar(sesionId: string, expiraEn: Date): Promise<void> {
-    await this.db.query(`UPDATE sesiones SET expira_en = $2 WHERE id = $1`, [sesionId, expiraEn]);
+    await this.db.query(`UPDATE sessions SET expires_at = $2, last_seen_at = now() WHERE id = $1`, [
+      sesionId,
+      expiraEn,
+    ]);
   }
 }

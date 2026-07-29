@@ -39,8 +39,8 @@ describe('CU-E02 · Verificar email', () => {
     const setCookie = res.headers['set-cookie'] as unknown as string[] | undefined;
     expect(setCookie?.some((c) => c.startsWith('acalud_sesion='))).toBe(true);
 
-    const cuenta = await ctx.pg.query(`SELECT estado FROM cuentas WHERE email = $1`, [email]);
-    expect(cuenta.rows[0]?.estado).toBe('verificada');
+    const cuenta = await ctx.pg.query(`SELECT email_verified FROM users WHERE email = $1`, [email]);
+    expect(cuenta.rows[0]?.email_verified).toBe(true);
   });
 
   it('token ya usado no re-verifica (410)', async () => {
