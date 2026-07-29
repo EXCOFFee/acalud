@@ -42,7 +42,7 @@ async function usuarioVerificado(): Promise<{ token: string; email: string }> {
 async function crearJuego(precio: number, stock: number): Promise<string> {
   const id = randomUUID();
   await ctx.pg.query(
-    `INSERT INTO juegos (id, nombre, precio_lista, stock_actual, publicado) VALUES ($1,$2,$3,$4,true)`,
+    `INSERT INTO products (id, name, price, stock, is_active) VALUES ($1,$2,$3,$4,true)`,
     [id, `J-${id.slice(0, 8)}`, precio, stock],
   );
   return id;
@@ -59,7 +59,7 @@ const checkout = (t: string) =>
 
 async function stock(juegoId: string): Promise<number> {
   const r = await ctx.pg.query<{ stock_actual: number }>(
-    `SELECT stock_actual FROM juegos WHERE id = $1`,
+    `SELECT stock AS stock_actual FROM products WHERE id = $1`,
     [juegoId],
   );
   return r.rows[0]!.stock_actual;

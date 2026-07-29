@@ -21,14 +21,17 @@ interface FilaResumen {
   tiene_demo_publica: boolean;
 }
 
-// Filtros compartidos por el listado y el conteo (mismos $1 q, $2 area).
-const FILTROS = `j.publicado = true AND j.eliminado_en IS NULL
-  AND ($1::text IS NULL OR j.nombre ILIKE '%' || $1 || '%')
-  AND ($2::text IS NULL OR j.area = $2)`;
+// Filtros compartidos por el listado y el conteo (mismos $1 q, $2 area). El objetivo no tiene
+// borrado lógico: la baja se refleja en is_active. El área es ahora la categoría del producto.
+const FILTROS = `p.is_active = true
+  AND ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%')
+  AND ($2::text IS NULL OR c.name = $2)`;
 
-const RESUMEN = `j.id, j.nombre, j.precio_lista::float8 AS precio_lista, j.area, j.edad_objetivo,
-  j.imagenes->>0 AS imagen_url,
-  EXISTS (SELECT 1 FROM demos d WHERE d.juego_id = j.id AND d.tipo = 'publica') AS tiene_demo_publica`;
+const RESUMEN = `p.id, p.name AS nombre, p.price::float8 AS precio_lista,
+  c.name AS area, p.target_age AS edad_objetivo, p.image_url AS imagen_url,
+  EXISTS (SELECT 1 FROM demos d WHERE d.product_id = p.id) AS tiene_demo_publica`;
+
+const DESDE = `FROM products p LEFT JOIN categories c ON c.id = p.category_id`;
 
 export class CatalogoRepositoryPg implements CatalogoRepository {
   constructor(private readonly db: Ejecutor) {}
@@ -36,11 +39,11 @@ export class CatalogoRepositoryPg implements CatalogoRepository {
   async listarPublicados(f: FiltroCatalogo): Promise<PaginaJuegos> {
     const offset = (f.pagina - 1) * f.tamanio;
     const datos = await this.db.query<FilaResumen>(
-      `SELECT ${RESUMEN} FROM juegos j WHERE ${FILTROS} ORDER BY j.nombre LIMIT $3 OFFSET $4`,
+      `SELECT ${RESUMEN} ${DESDE} WHERE ${FILTROS} ORDER BY p.name LIMIT $3 OFFSET $4`,
       [f.q ?? null, f.area ?? null, f.tamanio, offset],
     );
     const total = await this.db.query<{ total: number }>(
-      `SELECT count(*)::int AS total FROM juegos j WHERE ${FILTROS}`,
+      `SELECT count(*)::int AS total ${DESDE} WHERE ${FILTROS}`,
       [f.q ?? null, f.area ?? null],
     );
     return { datos: datos.rows, total: total.rows[0]?.total ?? 0 };
@@ -52,38 +55,49 @@ export class CatalogoRepositoryPg implements CatalogoRepository {
         descripcion: string;
         peso_gramos: number;
         stock_disponible: boolean;
-        imagenes: string[];
+        tramo_minimo: number | null;
+        tramo_descuento: number | null;
       }
     >(
       `SELECT ${RESUMEN},
-              j.descripcion, j.peso_gramos, (j.stock_actual > 0) AS stock_disponible,
-              ARRAY(SELECT jsonb_array_elements_text(j.imagenes)) AS imagenes
-         FROM juegos j
-        WHERE j.id = $1 AND j.publicado = true AND j.eliminado_en IS NULL`,
+              p.description AS descripcion, p.weight_grams AS peso_gramos,
+              (p.stock > 0) AS stock_disponible,
+              p.wholesale_threshold AS tramo_minimo,
+              p.wholesale_discount_percent::float8 AS tramo_descuento
+         ${DESDE}
+        WHERE p.id = $1 AND p.is_active = true`,
       [id],
     );
     const fila = j.rows[0];
     if (!fila) return null;
 
-    const demos = await this.db.query<DemoResumen>(
-      `SELECT tipo, formato FROM demos WHERE juego_id = $1 ORDER BY tipo`,
+    // El objetivo guarda una demo por producto, con su configuración en jsonb.
+    const demos = await this.db.query<{ config_json: { tipo?: string; formato?: string } }>(
+      `SELECT config_json FROM demos WHERE product_id = $1`,
       [id],
     );
-    const recursos = await this.db.query<{ id: string; nombre: string; tipo: 'libre' | 'licenciado' }>(
-      `SELECT id, nombre, tipo FROM recursos WHERE juego_id = $1 AND eliminado_en IS NULL ORDER BY nombre`,
-      [id],
-    );
-    const tramos = await this.db.query<Tramo>(
-      `SELECT cantidad_minima, descuento_pct FROM tramos_descuento WHERE juego_id = $1 ORDER BY cantidad_minima`,
+    const recursos = await this.db.query<{ id: string; title: string; is_licensed: boolean }>(
+      `SELECT id, title, is_licensed FROM resources WHERE product_id = $1 ORDER BY title`,
       [id],
     );
 
+    const demosMapeadas: DemoResumen[] = demos.rows.map((d) => ({
+      tipo: (d.config_json.tipo ?? 'publica') as DemoResumen['tipo'],
+      formato: (d.config_json.formato ?? 'html5') as DemoResumen['formato'],
+    }));
+
     const recursosMapeados: RecursoResumen[] = recursos.rows.map((r) => ({
       id: r.id,
-      nombre: r.nombre,
-      tipo: r.tipo,
-      desbloqueado: r.tipo === 'libre', // el derecho real de los licenciados (CU-009) llega en Etapa 2
+      nombre: r.title,
+      tipo: r.is_licensed ? 'licenciado' : 'libre',
+      desbloqueado: !r.is_licensed, // el derecho real (CU-09) llega en la Etapa 2
     }));
+
+    // Δ2 · un solo tramo de descuento, en columnas del producto (CU-10/CU-22).
+    const tramos: Tramo[] =
+      fila.tramo_minimo !== null && fila.tramo_descuento !== null
+        ? [{ cantidad_minima: fila.tramo_minimo, descuento_pct: fila.tramo_descuento }]
+        : [];
 
     return {
       id: fila.id,
@@ -96,10 +110,10 @@ export class CatalogoRepositoryPg implements CatalogoRepository {
       descripcion: fila.descripcion,
       peso_gramos: fila.peso_gramos,
       stock_disponible: fila.stock_disponible,
-      imagenes: fila.imagenes,
-      demos: demos.rows,
+      imagenes: fila.imagen_url !== null ? [fila.imagen_url] : [],
+      demos: demosMapeadas,
       recursos: recursosMapeados,
-      tramos: tramos.rows,
+      tramos,
     };
   }
 }

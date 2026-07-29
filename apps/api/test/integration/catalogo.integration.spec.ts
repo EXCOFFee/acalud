@@ -10,25 +10,29 @@ let ctx: CtxApp;
 
 beforeAll(async () => {
   ctx = await levantarApp();
+  // El área de la v1 es ahora la categoría del producto (tabla categories).
   await ctx.pg.query(
-    `INSERT INTO juegos (id, nombre, area, edad_objetivo, precio_lista, peso_gramos, stock_actual, descripcion, publicado)
+    `INSERT INTO categories (name) VALUES ('Matemática'), ('Lengua') ON CONFLICT (name) DO NOTHING`,
+  );
+  await ctx.pg.query(
+    `INSERT INTO products (id, name, category_id, target_age, price, weight_grams, stock, description, is_active)
      VALUES
-       ($1,'Fracciones Test','Matemática','8 a 12 años',12500,800,10,'Descripción de prueba de fracciones.',true),
-       ($2,'Palabras Test','Lengua','6 a 9 años',9800,650,0,'Descripción de prueba de palabras.',true),
-       ($3,'Borrador Test','Matemática','7 a 11 años',5000,400,5,'No debería listarse.',false)`,
+       ($1,'Fracciones Test',(SELECT id FROM categories WHERE name='Matemática'),'8 a 12 años',12500,800,10,'Descripción de prueba de fracciones.',true),
+       ($2,'Palabras Test',(SELECT id FROM categories WHERE name='Lengua'),'6 a 9 años',9800,650,0,'Descripción de prueba de palabras.',true),
+       ($3,'Borrador Test',(SELECT id FROM categories WHERE name='Matemática'),'7 a 11 años',5000,400,5,'No debería listarse.',false)`,
     [A, B, C],
   );
   await ctx.pg.query(
-    `INSERT INTO demos (juego_id, tipo, formato, contenido_ref) VALUES ($1,'publica','html5','demos/x')`,
+    `INSERT INTO demos (product_id, config_json) VALUES ($1, '{"tipo":"publica","formato":"html5"}'::jsonb)`,
     [A],
   );
   await ctx.pg.query(
-    `INSERT INTO tramos_descuento (juego_id, cantidad_minima, descuento_pct) VALUES ($1,5,10)`,
+    `UPDATE products SET wholesale_threshold = 5, wholesale_discount_percent = 10 WHERE id = $1`,
     [A],
   );
   await ctx.pg.query(
-    `INSERT INTO recursos (juego_id, nombre, tipo, archivo_ref) VALUES
-       ($1,'Guía docente','libre','r/guia'), ($1,'Fichas premium','licenciado','r/fichas')`,
+    `INSERT INTO resources (product_id, title, is_licensed, url) VALUES
+       ($1,'Guía docente',false,'r/guia'), ($1,'Fichas premium',true,'r/fichas')`,
     [A],
   );
 });

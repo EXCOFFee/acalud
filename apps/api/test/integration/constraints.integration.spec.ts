@@ -30,7 +30,7 @@ async function crearCuenta(email = `${randomUUID()}@escuela.edu.ar`): Promise<st
 
 async function crearJuego(stock = 10): Promise<string> {
   const r = await db.query<{ id: string }>(
-    `INSERT INTO juegos (nombre, precio_lista, peso_gramos, stock_actual, publicado)
+    `INSERT INTO products (name, price, weight_grams, stock, is_active)
      VALUES ('Juego', 1000, 500, $1, true) RETURNING id`,
     [stock],
   );
@@ -151,11 +151,11 @@ describe('Idempotencia y unicidad (2.3 §6)', () => {
 
 // ── Stock: no negativo + decremento condicional (Lost Update) ────────────────
 describe('Stock y concurrencia (2.3 §5)', () => {
-  it('CHECK stock_actual >= 0 rechaza dejar el stock en negativo (CU-E04 E1)', async () => {
+  it('CHECK stock >= 0 rechaza dejar el stock en negativo (CU-E04 E1)', async () => {
     const juego = await crearJuego(3);
     await expect(
-      db.query(`UPDATE juegos SET stock_actual = -1 WHERE id = $1`, [juego]),
-    ).rejects.toThrow(/check|stock_actual/i);
+      db.query(`UPDATE products SET stock = -1 WHERE id = $1`, [juego]),
+    ).rejects.toThrow(/check|stock/i);
   });
 
   it('decremento condicional atómico: el segundo OUT sin stock afecta 0 filas (CU-012)', async () => {
@@ -163,7 +163,7 @@ describe('Stock y concurrencia (2.3 §5)', () => {
     const decrementar = async (n: number): Promise<number | null> =>
       (
         await db.query(
-          `UPDATE juegos SET stock_actual = stock_actual - $1 WHERE id = $2 AND stock_actual >= $1`,
+          `UPDATE products SET stock = stock - $1 WHERE id = $2 AND stock >= $1`,
           [n, juego],
         )
       ).rowCount;
@@ -172,7 +172,7 @@ describe('Stock y concurrencia (2.3 §5)', () => {
     expect(await decrementar(1)).toBe(0); // sin stock → 0 filas (en la app: rollback → en_revision)
 
     const stock = primeraFila(
-      await db.query<{ stock_actual: number }>(`SELECT stock_actual FROM juegos WHERE id = $1`, [
+      await db.query<{ stock_actual: number }>(`SELECT stock AS stock_actual FROM products WHERE id = $1`, [
         juego,
       ]),
     ).stock_actual;

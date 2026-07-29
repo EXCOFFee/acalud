@@ -37,21 +37,17 @@ export class CarritoRepositoryPg implements CarritoRepository {
   async verLineas(cuentaId: string, contexto: string | null): Promise<LineaConJuego[]> {
     const carritoId = await this.asegurarCarrito(cuentaId, contexto);
     const r = await this.db.query<FilaLinea>(
-      `SELECT cl.juego_id, j.nombre, cl.cantidad,
-              j.precio_lista::float8 AS precio_lista, j.stock_actual,
-              COALESCE(
-                json_agg(
-                  json_build_object('cantidad_minima', td.cantidad_minima,
-                                    'descuento_pct', td.descuento_pct)
-                  ORDER BY td.cantidad_minima
-                ) FILTER (WHERE td.id IS NOT NULL),
-                '[]'
-              ) AS tramos
+      // Δ2 · el descuento mayorista es un solo tramo, en columnas del producto (CU-10/CU-22).
+      `SELECT cl.juego_id, p.name AS nombre, cl.cantidad,
+              p.price::float8 AS precio_lista, p.stock AS stock_actual,
+              CASE WHEN p.wholesale_threshold IS NOT NULL THEN
+                json_build_array(json_build_object(
+                  'cantidad_minima', p.wholesale_threshold,
+                  'descuento_pct', p.wholesale_discount_percent))
+              ELSE '[]'::json END AS tramos
          FROM carrito_lineas cl
-         JOIN juegos j ON j.id = cl.juego_id
-         LEFT JOIN tramos_descuento td ON td.juego_id = j.id
+         JOIN products p ON p.id = cl.juego_id
         WHERE cl.carrito_id = $1
-        GROUP BY cl.juego_id, j.nombre, cl.cantidad, j.precio_lista, j.stock_actual, cl.creado_en
         ORDER BY cl.creado_en`,
       [carritoId],
     );
@@ -83,7 +79,7 @@ export class CarritoRepositoryPg implements CarritoRepository {
 
   async juegoPublicado(juegoId: string): Promise<boolean> {
     const r = await this.db.query(
-      `SELECT 1 FROM juegos WHERE id = $1 AND publicado = true AND eliminado_en IS NULL`,
+      `SELECT 1 FROM products WHERE id = $1 AND is_active = true`,
       [juegoId],
     );
     return r.rows.length > 0;

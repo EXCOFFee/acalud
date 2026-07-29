@@ -4,23 +4,23 @@ import { type CtxApp, levantarApp } from './helpers/app';
 
 // CU-010 (carrito) contra la app real + PostgreSQL real (Testcontainers).
 const PW = 'correcta-bateria-caballo-grapa';
-const JA = 'a0000000-0000-4000-8000-00000000000a'; // publicado, tramos 5→10% / 10→18%, stock 100
-const JB = 'b0000000-0000-4000-8000-00000000000b'; // publicado, stock 2, sin tramos
-const JC = 'c0000000-0000-4000-8000-00000000000c'; // NO publicado
+const JA = 'a0000000-0000-4000-8000-00000000000a'; // activo, tramo 5→10%, stock 100
+const JB = 'b0000000-0000-4000-8000-00000000000b'; // activo, stock 2, sin tramo
+const JC = 'c0000000-0000-4000-8000-00000000000c'; // inactivo
 
 let ctx: CtxApp;
 
 beforeAll(async () => {
   ctx = await levantarApp();
   await ctx.pg.query(
-    `INSERT INTO juegos (id, nombre, precio_lista, stock_actual, publicado) VALUES
+    `INSERT INTO products (id, name, price, stock, is_active) VALUES
        ($1,'Carrito Juego A',10000,100,true),
        ($2,'Carrito Juego B',5000,2,true),
        ($3,'Carrito Juego C',3000,50,false)`,
     [JA, JB, JC],
   );
   await ctx.pg.query(
-    `INSERT INTO tramos_descuento (juego_id, cantidad_minima, descuento_pct) VALUES ($1,5,10),($1,10,18)`,
+    `UPDATE products SET wholesale_threshold = 5, wholesale_discount_percent = 10 WHERE id = $1`,
     [JA],
   );
 });
@@ -85,7 +85,7 @@ describe('CU-010 · Carrito', () => {
     expect(res.body.total).toBe(0);
   });
 
-  it('juego no publicado o id mal formado → 404', async () => {
+  it('producto inactivo o id mal formado → 404', async () => {
     const t = await sesion();
     expect(
       (await ctx.request.put(`/api/v1/carrito/lineas/${JC}`).set(bearer(t)).send({ cantidad: 1 })).status,

@@ -61,30 +61,39 @@ const pool = new Pool({ connectionString: conn, ssl });
 const client = await pool.connect();
 try {
   await client.query('BEGIN');
+  // El área de la v1 es ahora la categoría del producto.
+  for (const area of [...new Set(JUEGOS.map((j) => j[2]))]) {
+    await client.query(`INSERT INTO categories (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`, [
+      area,
+    ]);
+  }
   for (const [id, nombre, area, edad, precio, peso, stock, desc] of JUEGOS) {
     await client.query(
-      `INSERT INTO juegos (id, nombre, area, edad_objetivo, precio_lista, peso_gramos, stock_actual, descripcion, publicado)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true) ON CONFLICT (id) DO NOTHING`,
+      `INSERT INTO products (id, name, category_id, target_age, price, weight_grams, stock, description, is_active)
+       VALUES ($1,$2,(SELECT id FROM categories WHERE name = $3),$4,$5,$6,$7,$8,true)
+       ON CONFLICT (id) DO NOTHING`,
       [id, nombre, area, edad, precio, peso, stock, desc],
     );
   }
+  // Δ2 · un solo tramo de descuento por producto, en columnas (CU-10/CU-22).
   for (const [jid, cant, pct] of TRAMOS) {
     await client.query(
-      `INSERT INTO tramos_descuento (juego_id, cantidad_minima, descuento_pct)
-       VALUES ($1,$2,$3) ON CONFLICT (juego_id, cantidad_minima) DO NOTHING`,
+      `UPDATE products SET wholesale_threshold = $2, wholesale_discount_percent = $3
+        WHERE id = $1 AND wholesale_threshold IS NULL`,
       [jid, cant, pct],
     );
   }
   for (const [jid, tipo, formato, ref] of DEMOS) {
     await client.query(
-      `INSERT INTO demos (juego_id, tipo, formato, contenido_ref)
-       VALUES ($1,$2,$3,$4) ON CONFLICT (juego_id, tipo) DO NOTHING`,
+      `INSERT INTO demos (product_id, config_json)
+       VALUES ($1, jsonb_build_object('tipo',$2::text,'formato',$3::text,'contenido_ref',$4::text))
+       ON CONFLICT (product_id) DO NOTHING`,
       [jid, tipo, formato, ref],
     );
   }
   await client.query('COMMIT');
-  const n = await client.query('SELECT count(*)::int AS n FROM juegos WHERE publicado = true');
-  console.log(`Seed OK · juegos publicados: ${n.rows[0].n}`);
+  const n = await client.query('SELECT count(*)::int AS n FROM products WHERE is_active = true');
+  console.log(`Seed OK · productos activos: ${n.rows[0].n}`);
 } catch (err) {
   await client.query('ROLLBACK');
   console.error('Seed ERROR:', err.message);

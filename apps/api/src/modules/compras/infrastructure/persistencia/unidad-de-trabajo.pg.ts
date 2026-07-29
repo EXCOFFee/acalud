@@ -102,8 +102,8 @@ class StockRepositorioPg implements StockRepositorio {
 
   async decrementar(juegoId: string, cantidad: number): Promise<boolean> {
     const r = await this.db.query(
-      `UPDATE juegos SET stock_actual = stock_actual - $2
-        WHERE id = $1 AND stock_actual >= $2`,
+      `UPDATE products SET stock = stock - $2
+        WHERE id = $1 AND stock >= $2`,
       [juegoId, cantidad],
     );
     return (r.rowCount ?? 0) > 0;
@@ -159,17 +159,17 @@ class CarritoCheckoutPg implements CarritoCheckout {
   ): Promise<{ carritoId: string; lineas: LineaConJuego[] }> {
     const carritoId = await this.asegurar(cuentaId, contexto);
     const r = await this.db.query<LineaConJuego & { tramos: TramoDescuento[] }>(
-      `SELECT cl.juego_id, j.nombre, cl.cantidad,
-              j.precio_lista::float8 AS precio_lista, j.stock_actual,
-              COALESCE(
-                json_agg(json_build_object('cantidad_minima', td.cantidad_minima, 'descuento_pct', td.descuento_pct)
-                  ORDER BY td.cantidad_minima) FILTER (WHERE td.id IS NOT NULL), '[]'
-              ) AS tramos
+      // Δ2 · un solo tramo de descuento, en columnas del producto (CU-10/CU-22).
+      `SELECT cl.juego_id, p.name AS nombre, cl.cantidad,
+              p.price::float8 AS precio_lista, p.stock AS stock_actual,
+              CASE WHEN p.wholesale_threshold IS NOT NULL THEN
+                json_build_array(json_build_object(
+                  'cantidad_minima', p.wholesale_threshold,
+                  'descuento_pct', p.wholesale_discount_percent))
+              ELSE '[]'::json END AS tramos
          FROM carrito_lineas cl
-         JOIN juegos j ON j.id = cl.juego_id AND j.publicado = true AND j.eliminado_en IS NULL
-         LEFT JOIN tramos_descuento td ON td.juego_id = j.id
+         JOIN products p ON p.id = cl.juego_id AND p.is_active = true
         WHERE cl.carrito_id = $1
-        GROUP BY cl.juego_id, j.nombre, cl.cantidad, j.precio_lista, j.stock_actual, cl.creado_en
         ORDER BY cl.creado_en`,
       [carritoId],
     );
