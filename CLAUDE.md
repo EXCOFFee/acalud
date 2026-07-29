@@ -1,8 +1,9 @@
 # Instrucciones para Claude Code — Proyecto Acalud
 
 ## Antes de escribir código
-- La documentación de tesis en docs/ es la FUENTE DE VERDAD. Ante conflicto código↔doc, gana la doc. docs/_archivo-v1/ es la documentación de la v1: material histórico, NO vinculante.
-- El modelo de datos objetivo es docs/02-base-datos/acalud_schema.sql + acalud_schema_addendum.sql (se aplican en ese orden).
+- La FUENTE DE VERDAD son los 34 casos de uso de docs/casos-de-uso/. Ante conflicto código↔doc, gana la doc. docs/_archivo-v1/ es la documentación de la v1: material histórico, NO vinculante.
+- acalud_schema.sql y sus cinco addenda son artefactos DERIVADOS de esos CU: cuando el esquema y un CU discrepan, gana el CU y el esquema se corrige. El modelo de datos objetivo es docs/02-base-datos/acalud_schema.sql + acalud_schema_addendum.sql + _II + _III + _IV + _V (se aplican en ese orden).
+- Ningún elemento del esquema se crea ni se conserva sin una fila en la matriz de trazabilidad que lo respalde. Si encontrás algo sin respaldo, NO lo borres por tu cuenta: reportalo.
 - Todo cambio de comportamiento de un endpoint exige actualizar el contrato OpenAPI EN EL MISMO COMMIT. Ruta interina (contrato de la v1, en español): docs/_archivo-v1/02-arquitectura/2.4-contratos/openapi.yaml. Tras la Fase 2 del refactor pasa a docs/06-contratos/openapi.yaml, regenerado en inglés.
 - Consultá el ADR relevante antes de decisiones estructurales: los ADR-001..006 viven en docs/_archivo-v1/02-arquitectura/2.2-adrs/ y describen decisiones de implementación VIGENTES (hexagonal, transporte dual, outbox, hosting). NO tomes decisiones de arquitectura nuevas: si algo no está decidido, PREGUNTÁ.
 
@@ -29,7 +30,7 @@
 
 ## Estilo
 - Nomenclatura en INGLÉS según el esquema en todo lo que aparece en docs/: tablas y columnas, rutas y contratos de la API, clases y entidades de dominio, tipos y enumeraciones. Lo interno (variables locales, métodos privados, comentarios, mensajes al usuario, nombres de archivos de test) puede quedar como está: no genera discrepancia con la documentación.
-- El glosario efectivo es acalud_schema.sql + su addendum.
+- El glosario efectivo es la matriz de docs/06-trazabilidad/, que cita el CU que respalda cada tabla.
 - Errores en formato RFC 9457 Problem Details con trace_id.
 - Prohibido dangerouslySetInnerHTML. Validación de entrada con Zod en el borde.
 
