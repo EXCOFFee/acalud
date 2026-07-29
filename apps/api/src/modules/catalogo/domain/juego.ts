@@ -7,7 +7,6 @@ export interface JuegoResumen {
   nombre: string;
   precio_lista: number;
   area: string | null;
-  edad_objetivo: string | null;
   imagen_url: string | null;
   tiene_demo_publica: boolean;
 }
@@ -31,7 +30,7 @@ export interface Tramo {
 
 export interface JuegoDetalle extends JuegoResumen {
   descripcion: string;
-  peso_gramos: number;
+  peso_gramos: number | null;
   stock_disponible: boolean;
   imagenes: string[];
   demos: DemoResumen[];

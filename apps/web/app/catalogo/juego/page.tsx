@@ -80,7 +80,7 @@ export default function FichaJuegoPage() {
 
             <div>
               <p className="eyebrow" style={{ margin: 0 }}>
-                {[juego.area, juego.edad_objetivo].filter(Boolean).join(' · ')}
+                {juego.area}
               </p>
               <h1 style={{ fontSize: 'clamp(1.7rem, 4vw, 2.5rem)', margin: '0.2rem 0 0.4rem' }}>
                 {juego.nombre}

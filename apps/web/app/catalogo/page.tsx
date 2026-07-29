@@ -95,7 +95,7 @@ export default function CatalogoPage() {
                 <div className="juego__cuerpo">
                   <span className="juego__nombre">{j.nombre}</span>
                   <span className="juego__meta">
-                    {[j.area, j.edad_objetivo].filter(Boolean).join(' · ')}
+                    {j.area}
                   </span>
                   <div className="juego__pie">
                     <span className="juego__precio">{precioARS(j.precio_lista)}</span>

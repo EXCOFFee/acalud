@@ -15,11 +15,11 @@ beforeAll(async () => {
     `INSERT INTO categories (name) VALUES ('Matemática'), ('Lengua') ON CONFLICT (name) DO NOTHING`,
   );
   await ctx.pg.query(
-    `INSERT INTO products (id, name, category_id, target_age, price, weight_grams, stock, description, is_active)
+    `INSERT INTO products (id, name, category_id, price, weight_grams, stock, description, is_active)
      VALUES
-       ($1,'Fracciones Test',(SELECT id FROM categories WHERE name='Matemática'),'8 a 12 años',12500,800,10,'Descripción de prueba de fracciones.',true),
-       ($2,'Palabras Test',(SELECT id FROM categories WHERE name='Lengua'),'6 a 9 años',9800,650,0,'Descripción de prueba de palabras.',true),
-       ($3,'Borrador Test',(SELECT id FROM categories WHERE name='Matemática'),'7 a 11 años',5000,400,5,'No debería listarse.',false)`,
+       ($1,'Fracciones Test',(SELECT id FROM categories WHERE name='Matemática'),12500,800,10,'Descripción de prueba de fracciones.',true),
+       ($2,'Palabras Test',(SELECT id FROM categories WHERE name='Lengua'),9800,650,0,'Descripción de prueba de palabras.',true),
+       ($3,'Borrador Test',(SELECT id FROM categories WHERE name='Matemática'),5000,400,5,'No debería listarse.',false)`,
     [A, B, C],
   );
   await ctx.pg.query(

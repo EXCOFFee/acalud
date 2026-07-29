@@ -67,12 +67,12 @@ try {
       area,
     ]);
   }
-  for (const [id, nombre, area, edad, precio, peso, stock, desc] of JUEGOS) {
+  for (const [id, nombre, area, , precio, peso, stock, desc] of JUEGOS) {
     await client.query(
-      `INSERT INTO products (id, name, category_id, target_age, price, weight_grams, stock, description, is_active)
-       VALUES ($1,$2,(SELECT id FROM categories WHERE name = $3),$4,$5,$6,$7,$8,true)
+      `INSERT INTO products (id, name, category_id, price, weight_grams, stock, description, is_active)
+       VALUES ($1,$2,(SELECT id FROM categories WHERE name = $3),$4,$5,$6,$7,true)
        ON CONFLICT (id) DO NOTHING`,
-      [id, nombre, area, edad, precio, peso, stock, desc],
+      [id, nombre, area, precio, peso, stock, desc],
     );
   }
   // Δ2 · un solo tramo de descuento por producto, en columnas (CU-10/CU-22).

@@ -16,7 +16,6 @@ interface FilaResumen {
   nombre: string;
   precio_lista: number;
   area: string | null;
-  edad_objetivo: string | null;
   imagen_url: string | null;
   tiene_demo_publica: boolean;
 }
@@ -28,7 +27,7 @@ const FILTROS = `p.is_active = true
   AND ($2::text IS NULL OR c.name = $2)`;
 
 const RESUMEN = `p.id, p.name AS nombre, p.price::float8 AS precio_lista,
-  c.name AS area, p.target_age AS edad_objetivo, p.image_url AS imagen_url,
+  c.name AS area, p.image_url AS imagen_url,
   EXISTS (SELECT 1 FROM demos d WHERE d.product_id = p.id) AS tiene_demo_publica`;
 
 const DESDE = `FROM products p LEFT JOIN categories c ON c.id = p.category_id`;
@@ -53,7 +52,7 @@ export class CatalogoRepositoryPg implements CatalogoRepository {
     const j = await this.db.query<
       FilaResumen & {
         descripcion: string;
-        peso_gramos: number;
+        peso_gramos: number | null;
         stock_disponible: boolean;
         tramo_minimo: number | null;
         tramo_descuento: number | null;
@@ -104,7 +103,6 @@ export class CatalogoRepositoryPg implements CatalogoRepository {
       nombre: fila.nombre,
       precio_lista: fila.precio_lista,
       area: fila.area,
-      edad_objetivo: fila.edad_objetivo,
       imagen_url: fila.imagen_url,
       tiene_demo_publica: fila.tiene_demo_publica,
       descripcion: fila.descripcion,
