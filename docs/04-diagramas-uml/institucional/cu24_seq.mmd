@@ -1,0 +1,35 @@
+sequenceDiagram
+    autonumber
+    actor E as Encargado
+    participant W as Interfaz Web/App
+    participant API as Servicio de Compras
+    participant DB as Base de Datos
+    participant MP as Pasarela de Pago
+
+    E->>W: Selecciona productos y cantidades para la institución
+    W->>API: Solicita iniciar la compra institucional
+    API->>API: Verifica que sea el encargado de la institución
+    API->>API: Aplica el descuento por cantidad total
+    API->>DB: Crea la orden institucional (tipo B2B)
+    API->>MP: Genera la preferencia de pago
+    MP-->>API: Identificador de la preferencia
+    API-->>W: Entrega los datos de la preferencia
+    W-->>E: Redirige a la pasarela
+    E->>MP: Realiza el pago en la pasarela
+    MP->>API: Notifica el resultado del pago
+    API->>API: Verifica la firma de la notificación
+    alt Pago aprobado
+        API->>DB: Verifica que el pago no haya sido procesado
+        API->>DB: Registra el pago procesado
+        API->>DB: Transición de la orden a pagado
+        API->>DB: Incrementa el inventario institucional
+        API->>DB: Decrementa el stock general del producto
+        API->>DB: Asienta el movimiento de existencias
+        Note over API,DB: Todos los efectos en una sola transacción
+        API-->>W: Compra confirmada
+        W-->>E: Muestra el lote incorporado al inventario
+    else Pago rechazado
+        API->>DB: La orden permanece pendiente
+        API-->>W: Pago no completado
+        W-->>E: Permite reintentar
+    end

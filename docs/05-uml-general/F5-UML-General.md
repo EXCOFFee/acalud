@@ -1,7 +1,7 @@
 |  | **Sistema ACALUD** |
 | --- | --- |
 |  | Diagramas UML Generales — Casos de Uso y Clases |
-|  | Versión: 00 | Fecha: 24/07/2026 | Página: 1 de 14 |
+|  | Versión: 01 | Fecha: 28/07/2026 | Página: 1 de 15 |
 
 | Información del Documento |
 | --- |
@@ -74,7 +74,7 @@ tres vistas de detalle por área.
 
 ### 3.1 Vista global
 
-La vista global presenta las veintinueve clases del modelo con sus relaciones, sin detalle de
+La vista global presenta las treinta y tres clases del modelo con sus relaciones, sin detalle de
 atributos, para ofrecer la estructura completa del dominio de un vistazo.
 
 ![Vista global de clases](clases_global.png)
@@ -101,6 +101,24 @@ auditoría y notificación.
 
 ---
 
+### 3.5 Clases de infraestructura
+
+Cuatro clases del modelo no derivan de una especificación funcional sino de requerimientos no
+funcionales documentados. Se incorporaron al advertirse que dichos requerimientos carecían de
+sustento estructural:
+
+| Clase | Requerimiento que la origina |
+| --- | --- |
+| `Session` | CU-03, objetivo — invalidación efectiva de la sesión |
+| `ProcessedPayment` | RNF-CU12-002 — procesamiento de notificaciones sin conflictos |
+| `OutboxEmail` | RF-CU12-006 — remisión del comprobante por correo |
+| `StockMovement` | RNF-SIS-016 — asiento en auditoría de operaciones sensibles |
+
+La clase `Session` reemplaza a la lista de revocación prevista inicialmente. Las cuatro figuran
+en las vistas de detalle correspondientes a su módulo.
+
+---
+
 ## 4. Correspondencia entre modelos
 
 El diagrama de clases mantiene correspondencia directa con el modelo de datos. Cada clase se
@@ -121,6 +139,7 @@ columna `password_hash` con el atributo `passwordHash`, y así sucesivamente.
 | Revisión | Fecha | Ítem | Descripción | Intervino |
 | --- | --- | --- | --- | --- |
 | 00 | 24/07/2026 | Documento total | Versión inicial |  |
+| 01 | 28/07/2026 | Sección 3 | Incorporación de las clases de infraestructura |  |
 
 ## 6. Participantes y Aprobaciones
 

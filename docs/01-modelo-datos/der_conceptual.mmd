@@ -1,0 +1,56 @@
+graph TB
+  subgraph IDENT["MÓDULO 1 · IDENTIDAD Y ACCESO"]
+    users((users)); teacher_profiles((teacher_profiles)); levels((levels)); subjects((subjects)); login_attempts((login_attempts)); sessions((sessions))
+  end
+  subgraph CAT["MÓDULO 2 · CATÁLOGO Y CONTENIDO"]
+    categories((categories)); products((products)); demos((demos)); game_progress((game_progress)); resources((resources)); favorites((favorites)); editorial_partners((editorial_partners)); stock_movements((stock_movements))
+  end
+  subgraph COMP["MÓDULO 3 · COMPRAS Y LOGÍSTICA"]
+    carts((carts)); cart_items((cart_items)); orders((orders)); order_items((order_items)); order_tracking_events((order_tracking_events)); processed_payments((processed_payments))
+  end
+  subgraph INST["MÓDULO 4 · INSTITUCIONAL"]
+    institutions((institutions)); institutional_teachers((inst_teachers)); institutional_inventories((inst_inventories)); institutional_assignments((inst_assignments)); game_sessions((game_sessions))
+  end
+  subgraph COMU["MÓDULO 5 · COMUNIDAD"]
+    polls((polls)); poll_options((poll_options)); poll_responses((poll_responses)); proposals((proposals))
+  end
+  subgraph TRANS["MÓDULO 6 · TRANSVERSAL"]
+    audit_log((audit_log)); notifications((notifications)); outbox_emails((outbox_emails))
+  end
+
+  users --- sessions
+  users --- teacher_profiles
+  users --- carts
+  users --- orders
+  users --- institutional_teachers
+  products --- stock_movements
+  products --- demos
+  products --- resources
+  products --- order_items
+  products --- institutional_inventories
+  carts --- cart_items
+  orders --- processed_payments
+  orders --- order_items
+  orders --- order_tracking_events
+  orders -.-> institutions
+  institutions --- institutional_teachers
+  institutions --- institutional_inventories
+  institutional_teachers --- institutional_assignments
+  institutional_teachers --- game_sessions
+  polls --- poll_options
+  polls --- poll_responses
+  categories --- products
+  editorial_partners --- products
+
+  classDef m1 fill:#e8f0e8,stroke:#4a7a4a,stroke-width:1px
+  classDef m2 fill:#f0ece0,stroke:#9a8a5a,stroke-width:1px
+  classDef m3 fill:#e8ecf4,stroke:#5a7a9a,stroke-width:1px
+  classDef m4 fill:#f4ece8,stroke:#9a6a5a,stroke-width:1px
+  classDef m5 fill:#ece8f0,stroke:#7a5a9a,stroke-width:1px
+  classDef m6 fill:#f0f0f0,stroke:#777,stroke-width:1px
+  class users,teacher_profiles,levels,subjects,login_attempts,sessions m1
+  class categories,products,demos,game_progress,resources,favorites,editorial_partners,stock_movements m2
+  class carts,cart_items,orders,order_items,order_tracking_events,processed_payments m3
+  class institutions,institutional_teachers,institutional_inventories,institutional_assignments,game_sessions m4
+  class polls,poll_options,poll_responses,proposals m5
+  class audit_log,notifications,outbox_emails m6

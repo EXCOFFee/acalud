@@ -1,7 +1,7 @@
 |  | **Sistema ACALUD** |
 | --- | --- |
 |  | Especificación de Requerimientos — Funcionales y No Funcionales |
-|  | Versión: 00 | Fecha: 24/07/2026 | Página: 1 de 24 |
+|  | Versión: 01 | Fecha: 28/07/2026 | Página: 1 de 24 |
 
 | Información del Documento |
 | --- |
@@ -68,12 +68,19 @@ reconstrucción de los requerimientos de nivel proyecto (decisión D-13).
 | ID | Plat. | Requerimiento |
 | --- | --- | --- |
 | RNF-SIS-001 | A | Toda comunicación que transporte credenciales o datos personales se realiza sobre HTTPS, con TLS en versión 1.2 o superior |
-| RNF-SIS-002 | A | Las contraseñas se almacenan exclusivamente como resumen criptográfico mediante bcrypt con factor de costo 12. Nunca se almacenan ni registran en texto plano |
+| RNF-SIS-002 | A | Las contraseñas se almacenan exclusivamente como resumen criptográfico mediante argon2id. Nunca se almacenan ni registran en texto plano |
 | RNF-SIS-003 | A | El sistema no almacena datos de medios de pago. La captura y el procesamiento del pago se delegan íntegramente a la pasarela |
 | RNF-SIS-004 | A | Los servicios que operan sobre datos propios de un usuario verifican la titularidad del recurso y rechazan el acceso de terceros |
 | RNF-SIS-005 | A | Las credenciales de servicios externos residen en variables de entorno, nunca en el código fuente |
 | RNF-SIS-006 | W | El testigo de sesión se almacena en una cookie con las marcas HttpOnly y Secure |
 | RNF-SIS-007 | M | El testigo de sesión se almacena en el almacenamiento seguro del dispositivo |
+
+**Nota sobre el algoritmo de resumen criptográfico.** El flujo de CU-01 admite indistintamente
+bcrypt o argon2. Su requerimiento RNF-002 especifica bcrypt con factor de costo 10 o superior;
+se adopta en cambio argon2id, que ofrece mayor resistencia frente a ataques con hardware
+especializado y constituye la recomendación vigente en la materia. La elección queda comprendida
+dentro de lo que el flujo de la especificación admite, y se documenta como apartamiento fundado
+respecto de su requerimiento no funcional.
 
 ### 2.2 Rendimiento
 
@@ -611,6 +618,7 @@ aplicación móvil corresponden al almacenamiento seguro del dispositivo y al em
 | Revisión | Fecha | Ítem | Descripción | Intervino |
 | --- | --- | --- | --- | --- |
 | 00 | 24/07/2026 | Documento total | Versión inicial |  |
+| 01 | 28/07/2026 | RNF-SIS-002 | Adopción de argon2id con su fundamento |  |
 
 ## 11. Participantes y Aprobaciones
 

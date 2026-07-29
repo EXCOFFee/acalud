@@ -34,12 +34,17 @@ erDiagram
     varchar result
     timestamp attempted_at
   }
-  revoked_tokens {
+  sessions {
     uuid id PK
-    varchar token_id UK
-    timestamp revoked_at
+    uuid user_id FK
+    varchar token_hash UK
+    varchar user_agent "null"
+    varchar ip_address "null"
+    timestamp created_at
+    timestamp last_seen_at
     timestamp expires_at
   }
   users ||--o| teacher_profiles : "tiene 0..1"
+  users ||--o{ sessions : "mantiene"
   levels ||--o{ teacher_profiles : "clasifica"
   subjects ||--o{ teacher_profiles : "clasifica"

@@ -1,7 +1,7 @@
 |  | **Sistema ACALUD** |
 | --- | --- |
 |  | Documentación de Arquitectura y Diseño — Índice General |
-|  | Versión: 01 | Fecha: 24/07/2026 | Página: 1 de 5 |
+|  | Versión: 02 | Fecha: 28/07/2026 | Página: 1 de 5 |
 
 | Información del Documento |
 | --- |
@@ -53,7 +53,7 @@ pendientes, resueltas posteriormente por el equipo.
 
 | Archivo | Contenido |
 | --- | --- |
-| `F0-00-consolidado` | Catálogo unificado de 30 entidades y estado de las 58 decisiones |
+| `F0-00-consolidado` | Catálogo unificado de 34 entidades y estado de las 58 decisiones |
 | `F0-01` a `F0-06` | Análisis detallado por módulo (Identidad, Catálogo, Compras, Institucional, Comunidad, Administración) |
 | `F0-07-propuestas-resolucion` | Propuesta fundamentada para cada una de las 58 definiciones, y especificación de CU-34 |
 
@@ -72,7 +72,7 @@ agrupadas por módulo) y lógico (atributos, claves y cardinalidades).
 | `F1-DER` | Documento con los modelos conceptual y lógico, y las consideraciones de diseño |
 | `diagramas/` | Siete diagramas: uno conceptual global y seis lógicos por módulo, en imagen y en fuente editable |
 
-**Total:** 30 entidades.
+**Total:** 34 entidades — 30 derivadas de las especificaciones funcionales y 4 de infraestructura.
 
 ### 3.3 Fase 2 — Base de Datos
 
@@ -84,10 +84,11 @@ integridad, índices y disparadores.
 | Archivo | Contenido |
 | --- | --- |
 | `F2-BaseDeDatos` | Documento con las decisiones del esquema físico y el resultado de la validación |
-| `acalud_schema.sql` | Script completo de creación de la base de datos |
+| `acalud_schema.sql` | Script de creación del esquema base |
+| `acalud_schema_addendum.sql` | Addendum con las estructuras de infraestructura |
 
-**Validación:** el esquema fue ejecutado contra PostgreSQL. Se verificó la creación de 29
-tablas, 7 tipos enumerados, 42 claves foráneas e índices, y que las restricciones rechazan
+**Validación:** ambos artefactos fueron ejecutados contra PostgreSQL. Se verificó la creación de
+33 tablas, 9 tipos enumerados, 47 claves foráneas y 93 índices, y que las restricciones rechazan
 efectivamente los datos inválidos.
 
 ### 3.4 Fase 3 — Requerimientos
@@ -133,7 +134,7 @@ derivado del modelo de datos.
 | --- | --- |
 | `F5-UML-General` | Documento con ambos modelos |
 | `diagramas/cu_b2c`, `cu_admin` | Casos de uso, dos vistas por segmento de actores |
-| `diagramas/clases_global` | Vista global de las 29 clases y sus relaciones |
+| `diagramas/clases_global` | Vista global de las 33 clases y sus relaciones |
 | `diagramas/clases_nucleo`, `clases_compras`, `clases_institucional` | Vistas de detalle con atributos y operaciones |
 
 ---
@@ -188,6 +189,7 @@ Estas tareas se detallan en el documento de correcciones para el equipo.
 | --- | --- | --- | --- | --- |
 | 00 | 24/07/2026 | Documento total | Versión inicial |  |
 | 01 | 24/07/2026 | Secciones 3 a 6 | Índice completo de las seis fases |  |
+| 02 | 28/07/2026 | Secciones 3.2, 3.3, 3.6 | Actualización por el addendum de infraestructura |  |
 
 ## 8. Participantes y Aprobaciones
 

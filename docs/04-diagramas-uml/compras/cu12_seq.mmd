@@ -1,0 +1,45 @@
+sequenceDiagram
+    autonumber
+    actor D as Docente
+    participant W as Interfaz Web/App
+    participant API as Servicio de Compras
+    participant DB as Base de Datos
+    participant MP as Pasarela de Pago
+    participant Mail as Servicio de Correo
+
+    D->>W: Confirma la compra del carrito
+    W->>API: Solicita iniciar el pago
+    API->>DB: Crea la orden en estado pendiente
+    API->>MP: Genera la preferencia de pago
+    MP-->>API: Identificador de la preferencia
+    API-->>W: Entrega los datos de la preferencia
+    W-->>D: Redirige a la pasarela
+    D->>MP: Ingresa los datos de pago en la pasarela
+    MP-->>D: Procesa el pago
+
+    MP->>API: Notifica el resultado del pago
+    API->>API: Verifica la firma de la notificación
+    alt Firma inválida
+        API-->>MP: Descarta la notificación
+    else Firma válida
+        API->>DB: Verifica si el pago ya fue procesado
+        alt Pago ya procesado
+            DB-->>API: Registro existente
+            API-->>MP: Confirma la recepción sin reprocesar
+        else Pago no procesado
+            alt Pago aprobado
+                API->>DB: Registra el pago procesado
+                API->>DB: Transición a pagado y descuento de stock
+                API->>DB: Asienta el movimiento de existencias
+                API->>Mail: Encola el comprobante en la cola de correos
+                Note over API,DB: Todo en una sola transacción
+                API-->>MP: Confirma la recepción
+            else Pago rechazado
+                API->>DB: La orden permanece en estado pendiente
+                API-->>MP: Confirma la recepción
+            end
+        end
+    end
+    W->>API: Consulta el estado de la orden
+    API-->>W: Estado actualizado
+    W-->>D: Muestra el resultado de la compra

@@ -20,3 +20,14 @@ erDiagram
     boolean is_read
     timestamp created_at
   }
+  outbox_emails {
+    uuid id PK
+    varchar recipient
+    varchar subject
+    text body
+    enum status "pending|sent|failed"
+    integer attempts
+    text last_error "null"
+    timestamp created_at
+    timestamp sent_at "null"
+  }

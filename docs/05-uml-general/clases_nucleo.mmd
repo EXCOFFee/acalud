@@ -1,0 +1,116 @@
+classDiagram
+    direction LR
+    class User {
+        +UUID id
+        +String email
+        +String passwordHash
+        +String fullName
+        +UserRole role
+        +Boolean emailVerified
+        +Address address
+        +register()
+        +authenticate()
+        +updateProfile()
+        +changeEmail()
+    }
+    class TeacherProfile {
+        +UUID id
+        +UUID userId
+        +UUID levelId
+        +UUID subjectId
+        +String schoolName
+        +Boolean emailNotifications
+    }
+    class Level {
+        +UUID id
+        +String name
+    }
+    class Subject {
+        +UUID id
+        +String name
+    }
+    class Product {
+        +UUID id
+        +String name
+        +Decimal price
+        +Integer stock
+        +Boolean isOwnBrand
+        +Boolean isActive
+        +Integer wholesaleThreshold
+        +Decimal wholesaleDiscount
+        +applyWholesaleDiscount()
+        +checkStock()
+        +deactivate()
+    }
+    class Session {
+        +UUID id
+        +UUID userId
+        +String tokenHash
+        +DateTime expiresAt
+        +create()
+        +revoke()
+    }
+    class StockMovement {
+        +UUID id
+        +UUID productId
+        +Integer quantity
+        +StockReason reason
+        +UUID orderId
+        +record()
+    }
+    class Category {
+        +UUID id
+        +String name
+        +String description
+    }
+    class Demo {
+        +UUID id
+        +UUID productId
+        +JSON configJson
+        +loadWithLimits()
+    }
+    class Resource {
+        +UUID id
+        +UUID productId
+        +String title
+        +ResourceType type
+        +Boolean isLicensed
+        +Integer downloadCount
+        +verifyAccess()
+        +incrementDownloads()
+    }
+    class Favorite {
+        +UUID id
+        +UUID userId
+        +UUID productId
+        +UUID resourceId
+        +UUID partnerId
+        +toggle()
+    }
+    class EditorialPartner {
+        +UUID id
+        +String name
+        +String websiteUrl
+        +Boolean isActive
+    }
+    class GameProgress {
+        +UUID id
+        +UUID userId
+        +UUID productId
+        +JSON progressData
+        +Integer bestScore
+        +saveProgress()
+    }
+
+    User "1" --> "0..1" TeacherProfile
+    User "1" --> "0..*" Session
+    TeacherProfile "0..*" --> "0..1" Level
+    TeacherProfile "0..*" --> "0..1" Subject
+    Category "1" --> "0..*" Product
+    EditorialPartner "1" --> "0..*" Product
+    Product "1" --> "0..1" Demo
+    Product "1" --> "0..*" Resource
+    User "1" --> "0..*" Favorite
+    User "1" --> "0..*" GameProgress
+    Product "1" --> "0..*" GameProgress
+    Product "1" --> "0..*" StockMovement

@@ -3,7 +3,7 @@ flowchart TD
     Click --> Confirm{¿Confirma el cierre?}
     Confirm -- No --> Cancel[Permanecer en la sesión]
     Cancel --> End([Fin])
-    Confirm -- Sí --> Revoke[Revocar el testigo en el servidor]
+    Confirm -- Sí --> Revoke[Eliminar el registro de sesión en el servidor]
     Revoke --> Clear[Limpiar estado de autenticación local]
     Clear --> Anon[Convertir carrito a anónimo]
     Anon --> Web{¿Plataforma web?}

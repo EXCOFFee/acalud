@@ -1,7 +1,7 @@
 |  | **Sistema ACALUD** |
 | --- | --- |
 |  | Análisis Transversal — Consolidado General |
-|  | Versión: 01 | Fecha: 24/07/2026 | Página: 1 de 8 |
+|  | Versión: 02 | Fecha: 28/07/2026 | Página: 1 de 9 |
 
 | Información del Documento |
 | --- |
@@ -32,7 +32,7 @@ definiciones identificadas en el análisis transversal. Respecto de la versión 
 | --- | --- |
 | Especificaciones al inicio del análisis | 33 |
 | Especificaciones tras las correcciones | 34 |
-| Entidades confirmadas para el modelo | 30 |
+| Entidades confirmadas para el modelo | 34 |
 | Reglas de negocio tras consolidación | 141 |
 | Requerimientos no funcionales tras consolidación | 116 |
 | Requerimientos de nivel sistema reconstruidos | 5 |
@@ -43,7 +43,7 @@ definiciones identificadas en el análisis transversal. Respecto de la versión 
 
 ## 3. Catálogo definitivo de entidades
 
-El modelo de datos se compone de las siguientes 30 entidades. Las señaladas como incorporadas
+El modelo de datos se compone de las siguientes 34 entidades. Las señaladas como incorporadas
 resultan de la resolución de definiciones pendientes y responden a un requisito expreso de
 alguna especificación; su origen se detalla en el documento de propuestas.
 
@@ -83,8 +83,28 @@ alguna especificación; su origen se detalla en el documento de propuestas.
 | 25 | `audit_log` | D-27 | Siete especificaciones |
 | 26 | `notifications` | D-38, D-53 | CU-15, 21, 26, 27 |
 | 27 | `login_attempts` | D-08 | CU-02 RN-007 |
-| 28 | `revoked_tokens` | D-02 | CU-03 objetivo y RNF-002 |
+| 28 | `sessions` | D-02 | CU-03 objetivo y RNF-002 |
 | 29 | `order_tracking_events` | D-25 | CU-13 RNF-007 |
+
+### 3.3 Entidades de infraestructura incorporadas por addendum
+
+Las siguientes entidades no derivan de una especificación funcional sino de requerimientos no
+funcionales documentados. Se incorporaron mediante un addendum al esquema, posterior a la
+validación inicial, al advertirse que dichos requerimientos carecían de sustento en el modelo.
+
+| # | Entidad | Requerimiento que la origina |
+| --- | --- | --- |
+| 31 | `processed_payments` | RNF-CU12-002 — procesamiento de notificaciones simultáneas sin conflictos |
+| 32 | `outbox_emails` | RF-CU12-006 — remisión del comprobante por correo electrónico |
+| 33 | `stock_movements` | RNF-SIS-016 — asiento en auditoría de operaciones sobre datos sensibles |
+| 34 | *(reemplazo)* `sessions` sustituye a `revoked_tokens` | CU-03 objetivo — invalidación efectiva de la sesión |
+
+**Sobre la sustitución de `revoked_tokens` por `sessions`.** El esquema inicial contemplaba una
+lista de revocación, adecuada para credenciales autocontenidas. La implementación adopta una
+sesión opaca con estado en el servidor, que satisface el objetivo de CU-03 de manera más
+completa: al cerrar sesión se elimina el registro y la credencial deja de existir, sin ventana
+de validez residual. Se documenta como decisión de arquitectura fundada en el propio objetivo
+de la especificación.
 
 **Nota sobre la decisión D-18.** El equipo resolvió, con carácter provisional, almacenar los
 archivos de recursos en la propia base de datos y controlar el acceso mediante validación de
@@ -203,6 +223,7 @@ especificación se detalla en el documento correspondiente.
 | --- | --- | --- | --- | --- |
 | 00 | 24/07/2026 | Documento total | Versión inicial |  |
 | 01 | 24/07/2026 | Secciones 1, 3, 4, 5, 6, 7 | Incorporación de las decisiones ratificadas por el equipo |  |
+| 02 | 28/07/2026 | Sección 3 | Incorporación de las entidades de infraestructura del addendum |  |
 
 ## 9. Participantes y Aprobaciones
 

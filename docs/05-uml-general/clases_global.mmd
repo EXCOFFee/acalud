@@ -1,0 +1,71 @@
+classDiagram
+    direction TB
+    class User
+    class TeacherProfile
+    class Level
+    class Subject
+    class Product
+    class Category
+    class Demo
+    class Resource
+    class Favorite
+    class EditorialPartner
+    class GameProgress
+    class Cart
+    class CartItem
+    class Order
+    class OrderItem
+    class OrderTrackingEvent
+    class Institution
+    class InstitutionalTeacher
+    class InstitutionalInventory
+    class InstitutionalAssignment
+    class GameSession
+    class Poll
+    class PollOption
+    class PollResponse
+    class Proposal
+    class AuditLog
+    class Notification
+    class LoginAttempt
+    class Session
+    class StockMovement
+    class ProcessedPayment
+    class OutboxEmail
+
+    User --> TeacherProfile
+    TeacherProfile --> Level
+    TeacherProfile --> Subject
+    Category --> Product
+    EditorialPartner --> Product
+    Product --> Demo
+    Product --> Resource
+    User --> Favorite
+    User --> GameProgress
+    Product --> GameProgress
+    User --> Cart
+    Cart --> CartItem
+    CartItem --> Product
+    User --> Order
+    Order --> OrderItem
+    OrderItem --> Product
+    Order --> OrderTrackingEvent
+    Order --> Institution
+    Institution --> InstitutionalTeacher
+    User --> InstitutionalTeacher
+    Institution --> InstitutionalInventory
+    InstitutionalInventory --> Product
+    InstitutionalTeacher --> InstitutionalAssignment
+    InstitutionalAssignment --> Product
+    InstitutionalTeacher --> GameSession
+    GameSession --> Product
+    Poll --> PollOption
+    Poll --> PollResponse
+    PollOption --> PollResponse
+    User --> PollResponse
+    User --> Proposal
+    User --> Notification
+    User --> AuditLog
+    User --> Session
+    Product --> StockMovement
+    Order --> ProcessedPayment

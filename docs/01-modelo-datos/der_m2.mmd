@@ -1,0 +1,81 @@
+erDiagram
+  categories {
+    uuid id PK
+    varchar name UK
+    text description "null"
+  }
+  products {
+    uuid id PK
+    varchar name
+    text description
+    decimal price ">=0"
+    integer stock ">=0"
+    boolean is_own_brand
+    varchar external_url "null"
+    integer wholesale_threshold "null"
+    decimal wholesale_discount_percent "null"
+    boolean is_active
+    uuid category_id FK "null"
+    uuid editorial_partner_id FK "null"
+  }
+  demos {
+    uuid id PK
+    uuid product_id FK "UK"
+    jsonb config_json
+  }
+  game_progress {
+    uuid id PK
+    uuid user_id FK
+    uuid product_id FK
+    jsonb progress_data
+    integer best_score
+    integer total_plays
+    timestamp last_played_at
+  }
+  resources {
+    uuid id PK
+    uuid product_id FK "null"
+    varchar title
+    enum type "pdf|link"
+    varchar url "null"
+    bytea file_content "null"
+    boolean is_licensed
+    integer download_count
+    timestamp promotion_starts_at "null"
+    timestamp promotion_ends_at "null"
+  }
+  favorites {
+    uuid id PK
+    uuid user_id FK
+    uuid product_id FK "null"
+    uuid resource_id FK "null"
+    uuid editorial_partner_id FK "null"
+    timestamp created_at
+  }
+  editorial_partners {
+    uuid id PK
+    varchar name
+    varchar logo_url
+    text description
+    varchar external_website_url
+    varchar category "null"
+    boolean is_active
+  }
+  stock_movements {
+    uuid id PK
+    uuid product_id FK
+    integer quantity "<>0"
+    enum reason
+    uuid order_id FK "null"
+    uuid actor_user_id FK "null"
+    timestamp created_at
+  }
+  categories ||--o{ products : "agrupa"
+  products ||--o{ stock_movements : "registra"
+  editorial_partners ||--o{ products : "provee"
+  products ||--o| demos : "ofrece 0..1"
+  products ||--o{ game_progress : "acumula"
+  products ||--o{ resources : "asocia 0..N"
+  products ||--o{ favorites : "referido"
+  resources ||--o{ favorites : "referido"
+  editorial_partners ||--o{ favorites : "referida"

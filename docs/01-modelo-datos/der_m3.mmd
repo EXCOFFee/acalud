@@ -46,6 +46,15 @@ erDiagram
     timestamp event_date
     timestamp fetched_at
   }
+  processed_payments {
+    uuid id PK
+    varchar payment_id UK
+    uuid order_id FK
+    varchar status
+    jsonb raw_payload "null"
+    timestamp processed_at
+  }
   carts ||--o{ cart_items : "contiene"
+  orders ||--o{ processed_payments : "registra"
   orders ||--o{ order_items : "compone 1..N"
   orders ||--o{ order_tracking_events : "rastrea"

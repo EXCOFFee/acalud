@@ -1,13 +1,13 @@
 |  | **Sistema ACALUD** |
 | --- | --- |
 |  | Diagrama Entidad-Relación — Modelo de Datos |
-|  | Versión: 00 | Fecha: 24/07/2026 | Página: 1 de 20 |
+|  | Versión: 01 | Fecha: 28/07/2026 | Página: 1 de 22 |
 
 | Información del Documento |
 | --- |
 | Nombre del Proyecto | Sistema Acalud |
 | Tipo de documento | Modelo de datos — Diagrama Entidad-Relación |
-| Alcance | 30 entidades derivadas de las 34 especificaciones funcionales |
+| Alcance | 34 entidades: 30 derivadas de las especificaciones funcionales y 4 de infraestructura |
 | Documento antecedente | Análisis Transversal — Consolidado General, versión 01 |
 | Propósito | Definir el modelo de datos conceptual y lógico del sistema, como fundamento del esquema físico de la base de datos y de la implementación. |
 
@@ -135,16 +135,22 @@ cuenta y la limitación por origen (D-08).
 | `result` | varchar | no nulo | CU-02 A2.2 |
 | `attempted_at` | timestamp | no nulo | — |
 
-**Entidad `revoked_tokens`.** Sostiene la invalidación de sesión en el servidor (D-02). La
-verificación de sesión consulta esta entidad; los registros se depuran una vez superada la
-fecha de expiración natural.
+**Entidad `sessions`.** Sostiene la sesión del usuario con estado en el servidor. La credencial
+que recibe el cliente no transporta información: referencia este registro. El cierre de sesión
+elimina la fila, con lo que la credencial deja de existir (CU-03, objetivo).
 
 | Atributo | Tipo | Restricción | Origen |
 | --- | --- | --- | --- |
 | `id` | uuid | PK | — |
-| `token_id` | varchar | UK, no nulo | CU-03 RNF-002 |
-| `revoked_at` | timestamp | no nulo | CU-03 |
+| `user_id` | uuid | FK → `users` | CU-02 |
+| `token_hash` | varchar | UK, no nulo | CU-03 RNF-002 |
+| `user_agent`, `ip_address` | varchar | admiten nulo | — |
+| `created_at`, `last_seen_at` | timestamp | no nulos | — |
 | `expires_at` | timestamp | no nulo | CU-02 RN-004 |
+
+El identificador de sesión se almacena como resumen criptográfico, nunca en claro. Esta entidad
+reemplaza a la lista de revocación prevista inicialmente en la decisión D-02: la sesión opaca
+satisface el objetivo de CU-03 de manera más completa, al no dejar ventana de validez residual.
 
 ---
 
@@ -251,6 +257,23 @@ mismo elemento dos veces (D-14).
 | `category` | varchar | null | CU-17 A7.4 |
 | `is_active` | boolean | por defecto verdadero | CU-17 RN-001 |
 
+**Entidad `stock_movements`.** Registra cada modificación de las existencias de un producto, con
+su motivo y su origen. Es de solo inserción: los registros no se modifican ni se eliminan, de
+modo que el historial resulta auditable (RNF-SIS-016).
+
+| Atributo | Tipo | Restricción | Origen |
+| --- | --- | --- | --- |
+| `id` | uuid | PK | — |
+| `product_id` | uuid | FK → `products` | RNF-SIS-016 |
+| `quantity` | integer | distinto de cero; negativo indica salida | — |
+| `reason` | enum | `purchase_b2c`, `purchase_b2b`, `restock`, `adjustment`, `cancellation` | CU-12, CU-19, CU-24 |
+| `order_id` | uuid | FK → `orders`, null | CU-12 |
+| `actor_user_id` | uuid | FK → `users`, null | CU-19 |
+| `created_at` | timestamp | no nulo | — |
+
+La suma de los movimientos de un producto debe coincidir con su existencia vigente, lo que
+permite verificar la consistencia del atributo `products.stock`.
+
 ---
 
 ### 3.3 Módulo 3 · Compras y Logística
@@ -318,6 +341,22 @@ simultáneamente la función de almacenamiento temporal y de historial (D-25).
 | `location`, `description` | varchar, text | — | CU-13 §4 |
 | `event_date` | timestamp | — | CU-13 §4 |
 | `fetched_at` | timestamp | — | CU-13 RN-003 |
+
+**Entidad `processed_payments`.** Registra las notificaciones de pago ya procesadas. La
+restricción de unicidad sobre el identificador del pago impide que una notificación reiterada
+de la pasarela produzca un segundo procesamiento (RNF-CU12-002).
+
+| Atributo | Tipo | Restricción | Origen |
+| --- | --- | --- | --- |
+| `id` | uuid | PK | — |
+| `payment_id` | varchar | UK, no nulo | RNF-CU12-002 |
+| `order_id` | uuid | FK → `orders` | CU-12 |
+| `status` | varchar | no nulo | CU-12 |
+| `raw_payload` | jsonb | null | — |
+| `processed_at` | timestamp | no nulo | — |
+
+Se complementa con un índice único parcial sobre `orders.payment_id_mp`, que impide asociar un
+mismo pago a dos órdenes distintas.
 
 ---
 
@@ -507,7 +546,24 @@ en las especificaciones como "email o dashboard" (D-38).
 | `is_read` | boolean | por defecto falso | D-38 |
 | `created_at` | timestamp | — | — |
 
-El envío por correo electrónico se resuelve como una acción adicional sobre el mismo registro.
+**Entidad `outbox_emails`.** Cola de correos pendientes de envío. El registro se crea dentro de
+la misma transacción que produce el hecho que lo origina; un proceso posterior lo entrega y
+actualiza su estado. De ese modo, un fallo transitorio del servicio de correo no pierde el
+mensaje (RF-CU12-006).
+
+| Atributo | Tipo | Restricción | Origen |
+| --- | --- | --- | --- |
+| `id` | uuid | PK | — |
+| `recipient`, `subject`, `body` | varchar, text | no nulos | RF-CU12-006 |
+| `template` | varchar | null | — |
+| `status` | enum | `pending`, `sent`, `failed` | RF-CU12-006 |
+| `attempts` | integer | mayor o igual a cero | — |
+| `last_error` | text | null | — |
+| `created_at` | timestamp | no nulo | — |
+| `sent_at` | timestamp | null; obligatorio cuando el estado es enviado | — |
+
+La entidad `notifications` sostiene el canal de tablero dentro de la aplicación; `outbox_emails`
+sostiene el canal de correo. Ambas responden a la decisión D-38.
 
 ---
 
@@ -532,6 +588,16 @@ responde al requerimiento expreso de las especificaciones (CU-26 RN-007, CU-27 R
 consistencia se garantiza mediante actualización transaccional.
 
 Las instantáneas de domicilio en `orders` obedecen al mismo criterio que las de precio.
+
+### 4.1.1 Efecto de la adquisición institucional sobre el inventario
+
+La adquisición de un lote institucional (CU-24) produce, al confirmarse el pago, un efecto
+sobre dos entidades de manera simultánea: incrementa `institutional_inventories.quantity_purchased`
+para la institución adquirente (RN-005) y decrementa `products.stock` del stock general
+(RN-010). El modelo sostiene ambos efectos mediante los atributos correspondientes; su
+aplicación conjunta, dentro de una misma transacción, es responsabilidad de la capa de
+aplicación. Se deja constancia de esta doble afectación por tratarse de un comportamiento no
+evidente a partir de la sola estructura de las entidades.
 
 ### 4.2 Integridad referencial
 
@@ -609,6 +675,7 @@ siguiente resume la correspondencia.
 | Revisión | Fecha | Ítem | Descripción | Intervino |
 | --- | --- | --- | --- | --- |
 | 00 | 24/07/2026 | Documento total | Versión inicial |  |
+| 01 | 28/07/2026 | Secciones 3.1 a 3.6 | Incorporación de las entidades de infraestructura del addendum |  |
 
 ## 7. Participantes y Aprobaciones
 

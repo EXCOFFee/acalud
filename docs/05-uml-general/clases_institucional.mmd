@@ -1,0 +1,106 @@
+classDiagram
+    direction LR
+    class Institution {
+        +UUID id
+        +String legalName
+        +String taxId
+        +String email
+        +Address address
+        +register()
+    }
+    class InstitutionalTeacher {
+        +UUID id
+        +UUID institutionId
+        +UUID userId
+        +Boolean isAdmin
+    }
+    class InstitutionalInventory {
+        +UUID id
+        +UUID institutionId
+        +UUID productId
+        +Integer quantityPurchased
+        +Integer quantityAssigned
+        +calculateAvailable()
+    }
+    class InstitutionalAssignment {
+        +UUID id
+        +UUID institutionalTeacherId
+        +UUID productId
+        +Integer quantityAssigned
+        +AssignmentStatus status
+        +DateTime revokedAt
+        +assign()
+        +revoke()
+    }
+    class GameSession {
+        +UUID id
+        +UUID institutionalTeacherId
+        +UUID productId
+        +Date sessionDate
+        +Integer studentCount
+        +Integer durationMinutes
+        +Integer satisfaction
+        +String keyLearnings
+        +register()
+    }
+    class Poll {
+        +UUID id
+        +String question
+        +PollStatus status
+        +activate()
+    }
+    class PollOption {
+        +UUID id
+        +UUID pollId
+        +String text
+    }
+    class PollResponse {
+        +UUID id
+        +UUID pollId
+        +UUID optionId
+        +UUID userId
+    }
+    class Proposal {
+        +UUID id
+        +UUID userId
+        +String title
+        +String description
+        +ProposalStatus status
+        +submit()
+        +review()
+    }
+    class AuditLog {
+        +UUID id
+        +UUID actorUserId
+        +String action
+        +String entityType
+        +UUID entityId
+        +JSON oldValues
+        +JSON newValues
+    }
+    class Notification {
+        +UUID id
+        +UUID recipientUserId
+        +String type
+        +String message
+        +Boolean isRead
+    }
+
+    class OutboxEmail {
+        +UUID id
+        +String recipient
+        +String subject
+        +String body
+        +OutboxStatus status
+        +Integer attempts
+        +enqueue()
+        +markSent()
+    }
+    Institution "1" --> "0..*" InstitutionalTeacher
+    Institution "1" --> "0..*" InstitutionalInventory
+    InstitutionalTeacher "1" --> "0..*" InstitutionalAssignment
+    InstitutionalTeacher "1" --> "0..*" GameSession
+    Poll "1" --> "1..*" PollOption
+    Poll "1" --> "0..*" PollResponse
+    PollOption "1" --> "0..*" PollResponse
+    Proposal "0..*" --> "1" Notification : triggers

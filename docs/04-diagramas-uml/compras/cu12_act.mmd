@@ -1,0 +1,23 @@
+flowchart TD
+    Start([Inicio]) --> Create[Crear la orden en estado pendiente]
+    Create --> Pref[Generar la preferencia en la pasarela]
+    Pref --> Redirect[Redirigir a la pasarela de pago]
+    Redirect --> Pay[Docente paga en la pasarela]
+    Pay --> Notify[La pasarela notifica el resultado]
+    Notify --> Sign{¿Firma válida?}
+    Sign -- No --> Discard[Descartar la notificación]
+    Discard --> End([Fin])
+    Sign -- Sí --> Dup{¿El pago ya fue procesado?}
+    Dup -- Sí --> NoOp[Confirmar recepción sin reprocesar]
+    NoOp --> End
+    Dup -- No --> Result{¿Pago aprobado?}
+    Result -- Sí --> Reg[Registrar el pago procesado]
+    Reg --> Paid[Transición a pagado]
+    Paid --> Stock[Descontar el stock]
+    Stock --> Mov[Asentar el movimiento de existencias]
+    Mov --> Receipt[Encolar el comprobante en la cola de correos]
+    Receipt --> ShowOk[Mostrar compra exitosa]
+    ShowOk --> End
+    Result -- No --> Pending[La orden permanece pendiente]
+    Pending --> ShowRetry[Mostrar rechazo y permitir reintento]
+    ShowRetry --> End

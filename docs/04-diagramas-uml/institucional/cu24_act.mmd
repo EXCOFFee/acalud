@@ -1,0 +1,23 @@
+flowchart TD
+    Start([Inicio]) --> Select[Encargado selecciona productos y cantidades]
+    Select --> IsAdmin{¿Es el encargado de la institución?}
+    IsAdmin -- No --> Deny[Rechazar la operación]
+    Deny --> End([Fin])
+    IsAdmin -- Sí --> Discount[Aplicar descuento por cantidad total]
+    Discount --> Create[Crear orden institucional tipo B2B]
+    Create --> Pref[Generar preferencia y redirigir a la pasarela]
+    Pref --> Pay[Encargado paga en la pasarela]
+    Pay --> Approved{¿Pago aprobado?}
+    Approved -- No --> Pending[La orden permanece pendiente]
+    Pending --> Retry[Permitir reintento]
+    Retry --> End
+    Approved -- Sí --> Dup{¿El pago ya fue procesado?}
+    Dup -- Sí --> NoOp[Confirmar sin reprocesar]
+    NoOp --> End
+    Dup -- No --> Reg[Registrar el pago procesado]
+    Reg --> Paid[Transición de la orden a pagado]
+    Paid --> IncInv[Incrementar el inventario institucional]
+    IncInv --> DecStock[Decrementar el stock general del producto]
+    DecStock --> Mov[Asentar el movimiento de existencias]
+    Mov --> Show[Mostrar el lote incorporado al inventario]
+    Show --> End

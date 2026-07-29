@@ -1,0 +1,59 @@
+classDiagram
+    direction LR
+    class Cart {
+        +UUID id
+        +UUID userId
+        +addItem()
+        +syncFromAnonymous()
+    }
+    class CartItem {
+        +UUID id
+        +UUID cartId
+        +UUID productId
+        +Integer quantity
+    }
+    class Order {
+        +UUID id
+        +UUID userId
+        +UUID institutionId
+        +OrderType orderType
+        +OrderStatus status
+        +Decimal totalAmount
+        +Decimal shippingCost
+        +Address shippingAddress
+        +String paymentIdMp
+        +String trackingCode
+        +create()
+        +confirmPayment()
+        +cancel()
+    }
+    class OrderItem {
+        +UUID id
+        +UUID orderId
+        +UUID productId
+        +Integer quantity
+        +Decimal unitPrice
+        +Decimal discountApplied
+    }
+    class OrderTrackingEvent {
+        +UUID id
+        +UUID orderId
+        +String status
+        +String location
+        +DateTime eventDate
+        +fetchFromProvider()
+    }
+
+    class ProcessedPayment {
+        +UUID id
+        +String paymentId
+        +UUID orderId
+        +String status
+        +DateTime processedAt
+        +registerOnce()
+    }
+    Cart "1" --> "0..*" CartItem
+    Order "1" --> "0..*" ProcessedPayment
+    CartItem "0..*" --> "1" Order : converts to
+    Order "1" --> "1..*" OrderItem
+    Order "1" --> "0..*" OrderTrackingEvent

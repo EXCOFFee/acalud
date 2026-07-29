@@ -1,7 +1,7 @@
 |  | **Sistema ACALUD** |
 | --- | --- |
 |  | Base de Datos — Esquema Físico |
-|  | Versión: 00 | Fecha: 24/07/2026 | Página: 1 de 9 |
+|  | Versión: 01 | Fecha: 28/07/2026 | Página: 1 de 11 |
 
 | Información del Documento |
 | --- |
@@ -9,7 +9,7 @@
 | Tipo de documento | Especificación del esquema físico de la base de datos |
 | Motor | PostgreSQL 15 o superior |
 | Documento antecedente | Diagrama Entidad-Relación, versión 00 |
-| Artefacto asociado | `acalud_schema.sql` |
+| Artefactos asociados | `acalud_schema.sql` y `acalud_schema_addendum.sql` |
 | Propósito | Definir el esquema físico ejecutable de la base de datos, derivado del modelo lógico, e informar el resultado de su validación contra el motor. |
 
 ---
@@ -169,13 +169,17 @@ que cualquier inconsistencia habría interrumpido la ejecución. El esquema se a
 
 ### 7.1 Objetos creados
 
-| Objeto | Cantidad |
-| --- | --- |
-| Tablas | 29 |
-| Tipos enumerados | 7 |
-| Claves foráneas | 42 |
-| Índices (incluidos los automáticos de claves) | 80 |
-| Disparadores | 6 |
+| Objeto | Esquema base | Addendum | Total |
+| --- | --- | --- | --- |
+| Tablas | 29 | 4 | 33 |
+| Tipos enumerados | 7 | 2 | 9 |
+| Claves foráneas | 42 | 5 | 47 |
+| Índices (incluidos los automáticos de claves) | 80 | 13 | 93 |
+| Disparadores | 6 | 2 | 8 |
+
+Las cantidades corresponden al estado del esquema con ambos artefactos aplicados y con la
+entidad `revoked_tokens` aún presente. Una vez ejecutada la sentencia diferida que la retira
+—conforme se explica en el apartado siguiente—, el esquema queda en 32 tablas y 90 índices.
 
 ### 7.2 Verificación del comportamiento
 
@@ -195,6 +199,38 @@ ejecuta correctamente sobre el esquema.
 
 ---
 
+## 7.3 Addendum de infraestructura
+
+Con posterioridad a la validación inicial se advirtió que tres requerimientos no funcionales
+documentados carecían de sustento en el modelo de datos. El esquema base modela las entidades
+derivadas de las especificaciones funcionales, que describen el comportamiento observable del
+sistema; no contempla, en cambio, las estructuras que garantizan propiedades de infraestructura.
+
+El artefacto `acalud_schema_addendum.sql` incorpora dichas estructuras. Cada una responde a un
+requerimiento previamente documentado:
+
+| Estructura | Requerimiento que la origina | Garantía que aporta |
+| --- | --- | --- |
+| `processed_payments` con identificador de pago único, más índice único parcial sobre la orden | RNF-CU12-002 — "procesa notificaciones simultáneas sin conflictos de actualización" | Una notificación reiterada de la pasarela no produce un segundo descuento de existencias ni un segundo comprobante |
+| `outbox_emails` con estados y reintentos | RF-CU12-006 — "el comprobante de compra se remite por correo electrónico" | El correo se registra dentro de la misma transacción que lo origina; un fallo del servicio externo no lo pierde |
+| `stock_movements` de solo inserción | RNF-SIS-016 — "las operaciones que modifican datos sensibles se asientan en auditoría" | El historial de existencias resulta auditable y reconstruible |
+| `sessions` en reemplazo de `revoked_tokens` | CU-03, objetivo — "garantizar que el dispositivo quede desvinculado" | El cierre de sesión elimina el registro; la credencial deja de existir sin ventana residual |
+
+El addendum fue validado del mismo modo que el esquema base: se aplicó sobre él contra
+PostgreSQL en modo de detención ante el primer error, sin incidencias. Se verificó asimismo que
+sus restricciones rechazan efectivamente el pago duplicado, la modificación y la eliminación de
+movimientos de existencias, el movimiento de cantidad nula, la sesión con expiración anterior a
+su creación, y el correo marcado como enviado sin fecha de envío.
+
+### 7.4 Orden de aplicación
+
+Los artefactos se aplican en secuencia: primero `acalud_schema.sql`, luego
+`acalud_schema_addendum.sql`. El addendum incluye, comentada, la sentencia de eliminación de
+`revoked_tokens`, cuya ejecución corresponde una vez migrada la implementación al modelo de
+sesión opaca.
+
+---
+
 ## 8. Integración con la implementación
 
 Este esquema constituye la fuente de verdad del modelo de datos para la implementación. Su
@@ -211,6 +247,7 @@ Su ejecución sobre una base vacía produce el esquema completo, listo para oper
 | Revisión | Fecha | Ítem | Descripción | Intervino |
 | --- | --- | --- | --- | --- |
 | 00 | 24/07/2026 | Documento total | Versión inicial |  |
+| 01 | 28/07/2026 | Secciones 7.3 y 7.4 | Incorporación del addendum de infraestructura |  |
 
 ## 10. Participantes y Aprobaciones
 
