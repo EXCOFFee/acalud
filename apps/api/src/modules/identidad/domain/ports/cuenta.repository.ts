@@ -16,6 +16,8 @@ export interface CuentaRepository {
   verificar(id: string): Promise<void>;
   /** Reemplaza el hash de contraseña (recuperación, CU-02 RNF-005). */
   actualizarContrasena(id: string, hashPassword: string): Promise<void>;
+  /** Registra el instante del último acceso (CU-02 RN-003). */
+  registrarUltimoLogin(id: string, ahora: Date): Promise<void>;
 }
 
 export const CUENTA_REPOSITORY = Symbol('CuentaRepository');

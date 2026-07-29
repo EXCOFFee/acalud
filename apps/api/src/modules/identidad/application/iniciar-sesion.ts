@@ -72,8 +72,9 @@ export class IniciarSesion {
 
     await this.intentos.registrar(email, input.ip, 'success');
 
-    // Éxito: crea la sesión y audita, todo atómico.
+    // Éxito: registra el último acceso (RN-003), crea la sesión y audita, todo atómico.
     return this.uow.transaccion(async (repos) => {
+      await repos.cuentas.registrarUltimoLogin(cuenta.id, ahora);
       const token = this.generador.generar();
       await repos.sesiones.crear({
         cuentaId: cuenta.id,

@@ -110,6 +110,13 @@ describe('CU-002 · Iniciar sesión', () => {
       [email],
     );
     expect(evento.rows).toHaveLength(1);
+
+    // CU-02 RN-003: el último acceso se registra en cada inicio de sesión exitoso.
+    const ultimo = await ctx.pg.query<{ last_login: Date | null }>(
+      `SELECT last_login FROM users WHERE email = $1`,
+      [email],
+    );
+    expect(ultimo.rows[0]?.last_login).not.toBeNull();
   });
 
   it('@scenario:AUT-CU002-ALT-001 · cuenta no verificada inicia sesión con capacidades limitadas', async () => {
