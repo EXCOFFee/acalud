@@ -73,25 +73,27 @@ modifican. `Destino` es el nombre en inglés cuando el renombre está pendiente.
 | `comprobantes` | — | — | Retirada (migración 0008) |
 | `tabla_tarifas` | — | — | Retirada (migración 0008) |
 
-### Institucional — etapa 1e (pendiente)
+### Institucional — etapa 1e (cerrada)
 
 | Tabla | Propietario | Lectores | Estado |
 |---|---|---|---|
-| `instituciones` → `institutions` | CU-23 | CU-24 … CU-33 | Renombre pendiente |
-| `membresias` → `institutional_teachers` | CU-23 | CU-26, CU-27, CU-28 | Renombre pendiente |
-| `catalogo_institucional` → `institutional_inventories` | CU-24 | CU-25 | Renombre pendiente |
-| `sesiones_uso` → `game_sessions` | CU-29 | CU-30, CU-31, CU-32, CU-33 | Renombre pendiente |
+| `institutions` | CU-23 | CU-24 … CU-33 | Correcta |
+| `institutional_teachers` | CU-23 | CU-26, CU-27, CU-28 | Correcta |
+| `institutional_inventories` | CU-24 | CU-25 | Correcta |
+| `institutional_assignments` | CU-26 | CU-25, CU-27, CU-28, CU-29 | Creada en 1e |
+| `game_sessions` | CU-29 | CU-30, CU-31, CU-32, CU-33 | Correcta |
 
-### Comunidad y transversal — etapas 1d y 1e (pendientes)
+### Comunidad y transversal — etapa 1e (cerrada)
 
 | Tabla | Propietario | Lectores | Estado |
 |---|---|---|---|
-| `propuestas` → `proposals` | CU-15 | CU-21 | Renombre pendiente |
-| `encuestas` → `polls` | CU-20 | CU-14, CU-16 | Renombre pendiente |
-| `preguntas` → `poll_options` | CU-20 | CU-14 | Renombre pendiente |
-| `respuestas` → `poll_responses` | CU-14 | CU-16 | Renombre pendiente |
+| `proposals` | CU-15 | CU-21 | Correcta |
+| `polls` | CU-20 | CU-14, CU-16 | Correcta |
+| `poll_options` | CU-20 | CU-14, CU-16 | Correcta |
+| `poll_responses` | CU-14 | CU-16 | Correcta |
+| `notifications` | CU-26 | CU-15, CU-21, CU-27 | Creada en 1e |
 | `outbox_emails` | CU-12 (RNF) | CU-01, CU-26, CU-27, CU-34 | Correcta |
-| `eventos_auditoria` → `audit_log` | RNF-SIS-016 | — | Renombre pendiente. **Respaldo `sin verificar`**: no localicé el CU o RNF que la exige nominalmente |
+| `audit_log` | RNF-SIS-016 | — | Correcta. **Respaldo `sin verificar`**: no localicé el CU o RNF que la exige nominalmente |
 
 ---
 
@@ -99,14 +101,16 @@ modifican. `Destino` es el nombre en inglés cuando el renombre está pendiente.
 
 Estas son las filas de la dirección inversa: el CU lo exige, no existe nada que lo cumpla.
 
-| Faltante | CU que lo exige | Evidencia | Etapa |
+| Faltante | CU que lo exige | Evidencia | Estado |
 |---|---|---|---|
-| `institutional_assignments` | CU-26, CU-27, CU-28 | CU-26 pide *asignar licencias a docentes específicos, registrando qué docente tiene acceso a cada juego*. CU-27 pide revocar y liberar para reasignar. CU-28 pide listar las asignaciones con producto, cantidad, fecha y estado. `catalogo_institucional` es inventario de la institución, no asignación por docente | 1e |
-| `notifications` | CU-26, CU-27, CU-04 | CU-26 y CU-27 dicen que el docente recibe una notificación *"(email o dashboard)"*. La vía *dashboard* es in-app y `outbox_emails` no la cubre. CU-04 incluye *preferencias de notificación* en el perfil | 1e |
-| Estado de licencia `activa / en uso / disponible` | CU-25 | CU-25 pide ver el inventario *"incluyendo el estado de las licencias (activas, en uso, disponibles)"*. Los tres estados solo son derivables si existen las asignaciones | 1e |
+| `institutional_assignments` | CU-26, CU-27, CU-28 | CU-26 pide *asignar licencias a docentes específicos, registrando qué docente tiene acceso a cada juego*. CU-27 pide revocar y liberar para reasignar. CU-28 pide listar las asignaciones con producto, cantidad, fecha y estado. `catalogo_institucional` es inventario de la institución, no asignación por docente | **Resuelto en 1e** (migración 0014) |
+| `notifications` | CU-26, CU-27, CU-04 | CU-26 y CU-27 dicen que el docente recibe una notificación *"(email o dashboard)"*. La vía *dashboard* es in-app y `outbox_emails` no la cubre. CU-04 incluye *preferencias de notificación* en el perfil | **Resuelto en 1e** (migración 0014) |
+| Estado de licencia `activa / en uso / disponible` | CU-25 | CU-25 pide ver el inventario *"incluyendo el estado de las licencias (activas, en uso, disponibles)"*. Los tres estados solo son derivables si existen las asignaciones | **Resuelto en 1e**: `assignment_status` más los contadores `quantity_purchased` / `quantity_assigned` de `institutional_inventories`, con `disponible = adquirida − asignada` (CU-25 RN-002) |
+| Almacén de la invitación pendiente | CU-23 A12.8b | El docente sin cuenta recibe *"un correo de invitación con un enlace para registrarse"* cuyo *"enlace incluye un token que identifica a la institución"*, y el vínculo se crea recién al completar el registro. El esquema objetivo define `institutional_teachers` con cinco columnas y ninguna cubre la invitación pendiente | **Abierto**: 1e conservó las columnas de la v1 (`invited_email`, `invitation_token_hash`, `invited_at`, `status`) traducidas. Falta que un addendum decida si viven ahí o en una tabla propia |
 
-**Confirmación negativa:** no hay ninguna aparición de `asignacion` ni `assignment` en
-`infra/migrations/` ni en `apps/api/src`. CU-26, CU-27 y CU-28 no tienen implementación alguna.
+**Confirmación negativa (previa a 1e):** no había ninguna aparición de `asignacion` ni
+`assignment` en `infra/migrations/` ni en `apps/api/src`. Las tablas ya existen; **CU-25 a CU-28
+siguen sin una sola línea de aplicación**: 1e entregó el modelo de datos, no los casos de uso.
 
 ---
 
@@ -214,18 +218,57 @@ funcionalidad ausente.
 
 Una sola fila de esta matriz quedó `sin verificar`: el respaldo nominal de `eventos_auditoria`.
 
+**Actualización al cierre de la etapa 1e.** Todo lo anterior está hecho: los cuatro arreglos de §4,
+el renombre de `descargas`, y las dos tablas de §2 más `institutional_assignments` y
+`notifications`. El refactor de nomenclatura queda cerrado — no hay tablas, columnas, tipos,
+valores de enumeración, restricciones ni índices en español.
+
+Queda una salvedad importante que no es de nomenclatura: **producción tiene aplicadas sólo las
+migraciones 0001-0003**. Las quince del refactor viven en la cadena local y validada, pero nunca
+se corrieron contra Supabase. Hasta que se apliquen, el código desplegado y la base de producción
+hablan idiomas distintos.
+
 ---
 
-## 7. Enumeraciones sin resolver (cierre del refactor)
+## 7. Enumeraciones: las dos ambiguas, resueltas en 1e
 
-Las dos únicas que siguen en español, porque el mapeo es ambiguo y no corresponde decidirlo sin
-el equipo:
+Ambas quedaron resueltas al leer en detalle los CU que las respaldan. **La lectura anterior de
+`estado_propuesta` era incorrecta y queda rectificada.**
 
-| Tipo | Valores reales | Documentado | Por qué no se resolvió |
-|---|---|---|---|
-| `estado_propuesta` | `recibida`, `en_revision`, `aceptada`, `rechazada`, `retirada` | `proposal_status`: `pending`, `reviewed`, `approved`, `rejected` | Cinco valores contra cuatro: `retirada` no tiene destino. CU-15 permite retirar una propuesta, así que el valor tiene respaldo y el que falta es el del documento |
-| `nivel_educativo` | `inicial`, `primario`, `secundario`, `superior`, `mixto` | tabla maestra `levels` con tres filas | El documento no lo modela como enumeración sino como referencia a `levels`, y dos valores reales (`superior`, `mixto`) no existen allí |
+| Tipo | Resolución | Fundamento |
+|---|---|---|
+| `estado_propuesta` → `proposal_status` | Cuatro valores: `pending`, `reviewed`, `approved`, `rejected`. **`retirada` se retiró** | CU-21 RN-002 enumera taxativamente los estados posibles y ni CU-15 ni CU-21 contemplan retirar una propuesta. El documento tenía razón; el valor de más era el de la base. La tabla estaba vacía: sin pérdida |
+| `nivel_educativo` → FK a `levels` | La enumeración deja de usarse: `institutions.level_id` referencia la tabla maestra (addendum IV) | CU-23 A11.1 fija el selector en *"Inicial, Primaria, Secundaria"*, que son exactamente las tres filas de `levels`. `superior` y `mixto` no tienen respaldo en ningún CU |
 
-**Huérfanos detectados, no retirados** (se renombraron para no dejar nada en español, pero
-ningún CU los respalda desde que las demos pasaron a `config_json` y `envios` se retiró):
-`demo_type`, `demo_format` y `tracking_source`. Corresponde decidir su retiro.
+**Huérfanos detectados, no retirados.** Se renombraron para no dejar nada en español, pero
+ningún CU los respalda. Corresponde una única decisión de retiro:
+
+| Tipo | Huérfano desde |
+|---|---|
+| `demo_type`, `demo_format` | Etapa 1b: las demos pasaron a `config_json` |
+| `tracking_source` | Etapa 1e (migración 0012): se retiró `envios` |
+| `membership_role` | Etapa 1e: reemplazado por `is_admin` (CU-23 RN-004) |
+| `question_type` | Etapa 1e: `preguntas` desapareció al pasar a `poll_options` |
+| `education_level` | Etapa 1e: reemplazado por la FK a `levels` |
+
+---
+
+## 8. Elementos conservados sin respaldo (decisión pendiente)
+
+La regla del proyecto prohíbe retirar por cuenta propia lo que no tiene respaldo. Estos elementos
+se tradujeron al inglés y siguen en la base, esperando decisión:
+
+| Elemento | Por qué no tiene respaldo |
+|---|---|
+| `institutions.status` | Ningún CU suspende ni da de baja una institución, y el esquema objetivo no define la columna |
+| `uq_institutions_tax_id_active` | Unicidad del CUIT sólo entre activas; queda subsumida por el `UNIQUE` total que exige CU-23 RN-001 |
+| `game_sessions.editable_until` | La ventana de 48 h venía de PI-02 (requerimiento v1, no vinculante). CU-30 sólo permite VER las sesiones. Dejó de ser obligatoria para no bloquear CU-29 |
+| Cotas de `game_sessions` (1-100 alumnos, 5-240 min) | Citan PI-05, no un CU. CU-29 RN-003 sólo pide *"mayores a 0"*: las cotas lo cumplen con creces, pero son más estrictas que lo documentado |
+| `proposals.number` | Ningún CU lo menciona ni define quién lo genera. Dejó de ser obligatorio para no bloquear CU-15 |
+| `proposals.attachment_ref` | CU-15 no pide adjunto |
+| `polls.description`, `polls.valid_from`, `polls.valid_until` | CU-20 gobierna la visibilidad con el estado (`draft`/`active`/`closed`), no con fechas |
+| `audit_log.ip` | No está en el esquema objetivo, pero el registro de auditoría de RNF-SIS-016 pierde valor forense sin ella |
+
+**Sin respaldo y además sin lugar para ir:** las *palabras clave o etiquetas* que CU-15 ofrece en
+el formulario de propuesta no tienen columna en el esquema objetivo ni en la base. Es un faltante
+de §2 pendiente de decisión.

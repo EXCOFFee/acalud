@@ -7,15 +7,13 @@ import {
 import type { Pool } from 'pg';
 import { PG_POOL } from '../db/pg.module';
 import { EMAIL_PROVIDER, type EmailProvider } from '../email/email-provider.port';
-import { renderizar } from './plantillas';
 
 interface FilaOutbox {
   id: string;
-  email_id: string;
-  tipo: string;
-  destinatario: string;
-  payload: Record<string, unknown>;
-  intentos: number;
+  recipient: string;
+  subject: string;
+  body: string;
+  attempts: number;
 }
 
 // Valores del tipo `estado_outbox`, en un solo lugar: un renombre en una migración se refleja
@@ -30,7 +28,7 @@ const INTERVALO_MS = 10_000;
 
 /**
  * Worker del outbox (CU-E05), in-process (ADR-005: un solo servicio). Lee los emails
- * pendientes y los manda por el EmailProvider; idempotente por `email_id`. Reintenta hasta
+ * pendientes y los manda por el EmailProvider; idempotente por `id`. Reintenta hasta
  * MAX_INTENTOS; luego marca `fallido` (visible para reintento manual del Admin).
  */
 @Injectable()
@@ -62,41 +60,34 @@ export class OutboxWorker implements OnApplicationBootstrap, OnModuleDestroy {
     let enviados = 0;
     try {
       const { rows } = await this.pool.query<FilaOutbox>(
-        `SELECT id, email_id, tipo, destinatario, payload, intentos
+        `SELECT id, recipient, subject, body, attempts
            FROM outbox_emails
-          WHERE estado <> $3 AND intentos < $1
-          ORDER BY creado_en
+          WHERE status <> $3 AND attempts < $1
+          ORDER BY created_at
           LIMIT $2`,
         [MAX_INTENTOS, LOTE, ESTADO_ENVIADO],
       );
 
       for (const fila of rows) {
-        const plantilla = renderizar(fila.tipo, fila.payload);
-        if (plantilla === null) {
-          await this.pool.query(
-            `UPDATE outbox_emails SET estado = $3, ultimo_error = $2 WHERE id = $1`,
-            [fila.id, `tipo sin plantilla: ${fila.tipo}`, ESTADO_FALLIDO],
-          );
-          continue;
-        }
         try {
+          // `id` es la clave de idempotencia ante el proveedor: la fila es el mensaje.
           await this.email.enviar({
-            email_id: fila.email_id,
-            destinatario: fila.destinatario,
-            asunto: plantilla.asunto,
-            cuerpo: plantilla.html,
+            email_id: fila.id,
+            destinatario: fila.recipient,
+            asunto: fila.subject,
+            cuerpo: fila.body,
           });
           await this.pool.query(
             `UPDATE outbox_emails
-                SET estado = $2, procesado_en = now(), intentos = intentos + 1
+                SET status = $2, sent_at = now(), attempts = attempts + 1
               WHERE id = $1`,
             [fila.id, ESTADO_ENVIADO],
           );
           enviados++;
         } catch (error) {
-          const intentos = fila.intentos + 1;
+          const intentos = fila.attempts + 1;
           await this.pool.query(
-            `UPDATE outbox_emails SET estado = $2, intentos = $3, ultimo_error = $4 WHERE id = $1`,
+            `UPDATE outbox_emails SET status = $2, attempts = $3, last_error = $4 WHERE id = $1`,
             [
               fila.id,
               intentos >= MAX_INTENTOS ? ESTADO_FALLIDO : ESTADO_PENDIENTE,

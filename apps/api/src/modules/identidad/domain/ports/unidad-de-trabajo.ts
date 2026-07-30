@@ -14,7 +14,7 @@ export interface OutboxPort {
 export interface EventoAuditoria {
   tipo: string;
   sujetoTipo: string;
-  sujetoId: string | null;
+  sujetoId: string; // audit_log.entity_id es NOT NULL: todo evento apunta a una entidad
   actorId?: string | null;
   datos?: Record<string, unknown>;
   ip?: string | null;

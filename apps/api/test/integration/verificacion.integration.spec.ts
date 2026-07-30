@@ -18,13 +18,15 @@ async function registrarYTomarToken(email: string): Promise<string> {
   await ctx.request
     .post('/api/v1/auth/registro')
     .send({ email, contrasena: PW, nombre: 'María', apellido: 'Pérez' });
-  const r = await ctx.pg.query<{ payload: { token?: string } }>(
-    `SELECT payload FROM outbox_emails
-      WHERE destinatario = $1 AND tipo = 'verificacion_email'
-      ORDER BY creado_en DESC LIMIT 1`,
+  // El token se lee del enlace del correo ya renderizado: es exactamente el que recibe el docente.
+  const r = await ctx.pg.query<{ body: string }>(
+    `SELECT body FROM outbox_emails
+      WHERE recipient = $1 AND template = 'verificacion_email'
+      ORDER BY created_at DESC LIMIT 1`,
     [email],
   );
-  return r.rows[0]?.payload.token ?? '';
+  const enlace = /[?&]token=([^"&\s]+)/.exec(r.rows[0]?.body ?? '');
+  return enlace === null ? '' : decodeURIComponent(enlace[1] as string);
 }
 
 describe('CU-E02 · Verificar email', () => {

@@ -1,5 +1,6 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
+import { renderizar } from '../../../../platform/outbox/plantillas';
 import type { LineaConJuego, TramoDescuento } from '../../domain/carrito';
 import { PedidoPendienteExistente } from '../../domain/errores';
 import type { EstadoPedido, NuevoPedido, PedidoParaPago } from '../../domain/pedido';
@@ -218,10 +219,15 @@ class OutboxCheckoutPg implements OutboxCheckout {
     destinatario: string;
     payload: Record<string, unknown>;
   }): Promise<void> {
+    // El mensaje se guarda ya renderizado: la fila del outbox queda completa e inmutable dentro
+    // de la misma transacción del pago (ver OutboxRepositoryPg).
+    const plantilla = renderizar(email.tipo, email.payload);
+    if (plantilla === null) throw new Error(`tipo de email sin plantilla: ${email.tipo}`);
+
     await this.db.query(
-      `INSERT INTO outbox_emails (email_id, tipo, destinatario, payload)
-       VALUES ($1, $2, $3, $4::jsonb)`,
-      [randomUUID(), email.tipo, email.destinatario, JSON.stringify(email.payload)],
+      `INSERT INTO outbox_emails (template, recipient, subject, body)
+       VALUES ($1, $2, $3, $4)`,
+      [email.tipo, email.destinatario, plantilla.asunto, plantilla.html],
     );
   }
 }
@@ -235,8 +241,8 @@ class AuditoriaCheckoutPg implements AuditoriaCheckout {
     datos?: Record<string, unknown>;
   }): Promise<void> {
     await this.db.query(
-      `INSERT INTO eventos_auditoria (tipo, sujeto_tipo, sujeto_id, datos)
-       VALUES ($1, 'pedido', $2, $3::jsonb)`,
+      `INSERT INTO audit_log (action, entity_type, entity_id, new_values)
+       VALUES ($1, 'order', $2, $3::jsonb)`,
       [evento.tipo, evento.sujetoId, JSON.stringify(evento.datos ?? {})],
     );
   }

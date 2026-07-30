@@ -9,7 +9,7 @@ export class AuditoriaRepositoryPg implements AuditoriaPort {
 
   async registrar(evento: EventoAuditoria): Promise<void> {
     await this.db.query(
-      `INSERT INTO eventos_auditoria (tipo, sujeto_tipo, sujeto_id, actor_id, datos, ip)
+      `INSERT INTO audit_log (action, entity_type, entity_id, actor_user_id, new_values, ip)
        VALUES ($1, $2, $3, $4, $5::jsonb, $6)`,
       [
         evento.tipo,

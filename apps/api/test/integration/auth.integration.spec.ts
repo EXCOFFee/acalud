@@ -41,17 +41,17 @@ describe('CU-001 · Registrar Docente', () => {
     expect(cuenta.rows[0]?.email_verified).toBe(false);
 
     const evento = await ctx.pg.query(
-      `SELECT 1 FROM eventos_auditoria WHERE tipo = 'DocenteRegistrado' AND sujeto_id =
+      `SELECT 1 FROM audit_log WHERE action = 'DocenteRegistrado' AND entity_id =
          (SELECT id FROM users WHERE email = $1)`,
       [email],
     );
     expect(evento.rows).toHaveLength(1);
 
     const outbox = await ctx.pg.query(
-      `SELECT tipo FROM outbox_emails WHERE destinatario = $1`,
+      `SELECT template FROM outbox_emails WHERE recipient = $1`,
       [email],
     );
-    expect(outbox.rows[0]?.tipo).toBe('verificacion_email');
+    expect(outbox.rows[0]?.template).toBe('verificacion_email');
   });
 
   it('@scenario:AUT-CU001-ALT-001 · email ya existente no revela la cuenta (anti-enumeración)', async () => {
@@ -71,10 +71,10 @@ describe('CU-001 · Registrar Docente', () => {
 
     // El segundo intento encola un email "cuenta-existente" en lugar de verificación.
     const tipos = await ctx.pg.query(
-      `SELECT tipo FROM outbox_emails WHERE destinatario = $1 ORDER BY creado_en`,
+      `SELECT template FROM outbox_emails WHERE recipient = $1 ORDER BY created_at`,
       [email],
     );
-    expect(tipos.rows.map((r) => r.tipo)).toEqual(['verificacion_email', 'cuenta-existente']);
+    expect(tipos.rows.map((r) => r.template)).toEqual(['verificacion_email', 'cuenta-existente']);
   });
 
   it('@scenario:AUT-CU001-EXC-001 · contraseña filtrada se rechaza con 422 y no crea cuenta', async () => {
@@ -105,7 +105,7 @@ describe('CU-002 · Iniciar sesión', () => {
     expect(setCookie?.some((c) => c.toLowerCase().includes('httponly'))).toBe(true);
 
     const evento = await ctx.pg.query(
-      `SELECT 1 FROM eventos_auditoria WHERE tipo = 'SesionIniciada' AND sujeto_id =
+      `SELECT 1 FROM audit_log WHERE action = 'SesionIniciada' AND entity_id =
          (SELECT id FROM users WHERE email = $1)`,
       [email],
     );
@@ -153,7 +153,7 @@ describe('CU-002 · Iniciar sesión', () => {
     expect(fallos.rows[0]?.n).toBe(3);
 
     const aviso = await ctx.pg.query(
-      `SELECT 1 FROM outbox_emails WHERE destinatario = $1 AND tipo = 'aviso-bloqueo'`,
+      `SELECT 1 FROM outbox_emails WHERE recipient = $1 AND template = 'aviso-bloqueo'`,
       [email],
     );
     expect(aviso.rows).toHaveLength(1);

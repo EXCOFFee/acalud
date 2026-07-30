@@ -22,20 +22,24 @@ describe('CU-E05 · Worker de outbox', () => {
       .post('/api/v1/auth/registro')
       .send({ email, contrasena: PW, nombre: 'María', apellido: 'Pérez' });
 
-    const antes = await ctx.pg.query(`SELECT estado FROM outbox_emails WHERE destinatario = $1`, [
-      email,
-    ]);
-    expect(antes.rows[0]?.estado).toBe('pending');
+    const antes = await ctx.pg.query(
+      `SELECT status, subject, body FROM outbox_emails WHERE recipient = $1`,
+      [email],
+    );
+    expect(antes.rows[0]?.status).toBe('pending');
+    // El mensaje se encola YA renderizado: la fila es el correo, no una receta para armarlo.
+    expect(antes.rows[0]?.subject).toBe('Verificá tu cuenta en Acalud');
+    expect(antes.rows[0]?.body).toContain('/verificar?token=');
 
     const worker = ctx.app.get(OutboxWorker);
     const enviados = await worker.procesar();
     expect(enviados).toBeGreaterThan(0);
 
     const despues = await ctx.pg.query(
-      `SELECT estado, procesado_en FROM outbox_emails WHERE destinatario = $1`,
+      `SELECT status, sent_at FROM outbox_emails WHERE recipient = $1`,
       [email],
     );
-    expect(despues.rows[0]?.estado).toBe('sent');
-    expect(despues.rows[0]?.procesado_en).not.toBeNull();
+    expect(despues.rows[0]?.status).toBe('sent');
+    expect(despues.rows[0]?.sent_at).not.toBeNull();
   });
 });

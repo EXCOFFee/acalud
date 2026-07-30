@@ -40,9 +40,9 @@ async function crearJuego(stock = 10): Promise<string> {
 async function crearInstitucion(): Promise<string> {
   const cuit = `30-${Math.floor(10_000_000 + Math.random() * 89_999_999)}-9`;
   const r = await db.query<{ id: string }>(
-    `INSERT INTO instituciones (razon_social, cuit, nivel_educativo, domicilio)
-     VALUES ('Escuela', $1, 'primario', '{}'::jsonb) RETURNING id`,
-    [cuit],
+    `INSERT INTO institutions (legal_name, tax_id, email, level_id)
+     VALUES ('Escuela', $1, $2, (SELECT id FROM levels WHERE name = 'Primaria')) RETURNING id`,
+    [cuit, `${randomUUID()}@escuela.edu.ar`],
   );
   return primeraFila(r).id;
 }
@@ -77,53 +77,64 @@ describe('Idempotencia y unicidad (2.3 §6)', () => {
     await expect(crearCuenta(email.toLowerCase())).rejects.toThrow(/duplicate key|unique/i);
   });
 
-  it('UNIQUE respuestas(encuesta, cuenta): una respuesta por docente (S-17)', async () => {
+  it('UNIQUE poll_responses(poll, user): un voto por docente y encuesta (CU-014 RN-001)', async () => {
     const cuenta = await crearCuenta();
     const enc = primeraFila(
-      await db.query<{ id: string }>(`INSERT INTO encuestas (titulo) VALUES ('E') RETURNING id`),
+      await db.query<{ id: string }>(
+        `INSERT INTO polls (question) VALUES ('¿Qué área te interesa?') RETURNING id`,
+      ),
+    ).id;
+    const opcion = primeraFila(
+      await db.query<{ id: string }>(
+        `INSERT INTO poll_options (poll_id, text) VALUES ($1, 'Matemática') RETURNING id`,
+        [enc],
+      ),
     ).id;
     const responder = (): Promise<unknown> =>
-      db.query(
-        `INSERT INTO respuestas (encuesta_id, cuenta_id, contenido) VALUES ($1, $2, '{}'::jsonb)`,
-        [enc, cuenta],
-      );
+      db.query(`INSERT INTO poll_responses (poll_id, option_id, user_id) VALUES ($1, $2, $3)`, [
+        enc,
+        opcion,
+        cuenta,
+      ]);
     await responder();
     await expect(responder()).rejects.toThrow(/duplicate key|unique/i);
   });
 
-  it('UNIQUE catalogo_institucional(institucion, juego): alta por lote idempotente (CU-024)', async () => {
+  it('UNIQUE institutional_inventories(institución, producto): alta por lote idempotente (CU-024)', async () => {
     const inst = await crearInstitucion();
     const juego = await crearJuego();
     const alta = (): Promise<unknown> =>
-      db.query(`INSERT INTO catalogo_institucional (institucion_id, juego_id) VALUES ($1, $2)`, [
-        inst,
-        juego,
-      ]);
+      db.query(
+        `INSERT INTO institutional_inventories (institution_id, product_id, quantity_purchased)
+         VALUES ($1, $2, 5)`,
+        [inst, juego],
+      );
     await alta();
     await expect(alta()).rejects.toThrow(/duplicate key|unique/i);
   });
 
-  it('UNIQUE parcial de membresías: no dos vigentes por (institución, email); re-invitar tras desvincular sí (CU-026 E1)', async () => {
+  it('UNIQUE parcial de vínculos institucionales: no dos vigentes por (institución, email); re-invitar tras desvincular sí (CU-023 A12.7)', async () => {
     const inst = await crearInstitucion();
     const email = `${randomUUID()}@profe.com`;
     const invitar = (): Promise<unknown> =>
       db.query(
-        `INSERT INTO membresias (institucion_id, email_invitado, rol) VALUES ($1, $2, 'teacher')`,
+        `INSERT INTO institutional_teachers (institution_id, invited_email, is_admin)
+         VALUES ($1, $2, false)`,
         [inst, email],
       );
     await invitar();
     await expect(invitar()).rejects.toThrow(/duplicate key|unique/i);
 
     await db.query(
-      `UPDATE membresias SET estado = 'unlinked', desvinculada_en = now()
-       WHERE institucion_id = $1 AND lower(email_invitado) = lower($2)`,
+      `UPDATE institutional_teachers SET status = 'unlinked', unlinked_at = now()
+       WHERE institution_id = $1 AND lower(invited_email) = lower($2)`,
       [inst, email],
     );
     await invitar(); // ahora sí, el índice parcial lo permite
 
     const n = primeraFila(
       await db.query<{ n: number }>(
-        `SELECT count(*)::int AS n FROM membresias WHERE institucion_id = $1`,
+        `SELECT count(*)::int AS n FROM institutional_teachers WHERE institution_id = $1`,
         [inst],
       ),
     ).n;
@@ -181,46 +192,74 @@ describe('Stock y concurrencia (2.3 §5)', () => {
 });
 
 // ── Rangos de sesión de uso ─────────────────────────────────────────────────
-describe('Rangos de sesión de uso (PI-05)', () => {
-  it('CHECK de alumnos 1..100 y duración 5..240 minutos', async () => {
+describe('Sesiones de uso en el aula (CU-029)', () => {
+  async function docenteConInstitucion(): Promise<string> {
     const inst = await crearInstitucion();
-    const juego = await crearJuego();
-    const membresia = primeraFila(
+    return primeraFila(
       await db.query<{ id: string }>(
-        `INSERT INTO membresias (institucion_id, email_invitado, rol, estado, cuenta_id)
-         VALUES ($1, $2, 'teacher', 'active', $3) RETURNING id`,
+        `INSERT INTO institutional_teachers (institution_id, invited_email, is_admin, status, user_id)
+         VALUES ($1, $2, false, 'active', $3) RETURNING id`,
         [inst, `${randomUUID()}@profe.com`, await crearCuenta()],
       ),
     ).id;
+  }
+
+  const APRENDIZAJES = 'los chicos entendieron fracciones con el tablero';
+
+  it('CHECK de alumnos 1..100 y duración 5..240 minutos', async () => {
+    const docente = await docenteConInstitucion();
+    const juego = await crearJuego();
 
     const cargar = (alumnos: number, duracion: number): Promise<unknown> =>
       db.query(
-        `INSERT INTO sesiones_uso
-           (membresia_id, institucion_id, juego_id, fecha, curso, cantidad_alumnos, duracion_min, editable_hasta)
-         VALUES ($1, $2, $3, current_date, '4B', $4, $5, now() + interval '48 hours')`,
-        [membresia, inst, juego, alumnos, duracion],
+        `INSERT INTO game_sessions
+           (institutional_teacher_id, product_id, session_date, group_name,
+            student_count, duration_minutes, teacher_satisfaction, key_learnings)
+         VALUES ($1, $2, current_date, '4B', $3, $4, 5, $5)`,
+        [docente, juego, alumnos, duracion, APRENDIZAJES],
       );
 
     await cargar(28, 45); // válido
-    await expect(cargar(0, 45)).rejects.toThrow(/check|cantidad_alumnos/i);
-    await expect(cargar(101, 45)).rejects.toThrow(/check|cantidad_alumnos/i);
-    await expect(cargar(28, 4)).rejects.toThrow(/check|duracion_min/i);
-    await expect(cargar(28, 241)).rejects.toThrow(/check|duracion_min/i);
+    await expect(cargar(0, 45)).rejects.toThrow(/check|student_count/i);
+    await expect(cargar(101, 45)).rejects.toThrow(/check|student_count/i);
+    await expect(cargar(28, 4)).rejects.toThrow(/check|duration_minutes/i);
+    await expect(cargar(28, 241)).rejects.toThrow(/check|duration_minutes/i);
+  });
+
+  it('RN-002/004/005: fecha no futura, aprendizajes ≥ 20 caracteres y satisfacción 1..5', async () => {
+    const docente = await docenteConInstitucion();
+    const juego = await crearJuego();
+
+    const cargar = (fecha: string, satisfaccion: number, aprendizajes: string): Promise<unknown> =>
+      db.query(
+        `INSERT INTO game_sessions
+           (institutional_teacher_id, product_id, session_date, group_name,
+            student_count, duration_minutes, teacher_satisfaction, key_learnings)
+         VALUES ($1, $2, ${fecha}, '4B', 28, 45, $3, $4)`,
+        [docente, juego, satisfaccion, aprendizajes],
+      );
+
+    await cargar('current_date', 5, APRENDIZAJES); // válido
+    await expect(cargar("current_date + 1", 5, APRENDIZAJES)).rejects.toThrow(/session_date/i);
+    await expect(cargar('current_date', 5, 'corto')).rejects.toThrow(/key_learnings/i);
+    await expect(cargar('current_date', 6, APRENDIZAJES)).rejects.toThrow(/teacher_satisfaction/i);
+    await expect(cargar('current_date', 0, APRENDIZAJES)).rejects.toThrow(/teacher_satisfaction/i);
   });
 });
 
 // ── Append-only (NFR-S6) ────────────────────────────────────────────────────
 describe('Append-only por trigger (NFR-S6)', () => {
-  it('eventos_auditoria: INSERT sí, UPDATE y DELETE fallan', async () => {
+  it('audit_log: INSERT sí, UPDATE y DELETE fallan', async () => {
     const id = primeraFila(
       await db.query<{ id: string }>(
-        `INSERT INTO eventos_auditoria (tipo, sujeto_tipo) VALUES ('SesionIniciada', 'cuenta') RETURNING id`,
+        `INSERT INTO audit_log (action, entity_type, entity_id)
+         VALUES ('SesionIniciada', 'user', gen_random_uuid()) RETURNING id`,
       ),
     ).id;
     await expect(
-      db.query(`UPDATE eventos_auditoria SET tipo = 'Otro' WHERE id = $1`, [id]),
+      db.query(`UPDATE audit_log SET action = 'Otro' WHERE id = $1`, [id]),
     ).rejects.toThrow(/append-only/i);
-    await expect(db.query(`DELETE FROM eventos_auditoria WHERE id = $1`, [id])).rejects.toThrow(
+    await expect(db.query(`DELETE FROM audit_log WHERE id = $1`, [id])).rejects.toThrow(
       /append-only/i,
     );
   });
@@ -238,16 +277,18 @@ describe('Append-only por trigger (NFR-S6)', () => {
     ).rejects.toThrow(/append-only/i);
   });
 
-  it('outbox_emails: el worker puede UPDATE (estado/intentos) pero no DELETE', async () => {
+  it('outbox_emails: el worker puede UPDATE (status/attempts) pero no DELETE', async () => {
     const id = primeraFila(
       await db.query<{ id: string }>(
-        `INSERT INTO outbox_emails (email_id, tipo, destinatario, payload)
-         VALUES ($1, 'confirmacion_compra', 'a@b.com', '{}'::jsonb) RETURNING id`,
-        [randomUUID()],
+        `INSERT INTO outbox_emails (template, recipient, subject, body)
+         VALUES ('confirmacion_compra', 'a@b.com', 'Asunto', '<p>cuerpo</p>') RETURNING id`,
       ),
     ).id;
     // el worker marca enviado — permitido
-    await db.query(`UPDATE outbox_emails SET estado = 'sent', intentos = 1 WHERE id = $1`, [id]);
+    await db.query(
+      `UPDATE outbox_emails SET status = 'sent', sent_at = now(), attempts = 1 WHERE id = $1`,
+      [id],
+    );
     // pero no se borra
     await expect(db.query(`DELETE FROM outbox_emails WHERE id = $1`, [id])).rejects.toThrow(
       /DELETE no permitido/i,

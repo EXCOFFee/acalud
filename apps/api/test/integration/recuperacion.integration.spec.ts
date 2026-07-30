@@ -32,13 +32,15 @@ function login(email: string, contrasena: string) {
 
 async function solicitarYTomarToken(email: string): Promise<string> {
   await ctx.request.post('/api/v1/auth/recuperacion').send({ email });
-  const r = await ctx.pg.query<{ payload: { token?: string } }>(
-    `SELECT payload FROM outbox_emails
-      WHERE destinatario = $1 AND tipo = 'recuperacion_password'
-      ORDER BY creado_en DESC LIMIT 1`,
+  // El token se lee del enlace del correo ya renderizado: es exactamente el que recibe el docente.
+  const r = await ctx.pg.query<{ body: string }>(
+    `SELECT body FROM outbox_emails
+      WHERE recipient = $1 AND template = 'recuperacion_password'
+      ORDER BY created_at DESC LIMIT 1`,
     [email],
   );
-  return r.rows[0]?.payload.token ?? '';
+  const enlace = /[?&]token=([^"&\s]+)/.exec(r.rows[0]?.body ?? '');
+  return enlace === null ? '' : decodeURIComponent(enlace[1] as string);
 }
 
 describe('CU-E01 · Recuperar contraseña', () => {
@@ -105,7 +107,7 @@ describe('CU-E01 · Recuperar contraseña', () => {
 
     // No se encola ningún email para un destinatario inexistente.
     const outbox = await ctx.pg.query(
-      `SELECT count(*)::int AS n FROM outbox_emails WHERE destinatario = $1`,
+      `SELECT count(*)::int AS n FROM outbox_emails WHERE recipient = $1`,
       [inexistente],
     );
     expect(outbox.rows[0]?.n).toBe(0);

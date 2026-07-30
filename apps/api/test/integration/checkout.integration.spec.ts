@@ -96,7 +96,7 @@ describe('CU-012 · Checkout', () => {
     expect((await ctx.request.get('/api/v1/carrito').set(bearer(token))).body.lineas).toHaveLength(0);
     // Email de confirmación encolado (exactamente uno).
     const mails = await ctx.pg.query<{ n: number }>(
-      `SELECT count(*)::int AS n FROM outbox_emails WHERE tipo = 'confirmacion_compra' AND destinatario = $1`,
+      `SELECT count(*)::int AS n FROM outbox_emails WHERE template = 'confirmacion_compra' AND recipient = $1`,
       [email],
     );
     expect(mails.rows[0]!.n).toBe(1);
@@ -118,7 +118,7 @@ describe('CU-012 · Checkout', () => {
 
     // No se encoló un segundo email.
     const mails = await ctx.pg.query<{ n: number }>(
-      `SELECT count(*)::int AS n FROM outbox_emails WHERE tipo = 'confirmacion_compra' AND destinatario = $1`,
+      `SELECT count(*)::int AS n FROM outbox_emails WHERE template = 'confirmacion_compra' AND recipient = $1`,
       [email],
     );
     expect(mails.rows[0]!.n).toBe(1);
