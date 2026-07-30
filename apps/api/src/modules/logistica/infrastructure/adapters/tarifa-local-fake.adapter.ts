@@ -12,7 +12,7 @@ import type {
 export class TarifaLocalFakeAdapter implements ShippingProvider {
   async cotizar(input: CotizarInput): Promise<CotizacionEnvio> {
     const kilos = Math.ceil(input.peso_gramos / 1000);
-    return { monto: 700 + kilos * 300, origen: 'tabla_local' };
+    return { monto: 700 + kilos * 300, origen: 'local_fallback' };
   }
 
   async consultarTracking(_numero_tracking: string): Promise<EventoTracking[]> {

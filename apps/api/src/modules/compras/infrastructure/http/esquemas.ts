@@ -23,7 +23,7 @@ const domicilioSchema = z.object({
 /** Cuerpo de POST /checkout (CU-012): domicilio + envío; el cliente NO manda precios. */
 export const checkoutSchema = z.object({
   contexto: z.string().uuid().optional(),
-  modalidad_envio: z.enum(['domicilio', 'sucursal']),
+  modalidad_envio: z.enum(['home_delivery', 'branch_pickup']),
   codigo_postal: z.string().min(1),
   domicilio: domicilioSchema,
 });

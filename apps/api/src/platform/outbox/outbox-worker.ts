@@ -20,9 +20,9 @@ interface FilaOutbox {
 
 // Valores del tipo `estado_outbox`, en un solo lugar: un renombre en una migración se refleja
 // acá y no rompe en silencio las consultas del worker.
-const ESTADO_PENDIENTE = 'pendiente';
-const ESTADO_ENVIADO = 'enviado';
-const ESTADO_FALLIDO = 'fallido';
+const ESTADO_PENDIENTE = 'pending';
+const ESTADO_ENVIADO = 'sent';
+const ESTADO_FALLIDO = 'failed';
 
 const MAX_INTENTOS = 6; // PG-03
 const LOTE = 20;

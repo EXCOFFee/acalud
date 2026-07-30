@@ -10,7 +10,7 @@ export type EstadoPedido =
   | 'cancelled'
   | 'under_review';
 
-export type ModalidadEnvio = 'domicilio' | 'sucursal';
+export type ModalidadEnvio = 'home_delivery' | 'branch_pickup';
 
 export interface Domicilio {
   calle: string;

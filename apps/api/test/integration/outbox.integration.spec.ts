@@ -25,7 +25,7 @@ describe('CU-E05 · Worker de outbox', () => {
     const antes = await ctx.pg.query(`SELECT estado FROM outbox_emails WHERE destinatario = $1`, [
       email,
     ]);
-    expect(antes.rows[0]?.estado).toBe('pendiente');
+    expect(antes.rows[0]?.estado).toBe('pending');
 
     const worker = ctx.app.get(OutboxWorker);
     const enviados = await worker.procesar();
@@ -35,7 +35,7 @@ describe('CU-E05 · Worker de outbox', () => {
       `SELECT estado, procesado_en FROM outbox_emails WHERE destinatario = $1`,
       [email],
     );
-    expect(despues.rows[0]?.estado).toBe('enviado');
+    expect(despues.rows[0]?.estado).toBe('sent');
     expect(despues.rows[0]?.procesado_en).not.toBeNull();
   });
 });

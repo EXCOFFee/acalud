@@ -175,7 +175,7 @@ export const api = {
     pedir<CarritoView>('PUT', `/carrito/lineas/${juegoId}`, { cantidad }),
   quitarLinea: (juegoId: string) => pedir<CarritoView>('DELETE', `/carrito/lineas/${juegoId}`),
   iniciarCheckout: (d: {
-    modalidad_envio: 'domicilio' | 'sucursal';
+    modalidad_envio: 'home_delivery' | 'branch_pickup';
     codigo_postal: string;
     domicilio: {
       calle: string;

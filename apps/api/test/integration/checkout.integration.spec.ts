@@ -55,7 +55,7 @@ const checkout = (t: string) =>
   ctx.request
     .post('/api/v1/checkout')
     .set(bearer(t))
-    .send({ modalidad_envio: 'domicilio', codigo_postal: '1900', domicilio: DOM });
+    .send({ modalidad_envio: 'home_delivery', codigo_postal: '1900', domicilio: DOM });
 
 async function stock(juegoId: string): Promise<number> {
   const r = await ctx.pg.query<{ stock_actual: number }>(

@@ -18,7 +18,7 @@ export interface CheckoutIniciado {
 }
 
 // Envío fake determinista (Etapa 1). La cotización real (MiCorreo/tabla, CU-011) llega en Etapa 3.
-const ENVIO_FAKE: Record<ModalidadEnvio, number> = { domicilio: 3000, sucursal: 1500 };
+const ENVIO_FAKE: Record<ModalidadEnvio, number> = { home_delivery: 3000, branch_pickup: 1500 };
 
 /**
  * CU-12 (pasos 1-3) · Iniciar checkout. Congela el snapshot de precios server-side, crea el

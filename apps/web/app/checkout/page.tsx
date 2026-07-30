@@ -13,7 +13,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [paso, setPaso] = useState<Paso>('form');
   const [datos, setDatos] = useState({
-    modalidad: 'domicilio' as 'domicilio' | 'sucursal',
+    modalidad: 'home_delivery' as 'home_delivery' | 'branch_pickup',
     calle: '',
     numero: '',
     codigo_postal: '',
@@ -95,7 +95,7 @@ export default function CheckoutPage() {
               <div className="campo">
                 <span className="campo__label">Modalidad de envío</span>
                 <div style={{ display: 'flex', gap: '1rem' }}>
-                  {(['domicilio', 'sucursal'] as const).map((m) => (
+                  {(['home_delivery', 'branch_pickup'] as const).map((m) => (
                     <label key={m} style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
                       <input
                         type="radio"
@@ -103,7 +103,7 @@ export default function CheckoutPage() {
                         checked={datos.modalidad === m}
                         onChange={() => setDatos((d) => ({ ...d, modalidad: m }))}
                       />
-                      {m === 'domicilio' ? 'A domicilio' : 'Retiro en sucursal'}
+                      {m === 'home_delivery' ? 'A domicilio' : 'Retiro en sucursal'}
                     </label>
                   ))}
                 </div>

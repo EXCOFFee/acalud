@@ -2,8 +2,8 @@
  * Puerto `ShippingProvider` (ADR-006). Cotización y tracking de envíos. Adapters:
  * MiCorreo (ambiente test) con fallback a Tabla local, seleccionables por `SHIPPING_ADAPTER`.
  */
-export type ModalidadEnvio = 'domicilio' | 'sucursal';
-export type OrigenCotizacion = 'micorreo' | 'tabla_local';
+export type ModalidadEnvio = 'home_delivery' | 'branch_pickup';
+export type OrigenCotizacion = 'micorreo' | 'local_fallback';
 
 export interface CotizarInput {
   readonly peso_gramos: number;

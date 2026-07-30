@@ -27,9 +27,9 @@ const CONFLICTO_INSTITUCIONAL = 'ON CONFLICT (user_id, institution_context_id)';
  */
 const PG_VIOLACION_UNICIDAD = '23505';
 const IDX_UN_PEDIDO_PENDIENTE_POR_CARRITO = 'uq_orders_pending_per_cart';
-const VALOR_ORDER_TYPE_PERSONAL = 'personal';
-const VALOR_ORIGEN_COTIZACION_LOCAL = 'tabla_local';
-const VALOR_MOVIMIENTO_VENTA = 'venta';
+const VALOR_ORDER_TYPE_B2C = 'b2c';
+const VALOR_ORIGEN_COTIZACION_LOCAL = 'local_fallback';
+const VALOR_MOVIMIENTO_VENTA = 'sale';
 
 function nuevoNumero(): string {
   return `ACA-${Date.now().toString(36).toUpperCase()}-${randomBytes(2).toString('hex').toUpperCase()}`;
@@ -43,13 +43,13 @@ class PedidoRepositorioPg implements PedidoRepositorio {
     let id: string;
     try {
       const r = await this.db.query<{ id: string }>(
-        // `envio_origen` conserva su nombre en esta etapa: guarda qué adaptador cotizó, no el
-        // transportista.
+        // `shipping_quote_source` guarda qué adaptador cotizó, no el transportista:
+        // `shipping_carrier` es un campo distinto que entra con CU-13.
         `INSERT INTO orders
            (order_number, order_type, user_id, cart_id,
             shipping_street, shipping_number, shipping_city, shipping_province, shipping_postal_code,
-            shipping_method, shipping_cost, envio_origen, total_amount)
-         VALUES ($1, $12::tipo_comprador, $2, $3, $4, $5, $6, $7, $8, $9, $10, $13::origen_envio, $11)
+            shipping_method, shipping_cost, shipping_quote_source, total_amount)
+         VALUES ($1, $12::order_type, $2, $3, $4, $5, $6, $7, $8, $9, $10, $13::shipping_quote_source, $11)
          RETURNING id`,
         [
           numero,
@@ -63,7 +63,7 @@ class PedidoRepositorioPg implements PedidoRepositorio {
           datos.envio_modalidad,
           datos.envio_costo,
           datos.monto_total,
-          VALOR_ORDER_TYPE_PERSONAL,
+          VALOR_ORDER_TYPE_B2C,
           VALOR_ORIGEN_COTIZACION_LOCAL,
         ],
       );
@@ -141,7 +141,7 @@ class StockRepositorioPg implements StockRepositorio {
   async movimientoVenta(juegoId: string, cantidad: number, referencia: string): Promise<void> {
     await this.db.query(
       `INSERT INTO stock_movements (product_id, movement_type, quantity, reference)
-       VALUES ($1, $4::tipo_movimiento_stock, $2, $3)`,
+       VALUES ($1, $4::stock_movement_type, $2, $3)`,
       [juegoId, -cantidad, referencia, VALOR_MOVIMIENTO_VENTA],
     );
   }

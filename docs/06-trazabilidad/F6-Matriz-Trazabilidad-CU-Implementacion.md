@@ -2,7 +2,9 @@
 
 **Proyecto:** Sistema Acalud
 **Alcance:** los 34 casos de uso de `docs/casos-de-uso/` contra el esquema real de la base
-**Estado del refactor al momento de la auditoría:** etapas 1a y 1b cerradas, 1c en curso
+**Estado del refactor:** cerrado el refactor de nomenclatura (migraciones 0004 a 0013). Ninguna
+tabla, columna, tipo ni valor de enumeración queda en español, salvo dos enumeraciones que
+quedaron pendientes por ambigüedad (§7).
 **Regla que gobierna:** los CU son la fuente de verdad. Todo lo que existe debe estar respaldado
 por un CU; todo lo que un CU exige debe existir. El esquema y los addenda son artefactos derivados.
 
@@ -20,7 +22,10 @@ Los 34 CU se extrajeron del OOXML real (`word/document.xml`) de cada `.docx`.
 Cada fila cita el CU que la respalda. Donde no pude verificar, la fila dice **`sin verificar`**
 en vez de completarse por inferencia.
 
-**Inventario real verificado:** 34 tablas · 255 columnas · 25 tipos enumerados.
+**Inventario al cierre del refactor:** 32 tablas · 21 tipos enumerados.
+(La auditoría original relevó 34 tablas y 25 tipos; las migraciones 0008 y 0012 retiraron
+`comprobantes`, `tabla_tarifas` y `envios`, agregaron `order_tracking_events`, y retiraron
+cuatro tipos huérfanos.)
 
 ---
 
@@ -52,21 +57,21 @@ modifican. `Destino` es el nombre en inglés cuando el renombre está pendiente.
 | `favorites` | CU-18 | CU-18 A9 | Correcta — los tres destinos presentes con CHECK de exclusividad |
 | `demos` | CU-19 | CU-06, CU-07 | Correcta |
 | `game_progress` | CU-07 | CU-07 | Correcta |
-| `descargas` → `downloads` | CU-08 | CU-09 | **Renombre pendiente.** Quedó fuera de 1b |
+| `downloads` | CU-08 | CU-09 | Correcta (migración 0009) |
 
-### Compras — etapa 1c (en curso)
+### Compras — etapa 1c (cerrada)
 
 | Tabla | Propietario | Lectores | Estado |
 |---|---|---|---|
-| `carritos` → `carts` | CU-10 | CU-11, CU-12 | Renombre pendiente |
-| `carrito_lineas` → `cart_items` | CU-10 | CU-11, CU-12 | Renombre pendiente |
-| `pedidos` → `orders` | CU-12 | CU-05, CU-13 | Renombre pendiente + ver §4 |
-| `pedido_lineas` → `order_items` | CU-12 | CU-05 | Renombre pendiente |
-| `pagos_procesados` → `processed_payments` | CU-12 (RNF-002/003) | — | Renombre pendiente |
-| `movimientos_stock` → `stock_movements` | CU-12 | CU-19, CU-24 | Renombre pendiente |
-| `envios` → `order_tracking_events` | CU-12 | CU-13 | Renombre pendiente |
-| `comprobantes` | — | — | **Sin respaldo. Retirar** (§3) |
-| `tabla_tarifas` | — | — | **Sin respaldo. Retirar** (§3) |
+| `carts` | CU-10 | CU-11, CU-12 | Correcta — conserva `institution_context_id`: CU-24 exige carrito institucional separado del personal |
+| `cart_items` | CU-10 | CU-11, CU-12 | Correcta |
+| `orders` | CU-12 | CU-05, CU-13 | Correcta — `order_number` por renombre; domicilio en cinco columnas; `status` con seis valores |
+| `order_items` | CU-12 | CU-05 | Correcta |
+| `processed_payments` | CU-12 (RNF-002/003) | — | Correcta — conserva `notified_amount` |
+| `stock_movements` | CU-12 | CU-19, CU-24 | Correcta — conserva `movement_type` y `adjustment_reason` por separado |
+| `order_tracking_events` | CU-13 | CU-13 | Creada con la forma del esquema (una fila por evento); `envios` retirada |
+| `comprobantes` | — | — | Retirada (migración 0008) |
+| `tabla_tarifas` | — | — | Retirada (migración 0008) |
 
 ### Institucional — etapa 1e (pendiente)
 
@@ -125,13 +130,15 @@ editorial con URL externa, sin entidad de vidriera propia) y `tramos_descuento` 
 
 ## 4. Bloqueos para la etapa 1c
 
-**a. `order_number` es un `RENAME`, no un `ADD`.**
+**a. RESUELTO · `order_number` es un `RENAME`, no un `ADD`.**
 `pedidos` ya tiene `numero text NOT NULL UNIQUE` (`0001_esquema_inicial.sql:239`). El addendum II
 indica `ALTER TABLE orders ADD COLUMN order_number VARCHAR(20) UNIQUE`. Aplicado literal, la tabla
 queda con dos identificadores legibles y el nuevo aceptando nulos. Corresponde
 `RENAME COLUMN numero TO order_number`, que además preserva el `NOT NULL`.
 
-**b. `estado_pedido` → `order_status` es un remapeo semántico, no un renombre.**
+**b. RESUELTO · `estado_pedido` → `order_status` (migración 0011).** Seis valores. La
+contradicción de CU-12 A3 se resolvió así: un pago rechazado deja el pedido en `pending`,
+reintentable; `cancelled` queda para la cancelación explícita.
 
 | Real | Doc | Respaldo |
 |---|---|---|
@@ -146,13 +153,16 @@ queda con dos identificadores legibles y el nuevo aceptando nulos. Corresponde
 PostgreSQL no permite quitar valores de un `ENUM`: hay que crear el tipo nuevo y migrar la columna
 con `USING`. Y toca las guardas de máquina de estados que ya están en verde, así que no es mecánico.
 
-**c. Los 25 tipos enumerados siguen en español, ninguno se renombró.**
+**c. RESUELTO · pase de enumeraciones (migración 0013).** Quedan dos sin resolver por ambigüedad,
+en §7.
 Las etapas 1a y 1b renombraron tablas y columnas pero crearon tipos nuevos en inglés en paralelo
 (`user_role`, `token_purpose`, `resource_type`) en vez de renombrar los existentes. De ahí los tres
 huérfanos de §3. Para 1c y 1d conviene decidir el criterio una sola vez: renombrar el tipo, o crear
 el nuevo y migrar. No mezclar.
 
-**d. `origen_envio ('micorreo','tabla_local')`.**
+**d. RESUELTO · `origen_envio` → `shipping_quote_source`,** con `tabla_local` → `local_fallback`.
+Se nombra por lo que es: qué adaptador cotizó. `shipping_carrier` es un campo distinto, que entra
+con CU-13.
 Retirar `tabla_tarifas` deja el valor `tabla_local` nombrando una tabla inexistente. El valor sí está
 en uso, pero como marcador del adaptador falso, en cuatro lugares: `shipping-provider.port.ts`,
 `tarifa-local-fake.adapter.ts`, el `INSERT` de `unidad-de-trabajo.pg.ts:34` y un test unitario.
@@ -203,3 +213,19 @@ de `descargas` que quedó fuera de 1b; y crear en 1e las dos tablas de §2, que 
 funcionalidad ausente.
 
 Una sola fila de esta matriz quedó `sin verificar`: el respaldo nominal de `eventos_auditoria`.
+
+---
+
+## 7. Enumeraciones sin resolver (cierre del refactor)
+
+Las dos únicas que siguen en español, porque el mapeo es ambiguo y no corresponde decidirlo sin
+el equipo:
+
+| Tipo | Valores reales | Documentado | Por qué no se resolvió |
+|---|---|---|---|
+| `estado_propuesta` | `recibida`, `en_revision`, `aceptada`, `rechazada`, `retirada` | `proposal_status`: `pending`, `reviewed`, `approved`, `rejected` | Cinco valores contra cuatro: `retirada` no tiene destino. CU-15 permite retirar una propuesta, así que el valor tiene respaldo y el que falta es el del documento |
+| `nivel_educativo` | `inicial`, `primario`, `secundario`, `superior`, `mixto` | tabla maestra `levels` con tres filas | El documento no lo modela como enumeración sino como referencia a `levels`, y dos valores reales (`superior`, `mixto`) no existen allí |
+
+**Huérfanos detectados, no retirados** (se renombraron para no dejar nada en español, pero
+ningún CU los respalda desde que las demos pasaron a `config_json` y `envios` se retiró):
+`demo_type`, `demo_format` y `tracking_source`. Corresponde decidir su retiro.

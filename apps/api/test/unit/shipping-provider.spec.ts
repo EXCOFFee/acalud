@@ -6,7 +6,7 @@ import { crearShippingProvider } from '../../src/modules/logistica/infrastructur
 describe('ShippingProvider (puerto + fakes, ADR-006)', () => {
   it('MiCorreo fake cotiza determinista con origen "micorreo"', async () => {
     const p = new MiCorreoFakeAdapter();
-    const entrada = { peso_gramos: 2500, codigo_postal: '1900', modalidad: 'domicilio' as const };
+    const entrada = { peso_gramos: 2500, codigo_postal: '1900', modalidad: 'home_delivery' as const };
     const c1 = await p.cotizar(entrada);
     const c2 = await p.cotizar(entrada);
     expect(c1.origen).toBe('micorreo');
@@ -17,8 +17,8 @@ describe('ShippingProvider (puerto + fakes, ADR-006)', () => {
 
   it('Tabla local fake cotiza con origen "tabla_local" y sin tracking', async () => {
     const p = new TarifaLocalFakeAdapter();
-    const c = await p.cotizar({ peso_gramos: 1000, codigo_postal: '1900', modalidad: 'sucursal' });
-    expect(c.origen).toBe('tabla_local');
+    const c = await p.cotizar({ peso_gramos: 1000, codigo_postal: '1900', modalidad: 'branch_pickup' });
+    expect(c.origen).toBe('local_fallback');
     expect(await p.consultarTracking('X')).toEqual([]);
   });
 

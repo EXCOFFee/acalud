@@ -50,7 +50,7 @@ async function crearInstitucion(): Promise<string> {
 async function crearPedido(cuentaId: string): Promise<string> {
   const r = await db.query<{ id: string }>(
     `INSERT INTO orders (order_number, order_type, user_id, shipping_street, shipping_method)
-     VALUES ($1, 'personal', $2, 'Calle 1', 'domicilio') RETURNING id`,
+     VALUES ($1, 'b2c', $2, 'Calle 1', 'home_delivery') RETURNING id`,
     [randomUUID(), cuentaId],
   );
   return primeraFila(r).id;
@@ -108,14 +108,14 @@ describe('Idempotencia y unicidad (2.3 §6)', () => {
     const email = `${randomUUID()}@profe.com`;
     const invitar = (): Promise<unknown> =>
       db.query(
-        `INSERT INTO membresias (institucion_id, email_invitado, rol) VALUES ($1, $2, 'docente')`,
+        `INSERT INTO membresias (institucion_id, email_invitado, rol) VALUES ($1, $2, 'teacher')`,
         [inst, email],
       );
     await invitar();
     await expect(invitar()).rejects.toThrow(/duplicate key|unique/i);
 
     await db.query(
-      `UPDATE membresias SET estado = 'desvinculada', desvinculada_en = now()
+      `UPDATE membresias SET estado = 'unlinked', desvinculada_en = now()
        WHERE institucion_id = $1 AND lower(email_invitado) = lower($2)`,
       [inst, email],
     );
@@ -140,7 +140,7 @@ describe('Idempotencia y unicidad (2.3 §6)', () => {
     const nuevoPedido = (estado: string): Promise<unknown> =>
       db.query(
         `INSERT INTO orders (order_number, order_type, user_id, cart_id, status, shipping_street, shipping_method)
-         VALUES ($1, 'personal', $2, $3, $4::order_status, 'Calle 1', 'domicilio')`,
+         VALUES ($1, 'b2c', $2, $3, $4::order_status, 'Calle 1', 'home_delivery')`,
         [randomUUID(), cuenta, carrito, estado],
       );
     await nuevoPedido('pending');
@@ -188,7 +188,7 @@ describe('Rangos de sesión de uso (PI-05)', () => {
     const membresia = primeraFila(
       await db.query<{ id: string }>(
         `INSERT INTO membresias (institucion_id, email_invitado, rol, estado, cuenta_id)
-         VALUES ($1, $2, 'docente', 'activa', $3) RETURNING id`,
+         VALUES ($1, $2, 'teacher', 'active', $3) RETURNING id`,
         [inst, `${randomUUID()}@profe.com`, await crearCuenta()],
       ),
     ).id;
@@ -229,7 +229,7 @@ describe('Append-only por trigger (NFR-S6)', () => {
     const juego = await crearJuego();
     const id = primeraFila(
       await db.query<{ id: string }>(
-        `INSERT INTO stock_movements (product_id, movement_type, quantity) VALUES ($1, 'venta', -1) RETURNING id`,
+        `INSERT INTO stock_movements (product_id, movement_type, quantity) VALUES ($1, 'sale', -1) RETURNING id`,
         [juego],
       ),
     ).id;
@@ -247,7 +247,7 @@ describe('Append-only por trigger (NFR-S6)', () => {
       ),
     ).id;
     // el worker marca enviado — permitido
-    await db.query(`UPDATE outbox_emails SET estado = 'enviado', intentos = 1 WHERE id = $1`, [id]);
+    await db.query(`UPDATE outbox_emails SET estado = 'sent', intentos = 1 WHERE id = $1`, [id]);
     // pero no se borra
     await expect(db.query(`DELETE FROM outbox_emails WHERE id = $1`, [id])).rejects.toThrow(
       /DELETE no permitido/i,
