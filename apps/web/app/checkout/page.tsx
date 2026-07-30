@@ -51,7 +51,7 @@ export default function CheckoutPage() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401) return router.replace('/login?volver=/checkout');
-        if (err.status === 403) setError('Verificá tu cuenta (revisá tu email) para poder comprar.');
+        if (err.status === 403) setError('No tenés permiso para comprar en este contexto.');
         else if (err.status === 409) setError('Ya tenés un pago en curso para este carrito.');
         else if (err.status === 422) setError('Tu carrito está vacío o alguna línea no tiene stock.');
         else if (err.status === 503) setError('El medio de pago no está disponible ahora. Probá en unos minutos.');
@@ -148,11 +148,11 @@ export default function CheckoutPage() {
         {paso === 'resultado' ? (
           <>
             <h1 style={{ fontSize: 'clamp(1.7rem, 5vw, 2.4rem)', margin: '0.3rem 0 0.8rem' }}>
-              {resultado === 'pagado' ? '¡Compra confirmada! 🎲' : 'Estado del pago'}
+              {resultado === 'paid' ? '¡Compra confirmada! 🎲' : 'Estado del pago'}
             </h1>
-            {resultado === 'pagado' ? (
+            {resultado === 'paid' ? (
               <Alerta tipo="ok">Tu pago se acreditó y tu pedido quedó pagado. Te enviamos la confirmación por email.</Alerta>
-            ) : resultado === 'rechazado' ? (
+            ) : resultado === 'rejected' ? (
               <Alerta tipo="error">El pago fue rechazado. Tu carrito se conservó: podés reintentar.</Alerta>
             ) : (
               <Alerta tipo="aviso">Tu pedido quedó en revisión. Te contactaremos.</Alerta>

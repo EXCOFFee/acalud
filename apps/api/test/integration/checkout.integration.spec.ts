@@ -66,7 +66,7 @@ async function stock(juegoId: string): Promise<number> {
 }
 
 async function estado(pedidoId: string): Promise<string> {
-  const r = await ctx.pg.query<{ estado: string }>(`SELECT estado FROM orders WHERE id = $1`, [
+  const r = await ctx.pg.query<{ estado: string }>(`SELECT status AS estado FROM orders WHERE id = $1`, [
     pedidoId,
   ]);
   return r.rows[0]!.estado;
@@ -84,12 +84,12 @@ describe('CU-012 · Checkout', () => {
     expect(co.status).toBe(201);
     const pedidoId = co.body.pedido_id as string;
     expect(co.body.init_point).toContain(pedidoId);
-    expect(await estado(pedidoId)).toBe('pendiente_pago');
+    expect(await estado(pedidoId)).toBe('pending');
 
     const resultado = await procesar.ejecutar(MercadoPagoFakeAdapter.paymentIdDe(pedidoId));
-    expect(resultado).toBe('pagado');
+    expect(resultado).toBe('paid');
 
-    expect(await estado(pedidoId)).toBe('pagado');
+    expect(await estado(pedidoId)).toBe('paid');
     expect(await stock(jx)).toBe(3); // 5 − 2, exactamente
     expect(await stock(jy)).toBe(4); // 5 − 1
     // Carrito vaciado.
@@ -109,11 +109,11 @@ describe('CU-012 · Checkout', () => {
     const pedidoId = (await checkout(token)).body.pedido_id as string;
     const paymentId = MercadoPagoFakeAdapter.paymentIdDe(pedidoId);
 
-    expect(await procesar.ejecutar(paymentId)).toBe('pagado');
+    expect(await procesar.ejecutar(paymentId)).toBe('paid');
     expect(await stock(jx)).toBe(8); // 10 − 2
 
     // Segunda notificación con el MISMO payment_id.
-    expect(await procesar.ejecutar(paymentId)).toBe('ya_procesado');
+    expect(await procesar.ejecutar(paymentId)).toBe('already_processed');
     expect(await stock(jx)).toBe(8); // NO se descontó de nuevo
 
     // No se encoló un segundo email.
@@ -140,29 +140,31 @@ describe('CU-012 · Checkout', () => {
     ]);
 
     // Uno pagó, el otro quedó en_revision (StockInsuficiente limpio).
-    expect([r1, r2].sort()).toEqual(['en_revision', 'pagado']);
-    expect([await estado(p1), await estado(p2)].sort()).toEqual(['en_revision', 'pagado']);
+    expect([r1, r2].sort()).toEqual(['paid', 'under_review']);
+    expect([await estado(p1), await estado(p2)].sort()).toEqual(['paid', 'under_review']);
     // El stock se descontó EXACTAMENTE una vez.
     expect(await stock(jz)).toBe(0);
   });
 
-  it('@scenario:CHK-CU012-ALT-001 · pago rechazado → rechazado, stock intacto, carrito conservado', async () => {
+  it('@scenario:CHK-CU012-ALT-001 · pago rechazado → sigue pending y reintentable, stock intacto, carrito conservado', async () => {
     const { token } = await usuarioVerificado();
     const jx = await crearJuego(10000, 5);
     await agregar(token, jx, 1);
     const pedidoId = (await checkout(token)).body.pedido_id as string;
 
     const resultado = await procesar.ejecutar(MercadoPagoFakeAdapter.paymentRechazadoDe(pedidoId));
-    expect(resultado).toBe('rechazado');
+    expect(resultado).toBe('rejected');
 
-    expect(await estado(pedidoId)).toBe('rechazado');
+    // El rechazo NO crea un estado propio: el pedido queda reintentable (CU-12).
+    expect(await estado(pedidoId)).toBe('pending');
     expect(await stock(jx)).toBe(5); // intacto
     // El carrito se conserva para reintentar.
     expect((await ctx.request.get('/api/v1/carrito').set(bearer(token))).body.lineas).toHaveLength(1);
   });
 
-  it('cuenta no verificada → 403; carrito vacío → 422; segundo checkout del mismo carrito → 409', async () => {
-    // 403: registrada pero sin verificar.
+  it('la cuenta sin verificar puede comprar; carrito vacío → 422; segundo checkout del mismo carrito → 409', async () => {
+    // CU-12 enumera sus precondiciones de forma cerrada y NO incluye el correo verificado: la
+    // cuenta queda operativa desde el registro (CU-01), así que la verificación no bloquea.
     const email = `${randomUUID()}@escuela.edu.ar`;
     await ctx.request
       .post('/api/v1/auth/registro')
@@ -171,9 +173,9 @@ describe('CU-012 · Checkout', () => {
       .body.token as string;
     const jx = await crearJuego(10000, 5);
     await agregar(noVerif, jx, 1);
-    expect((await checkout(noVerif)).status).toBe(403);
+    expect((await checkout(noVerif)).status).toBe(201);
 
-    // 422: verificada pero carrito vacío.
+    // 422: carrito vacío.
     const { token } = await usuarioVerificado();
     expect((await checkout(token)).status).toBe(422);
 

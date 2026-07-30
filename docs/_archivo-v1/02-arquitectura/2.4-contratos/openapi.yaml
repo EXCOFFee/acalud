@@ -328,7 +328,7 @@ paths:
         '201':
           description: Pedido creado; redirigir a MP
           content: { application/json: { schema: { type: object, properties: { pedido_id: { type: string, format: uuid }, init_point: { type: string, format: uri } } } } }
-        '403': { description: Cuenta no verificada (PA-06) o sin rol encargado en contexto institucional (CU-024 E1) }
+        '403': { description: Sin rol encargado en contexto institucional (CU-024 E1). El correo verificado NO es precondición de CU-12 }
         '409': { description: Ya existe un pedido pendiente_pago para este carrito (idempotencia por pedido) }
         '422': { description: Stock insuficiente / línea no disponible / precio cambió (se informa y recalcula) }
         '503': { description: 'Adaptador de pagos indisponible (sin fallback por diseño, ADR-006)' }

@@ -19,6 +19,18 @@ import type {
 const CONFLICTO_PERSONAL = 'ON CONFLICT (user_id) WHERE institution_context_id IS NULL';
 const CONFLICTO_INSTITUCIONAL = 'ON CONFLICT (user_id, institution_context_id)';
 
+/**
+ * Nombres exactos de objetos y valores de la base de los que depende este adapter. Están acá,
+ * en un solo lugar, para que un renombre en una migración se refleje en un punto y no rompa en
+ * silencio: así fue como el 409 de "pago en curso" degradó a 500 al renombrar su índice.
+ * Prohibido comparar subcadenas de mensajes de error.
+ */
+const PG_VIOLACION_UNICIDAD = '23505';
+const IDX_UN_PEDIDO_PENDIENTE_POR_CARRITO = 'uq_orders_pending_per_cart';
+const VALOR_ORDER_TYPE_PERSONAL = 'personal';
+const VALOR_ORIGEN_COTIZACION_LOCAL = 'tabla_local';
+const VALOR_MOVIMIENTO_VENTA = 'venta';
+
 function nuevoNumero(): string {
   return `ACA-${Date.now().toString(36).toUpperCase()}-${randomBytes(2).toString('hex').toUpperCase()}`;
 }
@@ -31,14 +43,13 @@ class PedidoRepositorioPg implements PedidoRepositorio {
     let id: string;
     try {
       const r = await this.db.query<{ id: string }>(
-        // `estado`, `envio_origen` y `expira_en` conservan su nombre: quedaron fuera de la
-        // etapa 1c (el remapeo de estados depende de CU-12 A3, y envio_origen guarda qué
-        // adaptador cotizó, no el transportista).
+        // `envio_origen` conserva su nombre en esta etapa: guarda qué adaptador cotizó, no el
+        // transportista.
         `INSERT INTO orders
            (order_number, order_type, user_id, cart_id,
             shipping_street, shipping_number, shipping_city, shipping_province, shipping_postal_code,
             shipping_method, shipping_cost, envio_origen, total_amount)
-         VALUES ($1, 'personal', $2, $3, $4, $5, $6, $7, $8, $9, $10, 'tabla_local', $11)
+         VALUES ($1, $12::tipo_comprador, $2, $3, $4, $5, $6, $7, $8, $9, $10, $13::origen_envio, $11)
          RETURNING id`,
         [
           numero,
@@ -52,6 +63,8 @@ class PedidoRepositorioPg implements PedidoRepositorio {
           datos.envio_modalidad,
           datos.envio_costo,
           datos.monto_total,
+          VALOR_ORDER_TYPE_PERSONAL,
+          VALOR_ORIGEN_COTIZACION_LOCAL,
         ],
       );
       id = r.rows[0]!.id;
@@ -60,7 +73,7 @@ class PedidoRepositorioPg implements PedidoRepositorio {
       // pago por carrito-origen. Se compara el nombre exacto del índice —no una subcadena— para
       // que un renombre no vuelva a degradar este 409 en un 500.
       const err = e as { code?: string; constraint?: string };
-      if (err.code === '23505' && err.constraint === 'uq_orders_pending_per_cart') {
+      if (err.code === PG_VIOLACION_UNICIDAD && err.constraint === IDX_UN_PEDIDO_PENDIENTE_POR_CARRITO) {
         throw new PedidoPendienteExistente();
       }
       throw e;
@@ -86,7 +99,7 @@ class PedidoRepositorioPg implements PedidoRepositorio {
       email: string;
       lineas: { juego_id: string; cantidad: number }[];
     }>(
-      `SELECT p.id, p.order_number AS numero, p.estado, p.total_amount::float8 AS monto_total,
+      `SELECT p.id, p.order_number AS numero, p.status AS estado, p.total_amount::float8 AS monto_total,
               p.cart_id AS carrito_id, u.email,
               COALESCE(
                 json_agg(json_build_object('juego_id', pl.product_id, 'cantidad', pl.quantity) ORDER BY pl.id)
@@ -96,7 +109,7 @@ class PedidoRepositorioPg implements PedidoRepositorio {
          JOIN users u ON u.id = p.user_id
          LEFT JOIN order_items pl ON pl.order_id = p.id
         WHERE p.id = $1
-        GROUP BY p.id, p.order_number, p.estado, p.total_amount, p.cart_id, u.email`,
+        GROUP BY p.id, p.order_number, p.status, p.total_amount, p.cart_id, u.email`,
       [pedidoId],
     );
     return r.rows[0] ?? null;
@@ -104,8 +117,9 @@ class PedidoRepositorioPg implements PedidoRepositorio {
 
   async transicionar(pedidoId: string, origen: EstadoPedido, destino: EstadoPedido): Promise<boolean> {
     const r = await this.db.query(
-      `UPDATE orders SET estado = $3, updated_at = now()
-        WHERE id = $1 AND estado = $2`,
+      // Guarda de máquina de estados (ADR-002): prohibido el UPDATE directo del estado.
+      `UPDATE orders SET status = $3::order_status, updated_at = now()
+        WHERE id = $1 AND status = $2::order_status`,
       [pedidoId, origen, destino],
     );
     return (r.rowCount ?? 0) > 0;
@@ -127,8 +141,8 @@ class StockRepositorioPg implements StockRepositorio {
   async movimientoVenta(juegoId: string, cantidad: number, referencia: string): Promise<void> {
     await this.db.query(
       `INSERT INTO stock_movements (product_id, movement_type, quantity, reference)
-       VALUES ($1, 'venta', $2, $3)`,
-      [juegoId, -cantidad, referencia],
+       VALUES ($1, $4::tipo_movimiento_stock, $2, $3)`,
+      [juegoId, -cantidad, referencia, VALOR_MOVIMIENTO_VENTA],
     );
   }
 }

@@ -18,6 +18,12 @@ interface FilaOutbox {
   intentos: number;
 }
 
+// Valores del tipo `estado_outbox`, en un solo lugar: un renombre en una migración se refleja
+// acá y no rompe en silencio las consultas del worker.
+const ESTADO_PENDIENTE = 'pendiente';
+const ESTADO_ENVIADO = 'enviado';
+const ESTADO_FALLIDO = 'fallido';
+
 const MAX_INTENTOS = 6; // PG-03
 const LOTE = 20;
 const INTERVALO_MS = 10_000;
@@ -58,18 +64,18 @@ export class OutboxWorker implements OnApplicationBootstrap, OnModuleDestroy {
       const { rows } = await this.pool.query<FilaOutbox>(
         `SELECT id, email_id, tipo, destinatario, payload, intentos
            FROM outbox_emails
-          WHERE estado <> 'enviado' AND intentos < $1
+          WHERE estado <> $3 AND intentos < $1
           ORDER BY creado_en
           LIMIT $2`,
-        [MAX_INTENTOS, LOTE],
+        [MAX_INTENTOS, LOTE, ESTADO_ENVIADO],
       );
 
       for (const fila of rows) {
         const plantilla = renderizar(fila.tipo, fila.payload);
         if (plantilla === null) {
           await this.pool.query(
-            `UPDATE outbox_emails SET estado = 'fallido', ultimo_error = $2 WHERE id = $1`,
-            [fila.id, `tipo sin plantilla: ${fila.tipo}`],
+            `UPDATE outbox_emails SET estado = $3, ultimo_error = $2 WHERE id = $1`,
+            [fila.id, `tipo sin plantilla: ${fila.tipo}`, ESTADO_FALLIDO],
           );
           continue;
         }
@@ -82,9 +88,9 @@ export class OutboxWorker implements OnApplicationBootstrap, OnModuleDestroy {
           });
           await this.pool.query(
             `UPDATE outbox_emails
-                SET estado = 'enviado', procesado_en = now(), intentos = intentos + 1
+                SET estado = $2, procesado_en = now(), intentos = intentos + 1
               WHERE id = $1`,
-            [fila.id],
+            [fila.id, ESTADO_ENVIADO],
           );
           enviados++;
         } catch (error) {
@@ -93,7 +99,7 @@ export class OutboxWorker implements OnApplicationBootstrap, OnModuleDestroy {
             `UPDATE outbox_emails SET estado = $2, intentos = $3, ultimo_error = $4 WHERE id = $1`,
             [
               fila.id,
-              intentos >= MAX_INTENTOS ? 'fallido' : 'pendiente',
+              intentos >= MAX_INTENTOS ? ESTADO_FALLIDO : ESTADO_PENDIENTE,
               intentos,
               (error as Error).message.slice(0, 300),
             ],

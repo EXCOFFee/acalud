@@ -8,11 +8,11 @@ import { redondear2 } from '../domain/precio';
  * CU-012 (pasos 4-6) · Procesar el pago (webhook). El corazón transaccional del sistema.
  * Invariantes (3.2 L3):
  *  - Idempotencia por `payment_id` (UNIQUE): webhook duplicado = no-op (E1).
- *  - Transición con guard `WHERE estado = pendiente_pago`: claim del pedido antes de tocar stock.
+ *  - Transición con guard `WHERE status = pending`: claim del pedido antes de tocar stock.
  *  - Decremento de stock condicional atómico por línea; si alguna falla → rollback TOTAL → E2.
  *  - Todo (pago + transición + stock + carrito + outbox) en UNA transacción: commit/rollback total.
- *  - Conflicto de stock (E2): rollback + compensación `en_revision` + alerta Admin (sin descuento parcial).
- *  - Monto contra snapshot: si no coincide → `en_revision` (nunca aprobar en silencio).
+ *  - Conflicto de stock (E2): rollback + compensación `under_review` + alerta Admin (sin descuento parcial).
+ *  - Monto contra snapshot: si no coincide → `under_review` (nunca aprobar en silencio).
  */
 export class ProcesarPago {
   constructor(
@@ -35,32 +35,32 @@ export class ProcesarPago {
           monto: pago.monto,
           payload: { payment_id: paymentId, estado: pago.estado, monto: pago.monto },
         });
-        if (!nuevo) return 'ya_procesado';
+        if (!nuevo) return 'already_processed';
 
         const pedido = await repos.pedidos.buscarParaPago(pedidoId);
-        if (pedido === null) return 'sin_pedido';
+        if (pedido === null) return 'order_not_found';
 
-        // Rechazado (ALT-001): pedido → rechazado; stock intacto; el carrito NO se vacía.
+        // Rechazado: el pedido QUEDA en `pending`, reintentable (CU-12: un rechazo no mata la
+        // orden). Stock intacto y el carrito NO se vacía, para que el docente pueda reintentar.
         if (pago.estado === 'rejected') {
-          await repos.pedidos.transicionar(pedido.id, 'pendiente_pago', 'rechazado');
           await repos.auditoria.registrar({ tipo: 'PagoRechazado', sujetoId: pedido.id });
-          return 'rechazado';
+          return 'rejected';
         }
 
         // Monto/estado que no coincide con el snapshot → en_revision (nunca aprobar en silencio).
         if (pago.estado !== 'approved' || redondear2(pago.monto) !== redondear2(pedido.monto_total)) {
-          await repos.pedidos.transicionar(pedido.id, 'pendiente_pago', 'en_revision');
+          await repos.pedidos.transicionar(pedido.id, 'pending', 'under_review');
           await repos.auditoria.registrar({
             tipo: 'PagoEnRevision',
             sujetoId: pedido.id,
             datos: { motivo: 'monto', monto_notificado: pago.monto },
           });
-          return 'en_revision';
+          return 'under_review';
         }
 
-        // Aprobado. 1) Claim del pedido con guard; si ya no está pendiente_pago → no tocar stock.
-        const transicionado = await repos.pedidos.transicionar(pedido.id, 'pendiente_pago', 'pagado');
-        if (!transicionado) return 'ya_procesado';
+        // Aprobado. 1) Claim del pedido con guard; si ya no está en `pending` → no tocar stock.
+        const transicionado = await repos.pedidos.transicionar(pedido.id, 'pending', 'paid');
+        if (!transicionado) return 'already_processed';
 
         // 2) Decremento condicional por línea; si alguna falla → throw → rollback TOTAL (E2).
         for (const l of pedido.lineas) {
@@ -79,7 +79,7 @@ export class ProcesarPago {
         });
         await repos.auditoria.registrar({ tipo: 'PagoAprobado', sujetoId: pedido.id });
         await repos.auditoria.registrar({ tipo: 'StockDescontado', sujetoId: pedido.id });
-        return 'pagado';
+        return 'paid';
       });
     } catch (error) {
       if (error instanceof StockInsuficiente) {
@@ -93,14 +93,14 @@ export class ProcesarPago {
             monto: pago.monto,
             payload: { payment_id: paymentId, conflicto_stock: true },
           });
-          await repos.pedidos.transicionar(pedidoId, 'pendiente_pago', 'en_revision');
+          await repos.pedidos.transicionar(pedidoId, 'pending', 'under_review');
           await repos.auditoria.registrar({
             tipo: 'PedidoEnRevision',
             sujetoId: pedidoId,
             datos: { motivo: 'stock', alerta_admin: true },
           });
         });
-        return 'en_revision';
+        return 'under_review';
       }
       throw error;
     }

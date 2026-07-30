@@ -24,14 +24,6 @@ export class CarritoNoCheckouteable extends ErrorDeDominio {
   }
 }
 
-/** Cuenta no verificada intentando checkout (PA-06). → 403. */
-export class CuentaNoVerificada extends ErrorDeDominio {
-  readonly clase = 'BUSINESS_RULE' as const;
-  constructor() {
-    super('Verificá tu cuenta para poder comprar');
-  }
-}
-
 /** Ya hay un pedido pendiente_pago para este carrito (idempotencia por pedido). → 409 (CU-012). */
 export class PedidoPendienteExistente extends ErrorDeDominio {
   readonly clase = 'BUSINESS_RULE' as const;

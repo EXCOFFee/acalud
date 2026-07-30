@@ -139,13 +139,13 @@ describe('Idempotencia y unicidad (2.3 §6)', () => {
     ).id;
     const nuevoPedido = (estado: string): Promise<unknown> =>
       db.query(
-        `INSERT INTO orders (order_number, order_type, user_id, cart_id, estado, shipping_street, shipping_method)
-         VALUES ($1, 'personal', $2, $3, $4, 'Calle 1', 'domicilio')`,
+        `INSERT INTO orders (order_number, order_type, user_id, cart_id, status, shipping_street, shipping_method)
+         VALUES ($1, 'personal', $2, $3, $4::order_status, 'Calle 1', 'domicilio')`,
         [randomUUID(), cuenta, carrito, estado],
       );
-    await nuevoPedido('pendiente_pago');
-    await expect(nuevoPedido('pendiente_pago')).rejects.toThrow(/duplicate key|unique/i);
-    await nuevoPedido('rechazado'); // otro estado no colisiona con el índice parcial
+    await nuevoPedido('pending');
+    await expect(nuevoPedido('pending')).rejects.toThrow(/duplicate key|unique/i);
+    await nuevoPedido('paid'); // otro estado no colisiona con el índice parcial
   });
 });
 

@@ -16,7 +16,6 @@ import { ProcesarPago } from '../../application/procesar-pago';
 import {
   CarritoNoCheckouteable,
   ContextoInstitucionalNoDisponible,
-  CuentaNoVerificada,
   PagoIndisponible,
   PedidoPendienteExistente,
 } from '../../domain/errores';
@@ -24,9 +23,6 @@ import type { ResultadoPago } from '../../domain/pedido';
 import { type CheckoutInput, checkoutSchema, type WebhookInput, webhookSchema } from './esquemas';
 
 function mapearError(error: unknown): never {
-  if (error instanceof CuentaNoVerificada) {
-    throw new HttpException({ title: 'Cuenta no verificada', detail: error.message }, 403);
-  }
   if (error instanceof PedidoPendienteExistente) {
     throw new HttpException({ title: 'Pago en curso', detail: error.message }, 409);
   }
@@ -62,7 +58,6 @@ export class CheckoutController {
     try {
       return await this.iniciar.ejecutar({
         cuentaId: req.autenticado.id,
-        verificada: req.autenticado.estado === 'verificada',
         contexto: null, // Etapa 1: solo compra personal
         modalidadEnvio: body.modalidad_envio,
         codigoPostal: body.codigo_postal,

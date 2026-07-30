@@ -1,13 +1,14 @@
+/**
+ * Estados de la orden (CU-12, CU-13). Seis valores: un pago rechazado NO crea un estado propio
+ * —deja el pedido en `pending`, reintentable— y `cancelled` queda para la cancelación explícita.
+ */
 export type EstadoPedido =
-  | 'pendiente_pago'
-  | 'pagado'
-  | 'rechazado'
-  | 'expirado'
-  | 'en_preparacion'
-  | 'despachado'
-  | 'entregado'
-  | 'cancelado'
-  | 'en_revision';
+  | 'pending'
+  | 'paid'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled'
+  | 'under_review';
 
 export type ModalidadEnvio = 'domicilio' | 'sucursal';
 
@@ -50,9 +51,10 @@ export interface PedidoParaPago {
   lineas: { juego_id: string; cantidad: number }[];
 }
 
+/** Resultado de procesar una notificación de pago. Cruza la API en la respuesta del webhook. */
 export type ResultadoPago =
-  | 'pagado'
-  | 'rechazado'
-  | 'en_revision'
-  | 'ya_procesado'
-  | 'sin_pedido';
+  | 'paid'
+  | 'rejected'
+  | 'under_review'
+  | 'already_processed'
+  | 'order_not_found';

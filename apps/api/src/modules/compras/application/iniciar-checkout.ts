@@ -1,8 +1,4 @@
-import {
-  CarritoNoCheckouteable,
-  CuentaNoVerificada,
-  PagoIndisponible,
-} from '../domain/errores';
+import { CarritoNoCheckouteable, PagoIndisponible } from '../domain/errores';
 import type { Domicilio, LineaPedido, ModalidadEnvio, NuevoPedido } from '../domain/pedido';
 import type { UnidadDeTrabajoCompras } from '../domain/ports/checkout.repository';
 import type { PaymentProvider } from '../domain/ports/payment-provider.port';
@@ -10,7 +6,6 @@ import { calcularCarrito, redondear2 } from '../domain/precio';
 
 export interface IniciarCheckoutInput {
   cuentaId: string;
-  verificada: boolean;
   contexto: string | null;
   modalidadEnvio: ModalidadEnvio;
   codigoPostal: string;
@@ -26,9 +21,14 @@ export interface CheckoutIniciado {
 const ENVIO_FAKE: Record<ModalidadEnvio, number> = { domicilio: 3000, sucursal: 1500 };
 
 /**
- * CU-012 (pasos 1-3) · Iniciar checkout. Valida cuenta verificada (PA-06) y carrito disponible,
- * congela el snapshot de precios server-side, crea el Pedido `pendiente_pago` (idempotencia por
- * carrito) y crea la preferencia de pago. El cliente jamás manda precios.
+ * CU-12 (pasos 1-3) · Iniciar checkout. Congela el snapshot de precios server-side, crea el
+ * Pedido `pendiente_pago` (idempotencia por carrito) y crea la preferencia de pago. El cliente
+ * jamás manda precios.
+ *
+ * Las precondiciones de CU-12 están enumeradas de forma cerrada —sesión iniciada, carrito con
+ * productos, envío calculado, stock disponible e integración de pago configurada— y NO incluyen
+ * el correo verificado: la verificación no condiciona el acceso (la cuenta queda operativa desde
+ * el registro, CU-01).
  */
 export class IniciarCheckout {
   constructor(
@@ -37,8 +37,6 @@ export class IniciarCheckout {
   ) {}
 
   async ejecutar(input: IniciarCheckoutInput): Promise<CheckoutIniciado> {
-    if (!input.verificada) throw new CuentaNoVerificada(); // PA-06
-
     const creado = await this.uow.transaccion(async (repos) => {
       const { carritoId, lineas } = await repos.carrito.leer(input.cuentaId, input.contexto);
       if (lineas.length === 0) throw new CarritoNoCheckouteable('Tu carrito está vacío');
