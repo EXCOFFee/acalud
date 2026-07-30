@@ -66,7 +66,7 @@ async function stock(juegoId: string): Promise<number> {
 }
 
 async function estado(pedidoId: string): Promise<string> {
-  const r = await ctx.pg.query<{ estado: string }>(`SELECT estado FROM pedidos WHERE id = $1`, [
+  const r = await ctx.pg.query<{ estado: string }>(`SELECT estado FROM orders WHERE id = $1`, [
     pedidoId,
   ]);
   return r.rows[0]!.estado;

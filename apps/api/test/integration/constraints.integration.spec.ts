@@ -49,8 +49,8 @@ async function crearInstitucion(): Promise<string> {
 
 async function crearPedido(cuentaId: string): Promise<string> {
   const r = await db.query<{ id: string }>(
-    `INSERT INTO pedidos (numero, comprador_tipo, cuenta_id, domicilio_snapshot, envio_modalidad)
-     VALUES ($1, 'personal', $2, '{}'::jsonb, 'domicilio') RETURNING id`,
+    `INSERT INTO orders (order_number, order_type, user_id, shipping_street, shipping_method)
+     VALUES ($1, 'personal', $2, 'Calle 1', 'domicilio') RETURNING id`,
     [randomUUID(), cuentaId],
   );
   return primeraFila(r).id;
@@ -63,7 +63,7 @@ describe('Idempotencia y unicidad (2.3 §6)', () => {
     const paymentId = randomUUID();
     const insertar = (): Promise<unknown> =>
       db.query(
-        `INSERT INTO pagos_procesados (payment_id, pedido_id, estado_mp, payload_crudo)
+        `INSERT INTO processed_payments (payment_id, order_id, status, raw_payload)
          VALUES ($1, $2, 'approved', '{}'::jsonb)`,
         [paymentId, pedido],
       );
@@ -133,14 +133,14 @@ describe('Idempotencia y unicidad (2.3 §6)', () => {
   it('un solo pedido pendiente_pago por carrito-origen (idempotencia por pedido, CU-012)', async () => {
     const cuenta = await crearCuenta();
     const carrito = primeraFila(
-      await db.query<{ id: string }>(`INSERT INTO carritos (cuenta_id) VALUES ($1) RETURNING id`, [
+      await db.query<{ id: string }>(`INSERT INTO carts (user_id) VALUES ($1) RETURNING id`, [
         cuenta,
       ]),
     ).id;
     const nuevoPedido = (estado: string): Promise<unknown> =>
       db.query(
-        `INSERT INTO pedidos (numero, comprador_tipo, cuenta_id, carrito_id, estado, domicilio_snapshot, envio_modalidad)
-         VALUES ($1, 'personal', $2, $3, $4, '{}'::jsonb, 'domicilio')`,
+        `INSERT INTO orders (order_number, order_type, user_id, cart_id, estado, shipping_street, shipping_method)
+         VALUES ($1, 'personal', $2, $3, $4, 'Calle 1', 'domicilio')`,
         [randomUUID(), cuenta, carrito, estado],
       );
     await nuevoPedido('pendiente_pago');
@@ -225,16 +225,16 @@ describe('Append-only por trigger (NFR-S6)', () => {
     );
   });
 
-  it('movimientos_stock (kardex): inmutable — UPDATE falla', async () => {
+  it('stock_movements (kardex): inmutable — UPDATE falla', async () => {
     const juego = await crearJuego();
     const id = primeraFila(
       await db.query<{ id: string }>(
-        `INSERT INTO movimientos_stock (juego_id, tipo, cantidad_signada) VALUES ($1, 'venta', -1) RETURNING id`,
+        `INSERT INTO stock_movements (product_id, movement_type, quantity) VALUES ($1, 'venta', -1) RETURNING id`,
         [juego],
       ),
     ).id;
     await expect(
-      db.query(`UPDATE movimientos_stock SET cantidad_signada = -2 WHERE id = $1`, [id]),
+      db.query(`UPDATE stock_movements SET quantity = -2 WHERE id = $1`, [id]),
     ).rejects.toThrow(/append-only/i);
   });
 

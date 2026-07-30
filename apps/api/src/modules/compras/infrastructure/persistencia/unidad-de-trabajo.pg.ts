@@ -14,7 +14,10 @@ import type {
   UnidadDeTrabajoCompras,
 } from '../../domain/ports/checkout.repository';
 
-const CTX_NULO = '00000000-0000-0000-0000-000000000000';
+// Un encargado tiene dos carritos vivos: personal e institucional (CU-24). La unicidad usa dos
+// índices —compuesto e índice parcial para el personal—, así que el upsert elige el árbitro.
+const CONFLICTO_PERSONAL = 'ON CONFLICT (user_id) WHERE institution_context_id IS NULL';
+const CONFLICTO_INSTITUCIONAL = 'ON CONFLICT (user_id, institution_context_id)';
 
 function nuevoNumero(): string {
   return `ACA-${Date.now().toString(36).toUpperCase()}-${randomBytes(2).toString('hex').toUpperCase()}`;
@@ -28,16 +31,24 @@ class PedidoRepositorioPg implements PedidoRepositorio {
     let id: string;
     try {
       const r = await this.db.query<{ id: string }>(
-        `INSERT INTO pedidos
-           (numero, comprador_tipo, cuenta_id, carrito_id, domicilio_snapshot,
-            envio_modalidad, envio_costo, envio_origen, monto_total)
-         VALUES ($1, 'personal', $2, $3, $4::jsonb, $5, $6, 'tabla_local', $7)
+        // `estado`, `envio_origen` y `expira_en` conservan su nombre: quedaron fuera de la
+        // etapa 1c (el remapeo de estados depende de CU-12 A3, y envio_origen guarda qué
+        // adaptador cotizó, no el transportista).
+        `INSERT INTO orders
+           (order_number, order_type, user_id, cart_id,
+            shipping_street, shipping_number, shipping_city, shipping_province, shipping_postal_code,
+            shipping_method, shipping_cost, envio_origen, total_amount)
+         VALUES ($1, 'personal', $2, $3, $4, $5, $6, $7, $8, $9, $10, 'tabla_local', $11)
          RETURNING id`,
         [
           numero,
           datos.cuenta_id,
           datos.carrito_id,
-          JSON.stringify(datos.domicilio_snapshot),
+          datos.domicilio_snapshot.calle,
+          datos.domicilio_snapshot.numero,
+          datos.domicilio_snapshot.localidad,
+          datos.domicilio_snapshot.provincia,
+          datos.domicilio_snapshot.codigo_postal,
           datos.envio_modalidad,
           datos.envio_costo,
           datos.monto_total,
@@ -45,16 +56,19 @@ class PedidoRepositorioPg implements PedidoRepositorio {
       );
       id = r.rows[0]!.id;
     } catch (e) {
-      const err = e as { code?: string; constraint?: string; message?: string };
-      if (err.code === '23505' && /pendiente/.test(`${err.constraint ?? ''} ${err.message ?? ''}`)) {
+      // Idempotencia por pedido (CU-12): el índice parcial admite un solo pedido pendiente de
+      // pago por carrito-origen. Se compara el nombre exacto del índice —no una subcadena— para
+      // que un renombre no vuelva a degradar este 409 en un 500.
+      const err = e as { code?: string; constraint?: string };
+      if (err.code === '23505' && err.constraint === 'uq_orders_pending_per_cart') {
         throw new PedidoPendienteExistente();
       }
       throw e;
     }
     for (const l of datos.lineas) {
       await this.db.query(
-        `INSERT INTO pedido_lineas
-           (pedido_id, juego_id, nombre_snapshot, cantidad, precio_unitario_snapshot, descuento_pct_snapshot)
+        `INSERT INTO order_items
+           (order_id, product_id, product_name_snapshot, quantity, unit_price, discount_applied)
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [id, l.juego_id, l.nombre_snapshot, l.cantidad, l.precio_unitario_snapshot, l.descuento_pct_snapshot],
       );
@@ -72,16 +86,17 @@ class PedidoRepositorioPg implements PedidoRepositorio {
       email: string;
       lineas: { juego_id: string; cantidad: number }[];
     }>(
-      `SELECT p.id, p.numero, p.estado, p.monto_total::float8 AS monto_total, p.carrito_id, u.email,
+      `SELECT p.id, p.order_number AS numero, p.estado, p.total_amount::float8 AS monto_total,
+              p.cart_id AS carrito_id, u.email,
               COALESCE(
-                json_agg(json_build_object('juego_id', pl.juego_id, 'cantidad', pl.cantidad) ORDER BY pl.id)
+                json_agg(json_build_object('juego_id', pl.product_id, 'cantidad', pl.quantity) ORDER BY pl.id)
                   FILTER (WHERE pl.id IS NOT NULL), '[]'
               ) AS lineas
-         FROM pedidos p
-         JOIN users u ON u.id = p.cuenta_id
-         LEFT JOIN pedido_lineas pl ON pl.pedido_id = p.id
+         FROM orders p
+         JOIN users u ON u.id = p.user_id
+         LEFT JOIN order_items pl ON pl.order_id = p.id
         WHERE p.id = $1
-        GROUP BY p.id, p.numero, p.estado, p.monto_total, p.carrito_id, u.email`,
+        GROUP BY p.id, p.order_number, p.estado, p.total_amount, p.cart_id, u.email`,
       [pedidoId],
     );
     return r.rows[0] ?? null;
@@ -89,7 +104,7 @@ class PedidoRepositorioPg implements PedidoRepositorio {
 
   async transicionar(pedidoId: string, origen: EstadoPedido, destino: EstadoPedido): Promise<boolean> {
     const r = await this.db.query(
-      `UPDATE pedidos SET estado = $3, actualizado_en = now()
+      `UPDATE orders SET estado = $3, updated_at = now()
         WHERE id = $1 AND estado = $2`,
       [pedidoId, origen, destino],
     );
@@ -111,7 +126,7 @@ class StockRepositorioPg implements StockRepositorio {
 
   async movimientoVenta(juegoId: string, cantidad: number, referencia: string): Promise<void> {
     await this.db.query(
-      `INSERT INTO movimientos_stock (juego_id, tipo, cantidad_signada, referencia)
+      `INSERT INTO stock_movements (product_id, movement_type, quantity, reference)
        VALUES ($1, 'venta', $2, $3)`,
       [juegoId, -cantidad, referencia],
     );
@@ -129,7 +144,7 @@ class PagoRepositorioPg implements PagoRepositorio {
     payload: Record<string, unknown>;
   }): Promise<boolean> {
     const r = await this.db.query(
-      `INSERT INTO pagos_procesados (payment_id, pedido_id, estado_mp, monto_notificado, payload_crudo)
+      `INSERT INTO processed_payments (payment_id, order_id, status, notified_amount, raw_payload)
        VALUES ($1, $2, $3, $4, $5::jsonb)
        ON CONFLICT (payment_id) DO NOTHING`,
       [datos.paymentId, datos.pedidoId, datos.estadoMp, datos.monto, JSON.stringify(datos.payload)],
@@ -143,10 +158,10 @@ class CarritoCheckoutPg implements CarritoCheckout {
 
   private async asegurar(cuentaId: string, contexto: string | null): Promise<string> {
     const r = await this.db.query<{ id: string }>(
-      `INSERT INTO carritos (cuenta_id, contexto_institucion_id)
+      `INSERT INTO carts (user_id, institution_context_id)
        VALUES ($1, $2)
-       ON CONFLICT (cuenta_id, COALESCE(contexto_institucion_id, '${CTX_NULO}'::uuid))
-       DO UPDATE SET actualizado_en = now()
+       ${contexto === null ? CONFLICTO_PERSONAL : CONFLICTO_INSTITUCIONAL}
+       DO UPDATE SET updated_at = now()
        RETURNING id`,
       [cuentaId, contexto],
     );
@@ -160,24 +175,24 @@ class CarritoCheckoutPg implements CarritoCheckout {
     const carritoId = await this.asegurar(cuentaId, contexto);
     const r = await this.db.query<LineaConJuego & { tramos: TramoDescuento[] }>(
       // Δ2 · un solo tramo de descuento, en columnas del producto (CU-10/CU-22).
-      `SELECT cl.juego_id, p.name AS nombre, cl.cantidad,
+      `SELECT cl.product_id AS juego_id, p.name AS nombre, cl.quantity AS cantidad,
               p.price::float8 AS precio_lista, p.stock AS stock_actual,
               CASE WHEN p.wholesale_threshold IS NOT NULL THEN
                 json_build_array(json_build_object(
                   'cantidad_minima', p.wholesale_threshold,
                   'descuento_pct', p.wholesale_discount_percent))
               ELSE '[]'::json END AS tramos
-         FROM carrito_lineas cl
-         JOIN products p ON p.id = cl.juego_id AND p.is_active = true
-        WHERE cl.carrito_id = $1
-        ORDER BY cl.creado_en`,
+         FROM cart_items cl
+         JOIN products p ON p.id = cl.product_id AND p.is_active = true
+        WHERE cl.cart_id = $1
+        ORDER BY cl.created_at`,
       [carritoId],
     );
     return { carritoId, lineas: r.rows };
   }
 
   async vaciar(carritoId: string): Promise<void> {
-    await this.db.query(`DELETE FROM carrito_lineas WHERE carrito_id = $1`, [carritoId]);
+    await this.db.query(`DELETE FROM cart_items WHERE cart_id = $1`, [carritoId]);
   }
 }
 
