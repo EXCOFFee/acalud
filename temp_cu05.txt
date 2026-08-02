@@ -1,0 +1,204 @@
+Información del Proyecto
+Nombre del Proyecto
+Sistema Acalud
+Responsables del Proyecto
+Santiago Tomás Excofier
+Ignacia Casandra Sagnella
+Elizabeth Sanchez Teran
+ 
+Funcionalidad
+Índice
+Índice
+1
+1. Descripción del proceso
+2
+Objetivo
+2
+Resumen
+2
+Actor(es) principal(es):
+2
+2. Precondiciones
+2
+3. Poscondiciones
+3
+4. Flujo Principal de Eventos
+3
+Pasos
+3
+5. Flujos Alternativos / Excepciones
+4
+A1 – Usuario sin compras previas:
+4
+A2 – Error de conexión al backend:
+4
+A3 – Sesión expirada durante la consulta:
+5
+A4 – Error interno del servidor (500):
+5
+A5 – Filtrado de órdenes por estado:
+5
+A6 – Ordenamiento por columna:
+6
+A7 – Ver detalle de una orden específica:
+6
+A8 – Seguimiento logístico desde el historial:
+6
+A9 – Paginación de resultados (cuando hay muchas órdenes):
+7
+6. Reglas de Negocio
+7
+7. Requerimientos No Funcionales
+8
+8. Modelo Conceptual de datos
+9
+9. Registros de las revisiones
+9
+10. Participantes y Aprobaciones
+9
+1. Descripción del proceso 
+Objetivo
+Permitir al docente registrado visualizar el listado completo de sus órdenes de compra realizadas en la plataforma Acalud, con detalles de cada transacción, estado del pedido y seguimiento logístico.
+Resumen
+El docente, estando logueado, accede a la sección "Mis Pedidos" o "Historial de Compras" desde el menú de usuario. El sistema consulta el backend y muestra una grilla con todas las órdenes asociadas a su cuenta, ordenadas cronológicamente de más reciente a más antigua. Cada orden muestra información resumida (fecha, total, estado) y permite acceder al detalle completo (productos, cantidades, tracking). El usuario puede filtrar y ordenar la lista según sus necesidades.
+Actor(es) principal(es):
+Usuario Externo: Docente (usuario registrado y logueado)
+2. Precondiciones
+El usuario debe haber iniciado sesión previamente (CU-002).
+El usuario debe tener rol docente en la tabla users.
+El usuario debe tener al menos una orden asociada en la tabla orders (si no, se muestra mensaje de "sin compras").
+3. Poscondiciones
+El usuario visualiza el listado completo de sus órdenes de compra.
+El usuario puede acceder al detalle de cada orden seleccionada.
+El usuario puede filtrar y ordenar la lista según criterios disponibles.
+El usuario puede ver el estado actualizado de cada pedido (pendiente, pagado, enviado, entregado, cancelado).
+El usuario puede ver el código de tracking y acceder al seguimiento logístico (si está disponible).
+Se registra un evento de analytics: order_history_viewed.
+4. Flujo Principal de Eventos
+Pasos
+El usuario, estando logueado, accede a la sección "Mis Pedidos" o "Historial de Compras" desde el menú de usuario (generalmente en el header o panel lateral).
+El sistema envía una solicitud GET /api/orders al backend para obtener todas las órdenes del usuario autenticado.
+El backend consulta la tabla orders filtrando por user_id y ordena por created_at descendente (más recientes primero).
+El backend obtiene también los items de cada orden desde order_items y los productos asociados.
+El backend devuelve al frontend la lista completa de órdenes con sus items y estados.
+El sistema muestra una grilla o lista con las siguientes columnas:
+Número de orden (ID)
+Fecha de compra
+Total (con moneda)
+Estado del pedido (pendiente / pagado / enviado / entregado / cancelado)
+Código de tracking (si está disponible)
+Botón "Ver Detalle"
+El sistema permite al usuario hacer clic en "Ver Detalle" para acceder a la información completa de una orden específica.
+El sistema muestra opciones de filtrado y ordenamiento (por fecha, estado, monto).
+El usuario visualiza la lista completa de sus compras.
+El sistema dispara un evento de analytics: order_history_viewed con el total de órdenes.
+5. Flujos Alternativos / Excepciones
+A1 – Usuario sin compras previas:
+A1.1: El backend consulta orders para el user_id y no encuentra ningún registro.
+A1.2: El sistema recibe una lista vacía del backend.
+A1.3: El sistema muestra un mensaje amigable: "Aún no has realizado ninguna compra. ¡Explora nuestro catálogo y comienza a comprar!"
+A1.4: El sistema muestra un botón "Ir al Catálogo" que redirige a la tienda.
+A1.5: El flujo principal continúa pero la grilla se muestra vacía.
+A2 – Error de conexión al backend:
+A2.1: El frontend detecta timeout o error de red al intentar comunicarse con el backend.
+A2.2: El sistema muestra mensaje: "Error de conexión. No se pudo cargar el historial de compras. Intenta nuevamente más tarde".
+A2.3: El sistema muestra un botón "Reintentar".
+A2.4: Si el usuario hace clic en "Reintentar", se retorna al paso 2 del flujo principal. Si el usuario cancela, el flujo finaliza mostrando la página vacía con mensaje de error.
+A3 – Sesión expirada durante la consulta:
+A3.1: El backend detecta que el token JWT enviado en la solicitud ha expirado.
+A3.2: El backend responde con código HTTP 401 (Unauthorized).
+A3.3: El frontend detecta el error 401.
+A3.4: El sistema muestra mensaje: "Tu sesión expiró. Por favor, inicia sesión nuevamente para ver tu historial de compras".
+A3.5: El sistema redirige al usuario al formulario de login (CU-002), guardando la URL de origen (historial de compras) para redirigir después.
+A4 – Error interno del servidor (500):
+A4.1: El backend intenta consultar las órdenes pero ocurre un error interno (ej: fallo en la conexión a la base de datos).
+A4.2: El backend responde con código HTTP 500.
+A4.3: El sistema muestra mensaje: "Error interno del servidor. No se pudo cargar el historial de compras. Intenta nuevamente más tarde".
+A4.4: El sistema muestra un botón "Reintentar".
+A4.5: Si el usuario hace clic en "Reintentar", se retorna al paso 2 del flujo principal.
+A5 – Filtrado de órdenes por estado:
+A5.1: El usuario selecciona un filtro de estado (ej: "Pagado", "Enviado", "Entregado") desde el menú de filtros.
+A5.2: El frontend envía una solicitud GET /api/orders?status=paid al backend con el filtro aplicado.
+A5.3: El backend filtra las órdenes por el estado especificado.
+A5.4: El backend devuelve la lista filtrada al frontend.
+A5.5: El sistema actualiza la grilla mostrando solo las órdenes que coinciden con el filtro.
+A5.6: El usuario puede quitar el filtro seleccionando "Todos los estados".
+A6 – Ordenamiento por columna:
+A6.1: El usuario hace clic en una columna ordenable (ej: "Fecha", "Total").
+A6.2: El sistema alterna el orden (ascendente/descendente) para esa columna.
+A6.3: El frontend envía una solicitud GET /api/orders?sort=created_at&order=desc al backend con el criterio de ordenamiento.
+A6.4: El backend ordena las órdenes según el criterio solicitado.
+A6.5: El backend devuelve la lista ordenada al frontend.
+A6.6: El sistema actualiza la grilla mostrando las órdenes en el nuevo orden.
+A7 – Ver detalle de una orden específica:
+A7.1: El usuario hace clic en el botón "Ver Detalle" de una orden específica.
+A7.2: El frontend envía una solicitud GET /api/orders/{order_id} al backend.
+A7.3: El backend consulta la orden específica con todos sus items y productos asociados.
+A7.4: El backend devuelve los datos completos de la orden.
+A7.5: El sistema muestra un modal o redirige a una página de detalle con la siguiente información:
+Número de orden y fecha
+Lista de productos comprados (con cantidades, precios, descuentos)
+Subtotal, costo de envío, total
+Estado del pedido
+Código de tracking (con enlace al proveedor logístico)
+Dirección de envío
+           A7.6: El usuario puede cerrar el modal o volver a la lista.
+A8 – Seguimiento logístico desde el historial:
+A8.1: El usuario visualiza el detalle de una orden con estado "Enviado" o "Entregado".
+A8.2: El sistema muestra el código de tracking visible.
+A8.3: El usuario hace clic en el código de tracking o en un botón "Seguir Pedido".
+A8.4: El sistema redirige al usuario a la página del proveedor logístico con el tracking code precargado (o muestra un modal con el estado actualizado).
+A8.5: Si el proveedor logístico tiene integración API, el sistema consulta el estado en tiempo real y lo muestra dentro de la plataforma.
+A9 – Paginación de resultados (cuando hay muchas órdenes):
+A9.1: El backend detecta que el usuario tiene más de 20 órdenes.
+A9.2: El backend devuelve solo las primeras 20 órdenes y un objeto de paginación con el total de páginas.
+A9.3: El sistema muestra controles de paginación (página anterior/siguiente, número de página).
+A9.4: El usuario hace clic en "Siguiente" o en un número de página.
+A9.5: El frontend envía una solicitud GET /api/orders?page=2&limit=20 al backend.
+A9.6: El backend devuelve el siguiente bloque de órdenes.
+A9.7: El sistema actualiza la grilla con las órdenes de la página seleccionada.
+6. Reglas de Negocio
+RN-001:
+ El historial de compras solo debe mostrar las órdenes asociadas al user_id del usuario autenticado.
+RN-002:
+ Las órdenes deben ordenarse por defecto de más reciente a más antigua (por created_at descendente).
+RN-003:
+ El estado de la orden debe mostrarse con colores identificativos: pendiente (amarillo), pagado (verde), enviado (azul), entregado (verde oscuro), cancelado (rojo).
+RN-004:
+ El código de tracking debe mostrarse solo si el estado de la orden es "Enviado" o "Entregado".
+RN-005:
+ El usuario debe poder filtrar las órdenes por estado (pendiente, pagado, enviado, entregado, cancelado).
+RN-006:
+ El usuario debe poder ordenar las órdenes por fecha y por monto total.
+RN-007:
+ El detalle de una orden debe incluir todos los productos, cantidades, precios y descuentos aplicados.
+RN-008:
+ El acceso al historial de compras debe registrar un evento de analytics (order_history_viewed) indicando el total de órdenes del usuario.
+7. Requerimientos No Funcionales
+RNF-001 (Seguridad): 
+El endpoint GET /api/orders debe requerir autenticación mediante token JWT válido.
+RNF-002 (Seguridad):
+ El endpoint GET /api/orders/{order_id} debe validar que la orden pertenezca al usuario autenticado, devolviendo 403 si no es el propietario.
+RNF-003 (Performance):
+ El tiempo de carga del listado de órdenes debe ser menor a 2 segundos.
+RNF-004 (Performance):
+ La consulta debe implementar paginación para evitar sobrecarga cuando el usuario tenga muchas órdenes (más de 50).
+RNF-005 (Usabilidad):
+ La grilla debe mostrar información clara y resumida en cada fila, con colores que identifiquen el estado del pedido.
+RNF-006 (Usabilidad): 
+El detalle de la orden debe ser accesible desde un clic en la fila o mediante un botón "Ver Detalle".
+RNF-007 (Compatibilidad):
+ La grilla debe ser responsive y funcionar correctamente en dispositivos móviles (ancho mínimo 320px), adaptando columnas si es necesario.
+RNF-008 (Disponibilidad):
+ El sistema debe manejar correctamente la expiración de sesión durante la consulta, redirigiendo al login sin perder la URL de origen.
+8. Modelo Conceptual de datos
+9. Registros de las revisiones
+Revisión
+Fecha
+Ítem
+Descripción
+Intervino
+10. Participantes y Aprobaciones
+Confecciona
+Revisa
+Aprueba

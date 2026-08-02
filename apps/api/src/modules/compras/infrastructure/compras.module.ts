@@ -17,13 +17,19 @@ import { CheckoutController } from './http/checkout.controller';
 import { crearPaymentProvider } from './payment-provider.factory';
 import { CarritoRepositoryPg } from './persistencia/carrito.repository.pg';
 import { UnidadDeTrabajoComprasPg } from './persistencia/unidad-de-trabajo.pg';
+import { VerHistorial } from '../application/ver-historial';
+import { HistorialController } from './http/historial.controller';
+import { HistorialRepositoryPg } from './persistencia/historial.repository.pg';
+import { HistorialRepository } from '../domain/ports/historial.repository';
+
+export const HISTORIAL_REPOSITORY = Symbol('HistorialRepository');
 
 /**
  * BC3 · Compras. Carrito (CU-010) con cálculo de precios server-side + el puerto de pago
  * (fake en Etapa 1). Los casos de uso son clases framework-agnósticas cableadas por useFactory.
  */
 @Module({
-  controllers: [CarritoController, CheckoutController],
+  controllers: [CarritoController, CheckoutController, HistorialController],
   providers: [
     // Singleton: el fake de MP es stateful (guarda el monto por pedido entre crear y consultar).
     { provide: PAYMENT_PROVIDER, useFactory: () => crearPaymentProvider() },
@@ -63,6 +69,16 @@ import { UnidadDeTrabajoComprasPg } from './persistencia/unidad-de-trabajo.pg';
       useFactory: (uow: UnidadDeTrabajoCompras, pagos: PaymentProvider): ProcesarPago =>
         new ProcesarPago(uow, pagos),
       inject: [UNIDAD_DE_TRABAJO_COMPRAS, PAYMENT_PROVIDER],
+    },
+    {
+      provide: HISTORIAL_REPOSITORY,
+      useFactory: (pool: Pool): HistorialRepository => new HistorialRepositoryPg(pool),
+      inject: [PG_POOL],
+    },
+    {
+      provide: VerHistorial,
+      useFactory: (repo: HistorialRepository): VerHistorial => new VerHistorial(repo),
+      inject: [HISTORIAL_REPOSITORY],
     },
   ],
   exports: [PAYMENT_PROVIDER],

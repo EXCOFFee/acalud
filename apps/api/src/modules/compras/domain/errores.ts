@@ -48,3 +48,11 @@ export class StockInsuficiente extends ErrorDeDominio {
     super('Stock insuficiente al aprobar el pago');
   }
 }
+
+/** La orden solicitada no existe o no pertenece al usuario. → 404. */
+export class OrdenNoEncontrada extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('No se encontró el pedido o no tenés permiso para verlo');
+  }
+}

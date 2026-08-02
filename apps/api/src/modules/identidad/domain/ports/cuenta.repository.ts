@@ -8,6 +8,20 @@ export interface DatosNuevaCuenta {
   apellido: string;
 }
 
+export interface DatosPerfilCuenta {
+  nombre: string;
+  apellido: string;
+  nivelEducativo?: string | null;
+  materia?: string | null;
+  institucion?: string | null;
+}
+
+export interface PerfilDocentePersistido {
+  nivelEducativo: string | null;
+  materia: string | null;
+  institucion: string | null;
+}
+
 export interface CuentaRepository {
   buscarPorEmail(email: string): Promise<Cuenta | null>;
   buscarPorId(id: string): Promise<Cuenta | null>;
@@ -18,6 +32,10 @@ export interface CuentaRepository {
   actualizarContrasena(id: string, hashPassword: string): Promise<void>;
   /** Registra el instante del último acceso (CU-02 RN-003). */
   registrarUltimoLogin(id: string, ahora: Date): Promise<void>;
+  /** Actualiza nombre completo y datos pedagógicos del perfil docente. */
+  actualizarPerfil(id: string, datos: DatosPerfilCuenta): Promise<void>;
+  /** Devuelve los datos pedagógicos persistidos del docente, si existen. */
+  buscarPerfil(id: string): Promise<PerfilDocentePersistido | null>;
 }
 
 export const CUENTA_REPOSITORY = Symbol('CuentaRepository');

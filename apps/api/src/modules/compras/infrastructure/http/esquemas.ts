@@ -34,3 +34,12 @@ export const webhookSchema = z.object({
   payment_id: z.string().min(1),
 });
 export type WebhookInput = z.infer<typeof webhookSchema>;
+
+export const FiltroHistorialSchema = z.object({
+  estado: z.enum(['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'under_review']).optional(),
+  orden_por: z.enum(['created_at', 'total_amount']).optional(),
+  orden_dir: z.enum(['asc', 'desc']).optional(),
+  pagina: z.coerce.number().int().min(1).optional(),
+  limite: z.coerce.number().int().min(1).max(100).optional(),
+});
+export type FiltroHistorialDto = z.infer<typeof FiltroHistorialSchema>;

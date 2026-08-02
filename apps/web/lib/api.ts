@@ -87,6 +87,9 @@ export interface PerfilPropio {
   email: string;
   estado: string;
   capacidades_limitadas: boolean;
+  nivel_educativo: string | null;
+  materia: string | null;
+  institucion: string | null;
 }
 
 export interface JuegoResumen {
@@ -157,6 +160,13 @@ export const api = {
     guardarTokenSesion(null);
   },
   me: () => pedir<PerfilPropio>('GET', '/me'),
+  actualizarPerfil: (datos: {
+    nombre: string;
+    apellido: string;
+    nivel_educativo?: string | null;
+    materia?: string | null;
+    institucion?: string | null;
+  }) => pedir<PerfilPropio>('PUT', '/me', datos),
   listarJuegos: (params?: {
     q?: string | undefined;
     area?: string | undefined;

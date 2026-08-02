@@ -17,6 +17,9 @@ export interface PerfilCuenta {
   apellido: string;
   estado: EstadoCuenta;
   es_admin: boolean;
+  nivel_educativo?: string | null;
+  materia?: string | null;
+  institucion?: string | null;
 }
 
 /**

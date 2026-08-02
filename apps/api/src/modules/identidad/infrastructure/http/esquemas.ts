@@ -33,3 +33,12 @@ export const restablecerSchema = z.object({
   contrasena_nueva: z.string().min(LONGITUD_MIN_CONTRASENA).max(LONGITUD_MAX_CONTRASENA),
 });
 export type RestablecerInput = z.infer<typeof restablecerSchema>;
+
+export const perfilSchema = z.object({
+  nombre: z.string().min(1),
+  apellido: z.string().min(1),
+  nivel_educativo: z.string().nullable().optional(),
+  materia: z.string().nullable().optional(),
+  institucion: z.string().nullable().optional(),
+});
+export type PerfilInput = z.infer<typeof perfilSchema>;

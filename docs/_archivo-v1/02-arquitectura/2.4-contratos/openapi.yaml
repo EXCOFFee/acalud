@@ -344,10 +344,31 @@ paths:
         '200': { description: Procesado o ya procesado (idempotente E1) — MP no debe reintentar }
         '401': { description: Firma inválida — se audita y descarta }
 
+  /pedidos:
+    get:
+      tags: [compras]
+      summary: Ver historial de compras (CU-05)
+      parameters:
+        - { $ref: '#/components/parameters/pagina' }
+        - { $ref: '#/components/parameters/tamanio' }
+        - { name: estado, in: query, schema: { type: string, enum: [pending, paid, shipped, delivered, cancelled, under_review] } }
+        - { name: orden_por, in: query, schema: { type: string, enum: [created_at, total_amount] } }
+        - { name: orden_dir, in: query, schema: { type: string, enum: [asc, desc] } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  datos: { type: array, items: { $ref: '#/components/schemas/OrdenHistorial' } }
+                  paginacion: { $ref: '#/components/schemas/Paginacion' }
+
   /pedidos/{pedido_id}:
     get:
       tags: [compras]
-      summary: Detalle + línea de tiempo (CU-013; propio o de institución con membresía; ajeno → 404)
+      summary: Detalle + línea de tiempo (CU-013) y detalle de historial (CU-05 A7)
       parameters: [ { $ref: '#/components/parameters/pedido_id' } ]
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PedidoDetalle' } } } }
@@ -367,9 +388,82 @@ paths:
       summary: Registrar institución (CU-023; crea membresía encargado en la misma transacción)
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/InstitucionInput' } } } }
       responses:
-        '201': { description: Institución activa (S-11) }
-        '409': { description: 'CUIT ya registrado (E1, sin revelar encargado)' }
+        '201': { description: Institución activa (S-11), content: { application/json: { schema: { type: object, properties: { institucion_id: { type: string, format: uuid } } } } } }
+        '409': { description: 'CU-023 A1/A2/A3: usuario ya vinculado, CUIT o email institucional duplicado' }
         '422': { $ref: '#/components/responses/Problem422' }
+
+  /instituciones/{institucion_id}/asignaciones:
+    post:
+      tags: [instituciones]
+      summary: Asignar licencias a docentes (CU-026; transacción única + notificación dashboard/email + auditoría)
+      parameters: [ { $ref: '#/components/parameters/institucion_id' } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [producto_id, asignaciones]
+              properties:
+                producto_id: { type: string, format: uuid }
+                asignaciones:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [docente_id, cantidad]
+                    properties:
+                      docente_id: { type: string, format: uuid }
+                      cantidad: { type: integer, minimum: 1 }
+                observaciones: { type: [string, 'null'], maxLength: 500 }
+      responses:
+        '201': { description: 'Asignadas; devuelve ids de asignación y disponibilidad actualizada' }
+        '404': { description: 'Sin permisos de encargado (RN-001) o producto fuera del inventario' }
+        '422': { description: 'Docente no vinculado (A3) o licencias insuficientes (A1, con disponible)' }
+
+  /instituciones/{institucion_id}/revocaciones:
+    post:
+      tags: [instituciones]
+      summary: Revocar licencias (CU-027; parcial A9 o total A10 — la fila NUNCA se borra, pasa a revoked)
+      parameters: [ { $ref: '#/components/parameters/institucion_id' } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [docente_id, producto_id, cantidad_a_revocar]
+              properties:
+                docente_id: { type: string, format: uuid }
+                producto_id: { type: string, format: uuid }
+                cantidad_a_revocar: { type: integer, minimum: 1 }
+                observaciones: { type: [string, 'null'], maxLength: 500, description: 'Razón de la revocación (revocation_reason)' }
+      responses:
+        '200': { description: 'Revocadas; devuelve cantidad_revocada y cantidad_restante' }
+        '404': { description: 'Sin permisos (RN-001), producto fuera del inventario o docente sin asignación activa (A3)' }
+        '422': { description: 'Cantidad inválida (A1) o superior a la asignada (A2, con la actual)' }
+
+  /instituciones/{institucion_id}/inventario:
+    get:
+      tags: [instituciones]
+      summary: Inventario institucional con resumen (CU-025; solo encargado is_admin; registra inventory_viewed)
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { name: producto_id, in: query, schema: { type: string, format: uuid }, description: 'Filtro A5' }
+        - { name: orden, in: query, schema: { type: string, enum: [cantidad_adquirida, cantidad_asignada, cantidad_disponible, ultima_compra, nombre] }, description: 'Orden A6' }
+        - { name: direccion, in: query, schema: { type: string, enum: [asc, desc] } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/InventarioView' } } } }
+        '404': { description: 'Institución inexistente o no visible para el caller (CU-025 A2; recurso ajeno → 404)' }
+
+  /instituciones/{institucion_id}/inventario/{producto_id}:
+    get:
+      tags: [instituciones]
+      summary: Detalle de producto del inventario con historial de compras y docentes asignados (CU-025 A7)
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { name: producto_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/InventarioDetalleView' } } } }
+        '404': { description: 'Sin permisos (A2) o producto fuera del inventario (A7)' }
 
   /instituciones/{institucion_id}/pedidos:
     get:
@@ -398,6 +492,31 @@ paths:
         '200': { description: Membresía activa }
         '403': { description: Sesión de otra cuenta (E-CU026-EXC-001) — informa destinataria sin aceptar }
         '410': { description: Invitación vencida (PI-01) }
+
+  /instituciones/{institucion_id}/docentes/asignaciones:
+    get:
+      tags: [instituciones]
+      summary: Listado de docentes vinculados con sus asignaciones (CU-028; A6 filtro producto, A7 búsqueda, A8 orden; registra assigned_teachers_viewed)
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { name: producto_id, in: query, schema: { type: string, format: uuid }, description: 'Filtro A6' }
+        - { name: buscar, in: query, schema: { type: string, maxLength: 200 }, description: 'Búsqueda por nombre A7' }
+        - { name: orden, in: query, schema: { type: string, enum: [total_licencias, nombre] }, description: 'Orden A8' }
+        - { name: direccion, in: query, schema: { type: string, enum: [asc, desc] } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DocentesAsignadosView' } } } }
+        '404': { description: 'Sin permisos de encargado (RN-001)' }
+
+  /instituciones/{institucion_id}/docentes/asignaciones/{docente_id}:
+    get:
+      tags: [instituciones]
+      summary: Detalle de asignaciones de un docente, incluidas las revocadas (CU-028 A9; RN-007/RN-008)
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { name: docente_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DocenteDetalleAsignacionesView' } } } }
+        '404': { description: 'Sin permisos (RN-001) o docente no vinculado a la institución (A9)' }
 
   /instituciones/{institucion_id}/docentes:
     get:
@@ -677,8 +796,11 @@ components:
         apellido: { type: string }
         estado: { type: string, enum: [no_verificada, verificada] }
         es_admin: { type: boolean }
+        capacidades_limitadas: { type: boolean }
+        nivel_educativo: { type: ['string', 'null'] }
+        materia: { type: ['string', 'null'] }
+        institucion: { type: ['string', 'null'] }
         membresias: { type: array, items: { $ref: '#/components/schemas/MembresiaPropia' } }
-        domicilio: { $ref: '#/components/schemas/Domicilio' }
 
     PerfilPatch:
       type: object
@@ -765,6 +887,16 @@ components:
         modalidad: { type: string }
         origen: { type: string, enum: [micorreo, tabla_local], description: Telemetría visible en API para tests; UI no lo destaca }
 
+    OrdenHistorial:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        numero: { type: string }
+        fecha: { type: string, format: date-time }
+        total: { type: number, format: float }
+        estado: { type: string }
+        tracking_code: { type: [string, 'null'] }
+
     PedidoResumen:
       type: object
       properties:
@@ -799,12 +931,159 @@ components:
 
     InstitucionInput:
       type: object
-      required: [razon_social, cuit, nivel_educativo, domicilio]
+      required: [nombre_legal, identificador_tributario, email_institucional, domicilio]
       properties:
-        razon_social: { type: string }
-        cuit: { type: string, pattern: '^\d{2}-\d{8}-\d$' }
-        nivel_educativo: { type: string, enum: [inicial, primario, secundario, superior, mixto] }
+        nombre_legal: { type: string, maxLength: 200 }
+        identificador_tributario: { type: string, description: 'CUIT con o sin guiones; se persiste normalizado a 11 dígitos (CU-023 RN-001)' }
+        email_institucional: { type: string, format: email, maxLength: 255 }
         domicilio: { $ref: '#/components/schemas/Domicilio' }
+        telefono: { type: [string, 'null'], maxLength: 30 }
+        nivel_educativo: { type: [string, 'null'], description: 'Nombre de una fila de levels (Inicial, Primaria, Secundaria; CU-023 A11)' }
+        cantidad_alumnos: { type: [integer, 'null'], minimum: 1 }
+
+    InventarioItemView:
+      type: object
+      properties:
+        producto_id: { type: string, format: uuid }
+        nombre_producto: { type: string }
+        descripcion_producto: { type: [string, 'null'] }
+        cantidad_adquirida: { type: integer }
+        cantidad_asignada: { type: integer }
+        cantidad_disponible: { type: integer, description: 'adquirida − asignada (CU-025 RN-002)' }
+        ultima_compra_en: { type: [string, 'null'], format: date-time }
+        total_gastado: { type: [number, 'null'], description: 'Suma de compras b2b pagas (CU-025 p6, opcional)' }
+
+    InventarioView:
+      type: object
+      properties:
+        institucion_id: { type: string, format: uuid }
+        resumen:
+          type: object
+          properties:
+            total_adquiridas: { type: integer }
+            docentes_asignados: { type: integer }
+            total_en_uso: { type: integer }
+            total_disponibles: { type: integer }
+        items: { type: array, items: { $ref: '#/components/schemas/InventarioItemView' } }
+
+    InventarioDetalleView:
+      type: object
+      properties:
+        producto_id: { type: string, format: uuid }
+        nombre_producto: { type: string }
+        descripcion_producto: { type: [string, 'null'] }
+        precio: { type: number }
+        cantidad_adquirida: { type: integer }
+        cantidad_asignada: { type: integer }
+        cantidad_disponible: { type: integer }
+        compras:
+          type: array
+          items:
+            type: object
+            properties:
+              orden_id: { type: string, format: uuid }
+              numero: { type: string }
+              fecha: { type: string, format: date-time }
+              cantidad: { type: integer }
+              monto: { type: number }
+        docentes:
+          type: array
+          items:
+            type: object
+            properties:
+              docente_id: { type: string, format: uuid }
+              nombre: { type: string }
+              cantidad: { type: integer }
+              asignada_en: { type: string, format: date-time }
+              estado: { type: string, enum: [active, revoked] }
+
+    AsignacionInput:
+      type: object
+      required: [producto_id, asignaciones]
+      properties:
+        producto_id: { type: string, format: uuid, description: 'Debe estar en el inventario institucional (CU-026 p14)' }
+        asignaciones:
+          type: array
+          minItems: 1
+          description: 'Una línea por docente; un mismo docente no puede repetirse en el pedido'
+          items:
+            type: object
+            required: [docente_id, cantidad]
+            properties:
+              docente_id: { type: string, format: uuid, description: 'Usuario con membresía activa en la institución (CU-026 RN-010)' }
+              cantidad: { type: integer, minimum: 1, description: 'CU-026 RN-004' }
+        observaciones: { type: [string, 'null'], maxLength: 500, description: 'CU-026 p8' }
+
+    AsignacionResultView:
+      type: object
+      properties:
+        producto_id: { type: string, format: uuid }
+        asignaciones:
+          type: array
+          items:
+            type: object
+            properties:
+              asignacion_id: { type: string, format: uuid }
+              docente_id: { type: string, format: uuid }
+              cantidad: { type: integer }
+        cantidad_disponible: { type: integer, description: 'Disponibilidad ya actualizada (CU-026 p21)' }
+
+    AsignacionDeDocenteView:
+      type: object
+      properties:
+        producto_id: { type: string, format: uuid }
+        nombre_producto: { type: string }
+        cantidad: { type: integer }
+        asignada_en: { type: string, format: date-time }
+        asignada_por: { type: [string, 'null'] }
+        estado: { type: string, enum: [active, revoked] }
+
+    DocentesAsignadosView:
+      type: object
+      properties:
+        institucion_id: { type: string, format: uuid }
+        resumen:
+          type: object
+          properties:
+            total_docentes_con_asignaciones: { type: integer }
+            total_licencias_asignadas: { type: integer }
+            productos_mas_asignados:
+              type: array
+              items:
+                type: object
+                properties:
+                  producto_id: { type: string, format: uuid }
+                  nombre_producto: { type: string }
+                  total: { type: integer }
+        docentes:
+          type: array
+          items:
+            type: object
+            properties:
+              docente_id: { type: string, format: uuid }
+              nombre: { type: string }
+              email: { type: string }
+              total_licencias: { type: integer }
+              ultima_asignacion_en: { type: [string, 'null'], format: date-time }
+              asignaciones: { type: array, items: { $ref: '#/components/schemas/AsignacionDeDocenteView' } }
+
+    DocenteDetalleAsignacionesView:
+      type: object
+      properties:
+        docente_id: { type: string, format: uuid }
+        nombre: { type: string }
+        email: { type: string }
+        vinculado_en: { type: [string, 'null'], format: date-time }
+        asignaciones:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/AsignacionDeDocenteView'
+              - type: object
+                properties:
+                  revocada_en: { type: [string, 'null'], format: date-time }
+                  revocada_por: { type: [string, 'null'] }
+                  razon_revocacion: { type: [string, 'null'] }
 
     MembresiaView:
       type: object

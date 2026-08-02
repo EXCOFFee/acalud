@@ -160,6 +160,88 @@ describe('CU-002 · Iniciar sesión', () => {
   });
 });
 
+describe('CU-004 · Actualizar perfil', () => {
+  it('@scenario:AUT-CU004-HAPPY-001 · actualizar perfil crea/actualiza el profile docente y el nombre completo', async () => {
+    const email = emailNuevo();
+    await registrar(email);
+    const token = (await login(email)).body.token as string;
+
+    const res = await ctx.request
+      .put('/api/v1/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        nombre: 'María',
+        apellido: 'Pérez',
+        nivel_educativo: 'Primaria',
+        materia: 'Matemática',
+        institucion: 'Escuela San Martín',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.nombre).toBe('María');
+    expect(res.body.apellido).toBe('Pérez');
+    expect(res.body.institucion).toBe('Escuela San Martín');
+
+    const perfilLeido = await ctx.request
+      .get('/api/v1/me')
+      .set('Authorization', `Bearer ${token}`);
+    expect(perfilLeido.status).toBe(200);
+    expect(perfilLeido.body.nivel_educativo).toBe('Primaria');
+    expect(perfilLeido.body.materia).toBe('Matemática');
+    expect(perfilLeido.body.institucion).toBe('Escuela San Martín');
+
+    const perfil = await ctx.pg.query<{ school_name: string | null }>(
+      `SELECT school_name FROM teacher_profiles tp
+         JOIN users u ON u.id = tp.user_id
+        WHERE lower(u.email) = lower($1)`,
+      [email],
+    );
+    expect(perfil.rows[0]?.school_name).toBe('Escuela San Martín');
+  });
+});
+
+describe('CU-023 · Registrar institución', () => {
+  it('@scenario:AUT-CU023-HAPPY-001 · registra la institución y crea la membresía de encargado', async () => {
+    const email = emailNuevo();
+    await registrar(email);
+    const token = (await login(email)).body.token as string;
+
+    const res = await ctx.request
+      .post('/api/v1/instituciones')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        nombre_legal: 'Escuela San Martín',
+        identificador_tributario: '30-71234567-8',
+        email_institucional: 'institucional@sanmartin.edu.ar',
+        domicilio: {
+          calle: 'Av. Siempre Viva',
+          numero: '123',
+          localidad: 'La Plata',
+          provincia: 'Buenos Aires',
+          codigo_postal: '1900',
+        },
+      });
+
+    expect(res.status).toBe(201);
+
+    const institution = await ctx.pg.query<{ id: string; legal_name: string; tax_id: string; email: string }>(
+      `SELECT id, legal_name, tax_id, email FROM institutions WHERE lower(email) = lower($1)`,
+      ['institucional@sanmartin.edu.ar'],
+    );
+    expect(institution.rows[0]?.legal_name).toBe('Escuela San Martín');
+    // RN-001: el CUIT se persiste normalizado a dígitos, sin guiones.
+    expect(institution.rows[0]?.tax_id).toBe('30712345678');
+
+    const membership = await ctx.pg.query<{ is_admin: boolean }>(
+      `SELECT is_admin FROM institutional_teachers it
+         JOIN users u ON u.id = it.user_id
+        WHERE lower(u.email) = lower($1)`,
+      [email],
+    );
+    expect(membership.rows[0]?.is_admin).toBe(true);
+  });
+});
+
 describe('Sesión dual (ADR-004) · cookie y Bearer sobre el mismo store', () => {
   it('GET /me funciona con Bearer y con cookie; el logout revoca en ambos canales', async () => {
     const email = emailNuevo();

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import type { Pool } from 'pg';
 import { PG_POOL } from '../../../platform/db/pg.module';
+import { ActualizarPerfil } from '../application/actualizar-perfil';
 import { CerrarSesion } from '../application/cerrar-sesion';
 import { IniciarSesion } from '../application/iniciar-sesion';
 import { RegistrarDocente } from '../application/registrar-docente';
@@ -132,6 +133,11 @@ import { UnidadDeTrabajoPg } from './persistencia/unidad-de-trabajo.pg';
         reloj: Reloj,
       ): RestablecerContrasena => new RestablecerContrasena(uow, hasher, gen, filtrada, reloj),
       inject: [UNIDAD_DE_TRABAJO, HASHER, GENERADOR_TOKEN, VERIFICADOR_FILTRADA, RELOJ],
+    },
+    {
+      provide: ActualizarPerfil,
+      useFactory: (uow: UnidadDeTrabajo): ActualizarPerfil => new ActualizarPerfil(uow),
+      inject: [UNIDAD_DE_TRABAJO],
     },
   ],
 })

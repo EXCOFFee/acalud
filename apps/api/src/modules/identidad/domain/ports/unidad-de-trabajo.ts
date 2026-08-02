@@ -51,7 +51,11 @@ export interface TokenRepository {
   invalidarVigentesPorCuenta(cuentaId: string, tipo: TipoTokenDeUso): Promise<void>;
 }
 
-/** Repositorios y puertos de escritura disponibles dentro de una transacción (UoW, ADR-002). */
+/**
+ * Repos de ESTE bounded context ligados a una transacción. La Unit of Work es por módulo
+ * (ADR-002): un `ReposTransaccionales` compartido entre contextos obligaría a cada módulo a
+ * conocer el interior del otro, que es exactamente lo que la regla de fronteras prohíbe.
+ */
 export interface ReposTransaccionales {
   cuentas: CuentaRepository;
   sesiones: SesionRepository;
@@ -60,11 +64,8 @@ export interface ReposTransaccionales {
   auditoria: AuditoriaPort;
 }
 
-/**
- * Unit of Work: ejecuta `fn` dentro de una única transacción de BD (commit total o rollback
- * total). Sin esto, el registro (cuenta + token + email + evento) no sería atómico.
- */
 export interface UnidadDeTrabajo {
   transaccion<T>(fn: (repos: ReposTransaccionales) => Promise<T>): Promise<T>;
 }
+
 export const UNIDAD_DE_TRABAJO = Symbol('UnidadDeTrabajo');

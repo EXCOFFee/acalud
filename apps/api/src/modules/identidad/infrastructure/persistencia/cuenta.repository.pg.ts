@@ -1,6 +1,11 @@
 import type { Pool, PoolClient } from 'pg';
 import { Cuenta } from '../../domain/cuenta';
-import type { CuentaRepository, DatosNuevaCuenta } from '../../domain/ports/cuenta.repository';
+import type {
+  CuentaRepository,
+  DatosNuevaCuenta,
+  DatosPerfilCuenta,
+  PerfilDocentePersistido,
+} from '../../domain/ports/cuenta.repository';
 
 type Ejecutor = Pool | PoolClient;
 
@@ -77,5 +82,57 @@ export class CuentaRepositoryPg implements CuentaRepository {
 
   async registrarUltimoLogin(id: string, ahora: Date): Promise<void> {
     await this.db.query(`UPDATE users SET last_login = $2 WHERE id = $1`, [id, ahora]);
+  }
+
+  async actualizarPerfil(id: string, datos: DatosPerfilCuenta): Promise<void> {
+    const nombreCompleto = `${datos.nombre} ${datos.apellido}`.trim();
+    await this.db.query(
+      `WITH perfil AS (
+         INSERT INTO teacher_profiles (user_id, level_id, subject_id, school_name)
+         VALUES (
+           $1,
+           (SELECT id FROM levels WHERE lower(name) = lower($2) AND $2 IS NOT NULL),
+           (SELECT id FROM subjects WHERE lower(name) = lower($3) AND $3 IS NOT NULL),
+           NULLIF($4, '')
+         )
+         ON CONFLICT (user_id) DO UPDATE SET
+           level_id = EXCLUDED.level_id,
+           subject_id = EXCLUDED.subject_id,
+           school_name = EXCLUDED.school_name
+         RETURNING user_id
+       )
+       UPDATE users
+       SET full_name = $5
+       WHERE id = $1`,
+      [
+        id,
+        datos.nivelEducativo ?? null,
+        datos.materia ?? null,
+        datos.institucion ?? null,
+        nombreCompleto,
+      ],
+    );
+  }
+
+  async buscarPerfil(id: string): Promise<PerfilDocentePersistido | null> {
+    const r = await this.db.query<{
+      level_name: string | null;
+      subject_name: string | null;
+      school_name: string | null;
+    }>(
+      `SELECT l.name AS level_name, s.name AS subject_name, tp.school_name
+       FROM teacher_profiles tp
+       LEFT JOIN levels l ON l.id = tp.level_id
+       LEFT JOIN subjects s ON s.id = tp.subject_id
+       WHERE tp.user_id = $1`,
+      [id],
+    );
+    const fila = r.rows[0];
+    if (!fila) return null;
+    return {
+      nivelEducativo: fila.level_name ?? null,
+      materia: fila.subject_name ?? null,
+      institucion: fila.school_name ?? null,
+    };
   }
 }

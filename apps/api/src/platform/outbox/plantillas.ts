@@ -86,6 +86,40 @@ export function renderizar(tipo: string, payload: Record<string, unknown>): Plan
            <p style="margin:0;">${boton(`${WEB}/login`, 'Ingresar')}</p>`,
         ),
       };
+    case 'licencia-asignada': {
+      // CU-26 RN-008: el docente recibe los detalles de la asignación.
+      const nombre = String(payload['nombre'] ?? '');
+      const producto = String(payload['producto'] ?? '');
+      const cantidad = Number(payload['cantidad'] ?? 0);
+      return {
+        asunto: `Te asignaron licencias de ${producto}`,
+        html: base(
+          `<h1 style="font-size:22px;margin:0 0 12px;">Tenés nuevas licencias 🎲</h1>
+           <p style="margin:0 0 8px;">Hola ${nombre}, tu institución te asignó
+             <strong>${cantidad}</strong> licencia(s) de <strong>${producto}</strong>.</p>
+           <p style="margin:0 0 20px;">Ya podés usarlas y cargar tus sesiones de uso.</p>
+           <p style="margin:0;">${boton(`${WEB}/cuenta`, 'Ver mis licencias')}</p>`,
+        ),
+      };
+    }
+    case 'licencia-revocada': {
+      // CU-27 RN-005 / p19: el docente recibe los detalles de la revocación y las razones.
+      const nombre = String(payload['nombre'] ?? '');
+      const producto = String(payload['producto'] ?? '');
+      const cantidad = Number(payload['cantidad'] ?? 0);
+      const razon = String(payload['razon'] ?? '');
+      const motivo = razon !== '' ? `<p style="margin:0 0 8px;">Motivo: ${razon}</p>` : '';
+      return {
+        asunto: `Se revocaron licencias de ${producto}`,
+        html: base(
+          `<h1 style="font-size:22px;margin:0 0 12px;">Revocación de licencias</h1>
+           <p style="margin:0 0 8px;">Hola ${nombre}, tu institución revocó
+             <strong>${cantidad}</strong> licencia(s) de <strong>${producto}</strong> que tenías asignadas.</p>
+           ${motivo}
+           <p style="margin:0 0 20px;">Si tenés dudas, contactá a tu encargado institucional.</p>`,
+        ),
+      };
+    }
     case 'aviso-bloqueo':
       return {
         asunto: 'Alerta de seguridad en tu cuenta de Acalud',
