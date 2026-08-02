@@ -145,7 +145,7 @@ describe('CU-029 y CU-030 · Sesiones de Juego', () => {
         WHERE entity_type = 'session' AND actor_user_id = $1`,
       [profe.id],
     );
-    expect(auditoria.rows[0]?.action).toBe('SesionDeUsoRegistrada');
+    expect(auditoria.rows[0]?.action).toBe('game_session_registered');
 
     // CU-030: Ver listado
     const lista = await listarSesiones(profe.token);
