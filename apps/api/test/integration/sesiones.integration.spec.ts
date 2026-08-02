@@ -150,9 +150,9 @@ describe('CU-029 y CU-030 · Sesiones de Juego', () => {
     // CU-030: Ver listado
     const lista = await listarSesiones(profe.token);
     expect(lista.status).toBe(200);
-    expect(lista.body.datos).toHaveLength(1);
-    expect(lista.body.datos[0].producto_id).toBe(productoId);
-    expect(lista.body.datos[0].cantidad_estudiantes).toBe(28);
+    expect(lista.body.items).toHaveLength(1);
+    expect(lista.body.items[0].estudiantes).toBe(28);
+    expect(lista.body.items[0].grupo).toBe('4°B');
   });
 
   it('INS-CU029-EXC-001: Juego no adquirido (o no asignado) por la institución es rechazado', async () => {
