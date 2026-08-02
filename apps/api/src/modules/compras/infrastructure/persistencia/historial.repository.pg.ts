@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
-
+import type { EstadoPedido } from '../../domain/pedido';
 import type { DetalleOrdenHistorial, FiltroHistorial, HistorialRepository, OrdenHistorial, ResultadoPaginado } from '../../domain/ports/historial.repository';
 
 type Ejecutor = Pool | PoolClient;
@@ -42,7 +42,7 @@ export class HistorialRepositoryPg implements HistorialRepository {
     `;
 
     const dataValues = [...values, limit, offset];
-    const dataResult = await this.db.query<any>(dataQuery, dataValues);
+    const dataResult = await this.db.query<{ id: string; numero: string; fecha: Date; total: number; estado: EstadoPedido }>(dataQuery, dataValues);
 
     const items: OrdenHistorial[] = dataResult.rows.map((row) => ({
       id: row.id,
@@ -62,7 +62,20 @@ export class HistorialRepositoryPg implements HistorialRepository {
   }
 
   async detalle(usuarioId: string, ordenId: string): Promise<DetalleOrdenHistorial | null> {
-    const r = await this.db.query<any>(
+    const r = await this.db.query<{
+      id: string;
+      numero: string;
+      fecha: Date;
+      estado: EstadoPedido;
+      total: number;
+      envio_costo: number;
+      shipping_street: string | null;
+      shipping_number: string | null;
+      shipping_city: string | null;
+      shipping_province: string | null;
+      shipping_postal_code: string | null;
+      lineas: { juego_id: string; nombre: string; cantidad: number; precio_unitario: number; descuento_pct: number }[];
+    }>(
       `
       SELECT o.id, o.order_number as numero, o.created_at as fecha, o.status as estado,
              o.total_amount::float8 as total, o.shipping_cost::float8 as envio_costo,
@@ -87,7 +100,7 @@ export class HistorialRepositoryPg implements HistorialRepository {
     );
 
     if (r.rows.length === 0) return null;
-    const row = r.rows[0];
+    const row = r.rows[0]!;
 
     const subtotal = row.total - row.envio_costo;
 

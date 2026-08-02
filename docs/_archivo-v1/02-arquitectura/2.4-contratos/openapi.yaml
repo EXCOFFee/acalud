@@ -997,36 +997,6 @@ components:
               asignada_en: { type: string, format: date-time }
               estado: { type: string, enum: [active, revoked] }
 
-    AsignacionInput:
-      type: object
-      required: [producto_id, asignaciones]
-      properties:
-        producto_id: { type: string, format: uuid, description: 'Debe estar en el inventario institucional (CU-026 p14)' }
-        asignaciones:
-          type: array
-          minItems: 1
-          description: 'Una línea por docente; un mismo docente no puede repetirse en el pedido'
-          items:
-            type: object
-            required: [docente_id, cantidad]
-            properties:
-              docente_id: { type: string, format: uuid, description: 'Usuario con membresía activa en la institución (CU-026 RN-010)' }
-              cantidad: { type: integer, minimum: 1, description: 'CU-026 RN-004' }
-        observaciones: { type: [string, 'null'], maxLength: 500, description: 'CU-026 p8' }
-
-    AsignacionResultView:
-      type: object
-      properties:
-        producto_id: { type: string, format: uuid }
-        asignaciones:
-          type: array
-          items:
-            type: object
-            properties:
-              asignacion_id: { type: string, format: uuid }
-              docente_id: { type: string, format: uuid }
-              cantidad: { type: integer }
-        cantidad_disponible: { type: integer, description: 'Disponibilidad ya actualizada (CU-026 p21)' }
 
     AsignacionDeDocenteView:
       type: object

@@ -4,7 +4,6 @@ import { AuthGuard } from '../../../../platform/auth/auth.guard';
 import type { RequestAutenticada } from '../../../../platform/auth/autenticado';
 import { ZodValidationPipe } from '../../../../platform/http/zod-validation.pipe';
 import { FiltroHistorialSchema, FiltroHistorialDto } from './esquemas';
-import type { DetalleOrdenHistorial, FiltroHistorial, HistorialRepository, OrdenHistorial, ResultadoPaginado } from '../../domain/ports/historial.repository';
 import { OrdenNoEncontrada } from '../../domain/errores';
 
 function mapearError(error: unknown): never {
@@ -25,7 +24,7 @@ export class HistorialController {
     @Query(new ZodValidationPipe(FiltroHistorialSchema)) filtro: FiltroHistorialDto,
   ) {
     try {
-      return await this.verHistorial.ejecutar(req.autenticado!.id, filtro as any);
+      return await this.verHistorial.ejecutar(req.autenticado!.id, filtro);
     } catch (error) {
       mapearError(error);
     }

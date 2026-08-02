@@ -1,11 +1,11 @@
 import type { EstadoPedido } from '../pedido';
 
 export interface FiltroHistorial {
-  estado?: EstadoPedido;
-  orden_por?: 'created_at' | 'total_amount';
-  orden_dir?: 'asc' | 'desc';
-  pagina?: number;
-  limite?: number;
+  estado?: EstadoPedido | undefined;
+  orden_por?: 'created_at' | 'total_amount' | undefined;
+  orden_dir?: 'asc' | 'desc' | undefined;
+  pagina?: number | undefined;
+  limite?: number | undefined;
 }
 
 export interface OrdenHistorial {
