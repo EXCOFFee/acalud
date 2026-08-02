@@ -52,6 +52,7 @@ export class CargarSesionJuego {
       await repos.auditoria.registrar({
         tipo: 'game_session_registered',
         sujetoId: sessionId,
+        sujetoTipo: 'session',
         actorId: usuarioId,
         datos: {
           product_id: input.productoId,
