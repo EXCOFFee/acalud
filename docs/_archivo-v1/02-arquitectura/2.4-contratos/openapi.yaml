@@ -225,7 +225,8 @@ paths:
       tags: [catalogo]
       summary: Acceder a demo completa (CU-007 con sesión; registra DemoProbada)
       security:
-        - session_auth: []
+        - cookieAuth: []
+        - bearerAuth: []
       parameters:
         - { $ref: '#/components/parameters/juego_id' }
       responses:
