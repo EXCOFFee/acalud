@@ -7,14 +7,21 @@ export class AuditoriaCatalogoPg implements AuditoriaCatalogo {
 
   async registrar(evento: {
     tipo: 'create' | 'update' | 'delete';
+    sujetoTipo: 'product' | 'category';
     sujetoId: string;
     actorId: string;
     datos?: Record<string, unknown>;
   }): Promise<void> {
     await this.client.query(
       `INSERT INTO audit_log (action, entity_type, entity_id, actor_user_id, new_values)
-       VALUES ($1, 'product', $2, $3, $4::jsonb)`,
-      [evento.tipo, evento.sujetoId, evento.actorId, JSON.stringify(evento.datos ?? {})],
+       VALUES ($1, $2, $3, $4, $5::jsonb)`,
+      [
+        evento.tipo,
+        evento.sujetoTipo,
+        evento.sujetoId,
+        evento.actorId,
+        JSON.stringify(evento.datos ?? {}),
+      ],
     );
   }
 }

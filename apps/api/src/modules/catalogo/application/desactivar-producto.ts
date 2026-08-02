@@ -16,6 +16,7 @@ export class DesactivarProducto {
 
       await repos.auditoria.registrar({
         tipo: 'delete',
+        sujetoTipo: 'product',
         sujetoId: producto.id,
         actorId: adminId,
         datos: { name: producto.name },

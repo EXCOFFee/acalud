@@ -26,6 +26,7 @@ export class CrearProducto {
       // RN-002 / poscondición: admin_id, action, product_id y timestamp (este último, por defecto de la BD).
       await repos.auditoria.registrar({
         tipo: 'create',
+        sujetoTipo: 'product',
         sujetoId: producto.id,
         actorId: input.adminId,
         datos: { name: producto.name, price: producto.price, stock: producto.stock },

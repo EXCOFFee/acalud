@@ -47,3 +47,19 @@ export class CategoriaInvalida extends ErrorDeDominio {
     super('La categoría seleccionada no existe');
   }
 }
+
+/** CU-19 A7: la categoría administrada no existe. → 404. */
+export class CategoriaAdminNoEncontrada extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Categoría no encontrada');
+  }
+}
+
+/** CU-19 A7.5: ya existe una categoría con ese nombre. → 409. */
+export class NombreCategoriaDuplicado extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Ya existe una categoría con ese nombre');
+  }
+}

@@ -25,6 +25,7 @@ export class ActualizarProducto {
 
       await repos.auditoria.registrar({
         tipo: 'update',
+        sujetoTipo: 'product',
         sujetoId: producto.id,
         actorId: input.adminId,
         datos: { name: producto.name, price: producto.price, stock: producto.stock },

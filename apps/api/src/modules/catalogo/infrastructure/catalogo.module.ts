@@ -27,13 +27,18 @@ import {
 } from '../domain/ports/catalogo-admin.uow';
 import { UnidadDeTrabajoCatalogoAdminPg } from './persistencia/unidad-de-trabajo-admin.pg';
 import { AdminCatalogoController } from './http/admin-catalogo.controller';
+import { ActualizarCategoria } from '../application/actualizar-categoria';
+import { CrearCategoria } from '../application/crear-categoria';
+import { EliminarCategoria } from '../application/eliminar-categoria';
+import { ListarCategoriasAdmin } from '../application/listar-categorias-admin';
+import { AdminCategoriasController } from './http/admin-categorias.controller';
 
 /**
  * BC2 · Catálogo (read-only, CU-006). Cablea el puerto de lectura con su adapter PG; los casos
  * de uso son clases framework-agnósticas instanciadas por `useFactory` (ADR-002).
  */
 @Module({
-  controllers: [CatalogoController, AdminCatalogoController],
+  controllers: [CatalogoController, AdminCatalogoController, AdminCategoriasController],
   providers: [
     {
       provide: CATALOGO_REPOSITORY,
@@ -113,6 +118,26 @@ import { AdminCatalogoController } from './http/admin-catalogo.controller';
     {
       provide: DesactivarProducto,
       useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): DesactivarProducto => new DesactivarProducto(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: ListarCategoriasAdmin,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): ListarCategoriasAdmin => new ListarCategoriasAdmin(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: CrearCategoria,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): CrearCategoria => new CrearCategoria(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: ActualizarCategoria,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): ActualizarCategoria => new ActualizarCategoria(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: EliminarCategoria,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): EliminarCategoria => new EliminarCategoria(uow),
       inject: [UOW_CATALOGO_ADMIN],
     },
   ],
