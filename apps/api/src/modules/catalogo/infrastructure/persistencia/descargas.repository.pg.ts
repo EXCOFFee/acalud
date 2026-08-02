@@ -8,9 +8,10 @@ export class DescargasRepositoryPg implements DescargasRepository {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
 
   async registrarDescarga(recursoId: string, usuarioId: string | null): Promise<void> {
+    const via = usuarioId ? 'personal' : 'anonymous'; // Por defecto asumimos personal si hay usuario, o resolveremos despues
     await this.pool.query(
-      'INSERT INTO downloads (resource_id, user_id, created_at) VALUES ($1, $2, now())',
-      [recursoId, usuarioId]
+      'INSERT INTO downloads (resource_id, user_id, via, created_at) VALUES ($1, $2, $3, now())',
+      [recursoId, usuarioId, via]
     );
 
     // CU-08 RN-004: Emisión del evento de analítica correspondiente (audit_log)

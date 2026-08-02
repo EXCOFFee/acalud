@@ -38,7 +38,13 @@ export async function levantarApp(): Promise<CtxApp> {
   await migrador.end();
 
   process.env.DATABASE_URL = uri; // lo lee el PgModule al instanciar el pool
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const { STORAGE_PROVIDER } = await import('../../../src/platform/storage/storage-provider.port');
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(STORAGE_PROVIDER)
+    .useValue({
+      generarUrlFirmada: async (bucket: string, path: string, exp?: number) => `https://mock-storage.com/${bucket}/${path}?token=mock&exp=${exp}`,
+    })
+    .compile();
   const app = moduleRef.createNestApplication();
   configurarApp(app);
   await app.init();

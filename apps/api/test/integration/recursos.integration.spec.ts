@@ -49,33 +49,33 @@ describe('Catálogo: Descarga de Recursos (CU-08 y CU-09)', () => {
     profeSinPermisoToken = sinPermisoData.token;
 
     // Institución
-    await ctx.pg.query(`INSERT INTO institutions (id, name, type) VALUES ($1, 'Inst Test', 'colegio')`, [instId]);
+    await ctx.pg.query(`INSERT INTO institutions (id, legal_name, tax_id, email, status) VALUES ($1, 'Inst Test', '30-71000000-1', 'inst@test.com', 'active')`, [instId]);
     await ctx.pg.query(`
-      INSERT INTO institutional_teachers (id, institution_id, user_id, status) VALUES 
-      (gen_random_uuid(), $1, $2, 'active')
+      INSERT INTO institutional_teachers (id, institution_id, user_id, invited_email, status) VALUES 
+      (gen_random_uuid(), $1, $2, 'asignado@test.com', 'active')
       RETURNING id
     `, [instId, realAsignadoId]);
     const itId = (await ctx.pg.query(`SELECT id FROM institutional_teachers WHERE user_id = $1`, [realAsignadoId])).rows[0].id;
 
     // Productos
     await ctx.pg.query(`
-      INSERT INTO products (id, name, type, is_standalone, price, status) VALUES 
-      ($1, 'Juego Gratis', 'physical_game', true, 0, 'publicado'),
-      ($2, 'Juego Premium', 'physical_game', true, 100, 'publicado')
+      INSERT INTO products (id, name, price, stock, is_active) VALUES 
+      ($1, 'Juego Gratis', 0, 100, true),
+      ($2, 'Juego Premium', 100, 100, true)
     `, [juegoGratisId, juegoLicenciadoId]);
 
     // Asignar y comprar
     await ctx.pg.query(`
-      INSERT INTO orders (id, user_id, total, status, payment_intent_id) VALUES 
-      (gen_random_uuid(), $1, 100, 'paid', 'pi_test') RETURNING id
+      INSERT INTO orders (order_number, order_type, user_id, total_amount, status, shipping_method) VALUES 
+      (gen_random_uuid(), 'b2c', $1, 100, 'paid', 'home_delivery') RETURNING id
     `, [realComproId]);
     const orderId = (await ctx.pg.query(`SELECT id FROM orders WHERE user_id = $1`, [realComproId])).rows[0].id;
-    await ctx.pg.query(`INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES (gen_random_uuid(), $1, $2, 1, 100)`, [orderId, juegoLicenciadoId]);
+    await ctx.pg.query(`INSERT INTO order_items (order_id, product_id, product_name_snapshot, quantity, unit_price) VALUES ($1, $2, 'Juego', 1, 100)`, [orderId, juegoLicenciadoId]);
 
     await ctx.pg.query(`
-      INSERT INTO institutional_assignments (id, institution_id, institutional_teacher_id, product_id, quantity_assigned, status) VALUES 
-      (gen_random_uuid(), $1, $2, $3, 1, 'active')
-    `, [instId, itId, juegoLicenciadoId]);
+      INSERT INTO institutional_assignments (id, institution_id, institutional_teacher_id, product_id, quantity_assigned, status, assigned_by) VALUES 
+      (gen_random_uuid(), $1, $2, $3, 1, 'active', $4)
+    `, [instId, itId, juegoLicenciadoId, itId]);
 
     // Recursos
     await ctx.pg.query(`
