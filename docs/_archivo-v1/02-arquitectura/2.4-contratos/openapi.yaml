@@ -209,14 +209,25 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/JuegoDetalle' } } } }
         '404': { $ref: '#/components/responses/Problem404' }
 
-  /catalogo/juegos/{juego_id}/demos:
+  /catalogo/juegos/{juego_id}/demo/publica:
     get:
       tags: [catalogo]
-      summary: Acceder a demo (CU-006 pública sin sesión / CU-007 completa con sesión; registra DemoProbada)
+      summary: Acceder a demo pública (CU-006 sin sesión)
       security: []
       parameters:
         - { $ref: '#/components/parameters/juego_id' }
-        - { name: tipo, in: query, required: true, schema: { type: string, enum: [publica, completa] } }
+      responses:
+        '200': { description: URL de visualización embebida de corta vida }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /catalogo/juegos/{juego_id}/demo/completa:
+    get:
+      tags: [catalogo]
+      summary: Acceder a demo completa (CU-007 con sesión; registra DemoProbada)
+      security:
+        - session_auth: []
+      parameters:
+        - { $ref: '#/components/parameters/juego_id' }
       responses:
         '200': { description: URL de visualización embebida de corta vida }
         '401': { description: Demo completa sin sesión → login con retorno (CU-007 E2) }

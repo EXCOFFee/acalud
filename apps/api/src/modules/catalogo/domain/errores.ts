@@ -7,3 +7,11 @@ export class JuegoNoEncontrado extends ErrorDeDominio {
     super('Juego no encontrado');
   }
 }
+
+/** La demo solicitada (pública o completa) no existe para el juego (CU-006, CU-007). → 404. */
+export class DemoNoEncontrada extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Demo no encontrada para el juego solicitado');
+  }
+}

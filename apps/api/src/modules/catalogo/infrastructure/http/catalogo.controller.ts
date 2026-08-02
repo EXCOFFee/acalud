@@ -1,8 +1,13 @@
-import { Controller, Get, HttpException, Param, Query } from '@nestjs/common';
+import { Controller, Get, HttpException, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '../../../../platform/auth/auth.guard';
+import type { RequestAutenticada } from '../../../../platform/auth/autenticado';
 import { ZodValidationPipe } from '../../../../platform/http/zod-validation.pipe';
 import { ListarJuegos, type ListadoJuegos } from '../../application/listar-juegos';
+import { ProbarDemoPublica } from '../../application/probar-demo-publica';
+import { ProbarDemoRegistrada } from '../../application/probar-demo-registrada';
 import { VerJuego } from '../../application/ver-juego';
-import { JuegoNoEncontrado } from '../../domain/errores';
+import { DemoNoEncontrada, JuegoNoEncontrado } from '../../domain/errores';
+import type { ContenidoDemo } from '../../domain/ports/demos.repository';
 import type { JuegoDetalle } from '../../domain/juego';
 import { type ListadoQuery, listadoQuerySchema } from './esquemas';
 
@@ -14,6 +19,8 @@ export class CatalogoController {
   constructor(
     private readonly listar: ListarJuegos,
     private readonly ver: VerJuego,
+    private readonly demoPublica: ProbarDemoPublica,
+    private readonly demoRegistrada: ProbarDemoRegistrada,
   ) {}
 
   @Get('juegos')
@@ -36,6 +43,36 @@ export class CatalogoController {
       return await this.ver.ejecutar(juegoId);
     } catch (error) {
       if (error instanceof JuegoNoEncontrado) {
+        throw new HttpException({ title: 'No encontrado', detail: error.message }, 404);
+      }
+      throw error;
+    }
+  }
+
+  @Get('juegos/:juego_id/demo/publica')
+  async probarDemoPublica(@Param('juego_id') juegoId: string): Promise<ContenidoDemo> {
+    try {
+      if (!UUID_RE.test(juegoId)) throw new JuegoNoEncontrado();
+      return await this.demoPublica.ejecutar(juegoId);
+    } catch (error) {
+      if (error instanceof JuegoNoEncontrado || error instanceof DemoNoEncontrada) {
+        throw new HttpException({ title: 'No encontrado', detail: error.message }, 404);
+      }
+      throw error;
+    }
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('juegos/:juego_id/demo/completa')
+  async probarDemoRegistrada(
+    @Param('juego_id') juegoId: string,
+    @Req() req: RequestAutenticada,
+  ): Promise<ContenidoDemo> {
+    try {
+      if (!UUID_RE.test(juegoId)) throw new JuegoNoEncontrado();
+      return await this.demoRegistrada.ejecutar(req.autenticado!.id, juegoId);
+    } catch (error) {
+      if (error instanceof JuegoNoEncontrado || error instanceof DemoNoEncontrada) {
         throw new HttpException({ title: 'No encontrado', detail: error.message }, 404);
       }
       throw error;
