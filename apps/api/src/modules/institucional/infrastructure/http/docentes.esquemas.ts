@@ -6,8 +6,8 @@ import { z } from 'zod';
  */
 export const cargarSesionSchema = z.object({
   producto_id: z.string().uuid(),
-  // RN-002: La fecha de uso no puede ser futura
-  fecha_uso: z.coerce.date().max(new Date(), 'La fecha de uso no puede ser futura'),
+  // RN-002: La fecha de uso no puede ser futura. Se evalúa dinámicamente con refine para evitar que new Date() se fije al cargar el módulo.
+  fecha_uso: z.coerce.date().refine((val) => val <= new Date(), { message: 'La fecha de uso no puede ser futura' }),
   grupo: z.string().min(1),
   // RN-003: Cantidad de estudiantes y duración mayores a 0
   cantidad_estudiantes: z.number().int().min(1, 'Debe haber al menos 1 estudiante'),
