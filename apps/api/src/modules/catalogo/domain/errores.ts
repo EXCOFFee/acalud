@@ -15,3 +15,19 @@ export class DemoNoEncontrada extends ErrorDeDominio {
     super('Demo no encontrada para el juego solicitado');
   }
 }
+
+/** El recurso solicitado no existe (CU-08, CU-09). → 404. */
+export class RecursoNoEncontrado extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Recurso no encontrado');
+  }
+}
+
+/** El usuario no tiene permisos sobre el recurso licenciado (CU-09). → 403. */
+export class RecursoNoAutorizado extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('No tiene permisos para descargar este recurso');
+  }
+}

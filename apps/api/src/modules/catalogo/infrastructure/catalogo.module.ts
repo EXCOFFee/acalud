@@ -10,6 +10,14 @@ import { ProbarDemoRegistrada } from '../application/probar-demo-registrada';
 import { CatalogoController } from './http/catalogo.controller';
 import { CatalogoRepositoryPg } from './persistencia/catalogo.repository.pg';
 import { DemosRepositoryPg } from './persistencia/demos.repository.pg';
+import { RECURSOS_REPOSITORY } from '../domain/ports/recursos.repository';
+import { DESCARGAS_REPOSITORY } from '../domain/ports/descargas.repository';
+import { RECURSOS_AUTORIZACION_PORT } from '../domain/ports/recursos-autorizacion.port';
+import { RecursosRepositoryPg } from './persistencia/recursos.repository.pg';
+import { DescargasRepositoryPg } from './persistencia/descargas.repository.pg';
+import { RecursosAutorizacionPg } from './persistencia/recursos-autorizacion.pg';
+import { DescargarRecurso } from '../application/descargar-recurso';
+import { STORAGE_PROVIDER } from '../../../platform/storage/storage-provider.port';
 
 /**
  * BC2 · Catálogo (read-only, CU-006). Cablea el puerto de lectura con su adapter PG; los casos
@@ -47,6 +55,36 @@ import { DemosRepositoryPg } from './persistencia/demos.repository.pg';
       provide: ProbarDemoRegistrada,
       useFactory: (repo: DemosRepository): ProbarDemoRegistrada => new ProbarDemoRegistrada(repo),
       inject: [DEMOS_REPOSITORY],
+    },
+    {
+      provide: RECURSOS_REPOSITORY,
+      useFactory: (pool: Pool) => new RecursosRepositoryPg(pool),
+      inject: [PG_POOL],
+    },
+    {
+      provide: DESCARGAS_REPOSITORY,
+      useFactory: (pool: Pool) => new DescargasRepositoryPg(pool),
+      inject: [PG_POOL],
+    },
+    {
+      provide: RECURSOS_AUTORIZACION_PORT,
+      useFactory: (pool: Pool) => new RecursosAutorizacionPg(pool),
+      inject: [PG_POOL],
+    },
+    {
+      provide: DescargarRecurso,
+      useFactory: (
+        recursosRepo,
+        descargasRepo,
+        autorizacionPort,
+        storageProvider,
+      ) => new DescargarRecurso(recursosRepo, descargasRepo, autorizacionPort, storageProvider),
+      inject: [
+        RECURSOS_REPOSITORY,
+        DESCARGAS_REPOSITORY,
+        RECURSOS_AUTORIZACION_PORT,
+        STORAGE_PROVIDER,
+      ],
     },
   ],
 })

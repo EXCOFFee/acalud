@@ -4,6 +4,7 @@ import { AuthModule } from './platform/auth/auth.module';
 import { HealthModule } from './platform/health/health.module';
 import { EmailModule } from './platform/email/email.module';
 import { OutboxModule } from './platform/outbox/outbox.module';
+import { StorageModule } from './platform/storage/storage.module';
 import { IdentidadModule } from './modules/identidad/infrastructure/identidad.module';
 import { CatalogoModule } from './modules/catalogo/infrastructure/catalogo.module';
 import { ComprasModule } from './modules/compras/infrastructure/compras.module';
@@ -23,6 +24,7 @@ import { InstitucionalModule } from './modules/institucional/infrastructure/inst
     HealthModule,
     EmailModule,
     OutboxModule,
+    StorageModule,
     IdentidadModule,
     CatalogoModule,
     ComprasModule,
