@@ -10,7 +10,7 @@ export class OpcionalAuthGuard extends AuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     try {
       await super.canActivate(context);
-    } catch (e) {
+    } catch (_e) {
       // Ignoramos el error, permitiendo la request anónima
     }
     return true; // Siempre permite el paso

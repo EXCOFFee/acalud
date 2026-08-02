@@ -27,7 +27,7 @@ describe('Catálogo: Descarga de Recursos (CU-08 y CU-09)', () => {
     const PW = 'Password123!';
 
     // Helpers to create teachers
-    const createTeacher = async (email: string, id: string) => {
+    const createTeacher = async (email: string, _id: string) => {
       await ctx.request.post('/api/v1/auth/registro').send({ email, contrasena: PW, nombre: 'Test', apellido: 'Teacher' });
       await ctx.pg.query(`UPDATE users SET email_verified = true WHERE email = $1`, [email]);
       // Update the user ID to match what we need for relationships

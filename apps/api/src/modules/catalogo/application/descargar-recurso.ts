@@ -2,7 +2,7 @@ import { RecursoNoAutorizado, RecursoNoEncontrado } from '../domain/errores';
 import type { DescargasRepository } from '../domain/ports/descargas.repository';
 import type { RecursosAutorizacionPort } from '../domain/ports/recursos-autorizacion.port';
 import type { RecursosRepository } from '../domain/ports/recursos.repository';
-import type { StorageProvider } from '../../../../platform/storage/storage-provider.port';
+import type { StorageProvider } from '../../../platform/storage/storage-provider.port';
 import { UnauthorizedException } from '@nestjs/common';
 
 export class DescargarRecurso {
@@ -53,9 +53,10 @@ export class DescargarRecurso {
     // 5. Incremento de métrica (CU-08 RN-006)
     await this.recursosRepo.incrementarDescargas(recurso.id);
 
-    return {
-      url_firmada: urlFinal,
-      expira_en: expiraEn?.toISOString(),
-    };
+    const result: { url_firmada: string; expira_en?: string } = { url_firmada: urlFinal };
+    if (expiraEn) {
+      result.expira_en = expiraEn.toISOString();
+    }
+    return result;
   }
 }
