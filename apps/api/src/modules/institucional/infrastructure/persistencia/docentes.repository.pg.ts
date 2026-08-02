@@ -187,4 +187,24 @@ export class DocentesRepositoryPg implements DocentesRepository {
       return detalle;
     });
   }
+
+  async buscarMembresiaConJuegoAsignado(usuarioId: string, productoId: string): Promise<{ institucionId: string; docenteId: string } | null> {
+    const r = await this.client.query<{ institution_id: string; id: string }>(
+      `SELECT it.institution_id, it.id
+         FROM institutional_teachers it
+         JOIN institutional_assignments a ON a.institutional_teacher_id = it.id
+        WHERE it.user_id = $1 
+          AND it.status = 'active'
+          AND a.product_id = $2
+          AND a.status = 'active'
+          AND a.quantity_assigned > 0
+        LIMIT 1`,
+      [usuarioId, productoId]
+    );
+    if (r.rows.length === 0) return null;
+    return {
+      institucionId: r.rows[0]!.institution_id,
+      docenteId: r.rows[0]!.id,
+    };
+  }
 }

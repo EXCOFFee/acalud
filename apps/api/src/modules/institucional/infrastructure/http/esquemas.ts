@@ -83,3 +83,30 @@ export const docentesQuerySchema = z.object({
   direccion: z.enum(['asc', 'desc']).optional(),
 });
 export type DocentesQuery = z.infer<typeof docentesQuerySchema>;
+
+/** CU-31: Query de GET /instituciones/:id/reportes/uso. Corte y filtros por fecha, juego o docente. */
+export const reporteQuerySchema = z.object({
+  corte: z.enum(['juego', 'docente']).default('juego'),
+  desde: z.coerce.date().optional(),
+  hasta: z.coerce.date().optional(),
+  producto_id: z.string().uuid().optional(),
+  docente_id: z.string().uuid().optional(),
+});
+export type ReporteQuery = z.infer<typeof reporteQuerySchema>;
+
+/** CU-32: Query de GET /instituciones/:id/reportes/uso/exportar. Hereda filtros de CU-31. */
+export const exportarQuerySchema = z.object({
+  corte: z.enum(['juego', 'docente']).default('juego'),
+  desde: z.coerce.date().optional(),
+  hasta: z.coerce.date().optional(),
+  producto_id: z.string().uuid().optional(),
+  docente_id: z.string().uuid().optional(),
+});
+export type ExportarQuery = z.infer<typeof exportarQuerySchema>;
+
+/** CU-33: Query de GET /instituciones/:id/dashboard. Rango de fechas (default: últimos 30 días). */
+export const dashboardQuerySchema = z.object({
+  desde: z.coerce.date().optional(),
+  hasta: z.coerce.date().optional(),
+});
+export type DashboardQuery = z.infer<typeof dashboardQuerySchema>;

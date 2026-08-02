@@ -11,6 +11,7 @@ import {
 import { DocentesRepositoryPg } from './docentes.repository.pg';
 import { AuditoriaInstitucionalPg, InstitucionRepositoryPg } from './institucion.repository.pg';
 import { InventarioRepositoryPg } from './inventario.repository.pg';
+import { SesionesRepositoryPg } from './sesiones.repository.pg';
 
 /**
  * Unit of Work del BC Institucional. Propia del módulo por la regla de fronteras (ADR-002):
@@ -31,6 +32,7 @@ export class UnidadDeTrabajoInstitucionalPg implements UnidadDeTrabajoInstitucio
         notificaciones: new NotificacionesInstitucionalPg(client),
         outbox: new OutboxInstitucionalPg(client),
         auditoria: new AuditoriaInstitucionalPg(client),
+        sesiones: new SesionesRepositoryPg(client)
       });
       await client.query('COMMIT');
       return resultado;

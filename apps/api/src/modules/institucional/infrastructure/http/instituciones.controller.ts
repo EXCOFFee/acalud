@@ -8,13 +8,16 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthGuard } from '../../../../platform/auth/auth.guard';
 import type { RequestAutenticada } from '../../../../platform/auth/autenticado';
 import { ZodValidationPipe } from '../../../../platform/http/zod-validation.pipe';
 import { AsignarLicencias, type LicenciasAsignadas } from '../../application/asignar-licencias';
+import { ExportarReporte } from '../../application/exportar-reporte';
 import {
   type InstitucionRegistrada,
   RegistrarInstitucion,
@@ -25,11 +28,13 @@ import {
   type ListadoDocentesAsignados,
   VerDocentesAsignados,
 } from '../../application/ver-docentes-asignados';
+import { type DashboardPedagogico, VerDashboardPedagogico } from '../../application/ver-dashboard-pedagogico';
 import {
   type DetalleProductoInventario,
   type InventarioInstitucional,
   VerInventario,
 } from '../../application/ver-inventario';
+import { type ReporteInstitucional, VerReporteInstitucional } from '../../application/ver-reporte-institucional';
 import {
   AsignacionNoEncontrada,
   CantidadRevocacionInvalida,
@@ -37,6 +42,7 @@ import {
   DocenteNoEncontrado,
   DocenteNoVinculado,
   EmailInstitucionalDuplicado,
+  ExportExcedeLimite,
   InventarioNoVisible,
   LicenciasInsuficientes,
   NivelEducativoInvalido,
@@ -47,12 +53,18 @@ import {
 import {
   type AsignarLicenciasBody,
   asignarLicenciasSchema,
+  type DashboardQuery,
+  dashboardQuerySchema,
   type DocentesQuery,
   docentesQuerySchema,
+  type ExportarQuery,
+  exportarQuerySchema,
   type InventarioQuery,
   inventarioQuerySchema,
   type RegistrarInstitucionInput,
   registrarInstitucionSchema,
+  type ReporteQuery,
+  reporteQuerySchema,
   type RevocarLicenciasBody,
   revocarLicenciasSchema,
 } from './esquemas';
@@ -73,7 +85,8 @@ function mapearError(error: unknown): never {
   if (
     error instanceof NivelEducativoInvalido ||
     error instanceof LicenciasInsuficientes ||
-    error instanceof CantidadRevocacionInvalida
+    error instanceof CantidadRevocacionInvalida ||
+    error instanceof ExportExcedeLimite
   ) {
     throw new HttpException({ title: 'Dato inválido', detail: error.message }, 422);
   }
@@ -94,7 +107,7 @@ function mapearError(error: unknown): never {
   throw error;
 }
 
-/** BC Institucional · CU-23 Registrar Institución Educativa, CU-25 Inventario. */
+/** BC Institucional · CU-23 … CU-33. */
 @Controller('instituciones')
 export class InstitucionesController {
   constructor(
@@ -103,6 +116,9 @@ export class InstitucionesController {
     private readonly asignarLicencias: AsignarLicencias,
     private readonly revocarLicencias: RevocarLicencias,
     private readonly verDocentesAsignados: VerDocentesAsignados,
+    private readonly verReporte: VerReporteInstitucional,
+    private readonly exportarReporte: ExportarReporte,
+    private readonly verDashboard: VerDashboardPedagogico,
   ) {}
 
   @Post()
@@ -281,4 +297,90 @@ export class InstitucionesController {
       mapearError(error);
     }
   }
+
+  // ─── CU-31: Ver reporte de uso institucional ──────────────────────────────
+
+  @Get(':institucion_id/reportes/uso')
+  @UseGuards(AuthGuard)
+  async reporte(
+    @Req() req: RequestAutenticada,
+    @Param('institucion_id') institucionId: string,
+    @Query(new ZodValidationPipe(reporteQuerySchema)) query: ReporteQuery,
+  ): Promise<ReporteInstitucional> {
+    if (req.autenticado === undefined) throw new UnauthorizedException();
+    if (!UUID_RE.test(institucionId)) {
+      throw new HttpException({ title: 'No encontrado', detail: 'Recurso inexistente' }, 404);
+    }
+    try {
+      return await this.verReporte.ejecutar(institucionId, req.autenticado.id, query.corte, {
+        desde: query.desde,
+        hasta: query.hasta,
+        productoId: query.producto_id,
+        docenteId: query.docente_id,
+      });
+    } catch (error) {
+      mapearError(error);
+    }
+  }
+
+  // ─── CU-32: Exportar reporte ──────────────────────────────────────────────
+
+  @Get(':institucion_id/reportes/uso/exportar')
+  @UseGuards(AuthGuard)
+  async exportar(
+    @Req() req: RequestAutenticada,
+    @Res() res: Response,
+    @Param('institucion_id') institucionId: string,
+    @Query(new ZodValidationPipe(exportarQuerySchema)) query: ExportarQuery,
+  ): Promise<void> {
+    if (req.autenticado === undefined) throw new UnauthorizedException();
+    if (!UUID_RE.test(institucionId)) {
+      throw new HttpException({ title: 'No encontrado', detail: 'Recurso inexistente' }, 404);
+    }
+    try {
+      const result = await this.exportarReporte.ejecutar(
+        institucionId,
+        req.autenticado.id,
+        query.corte,
+        {
+          desde: query.desde,
+          hasta: query.hasta,
+          productoId: query.producto_id,
+          docenteId: query.docente_id,
+        },
+      );
+
+      res
+        .set('Content-Type', result.contentType)
+        .set('Content-Disposition', `attachment; filename="${result.filename}"`)
+        .send(result.buffer);
+    } catch (error) {
+      mapearError(error);
+    }
+  }
+
+  // ─── CU-33: Dashboard pedagógico ─────────────────────────────────────────
+
+  @Get(':institucion_id/dashboard')
+  @UseGuards(AuthGuard)
+  async dashboard(
+    @Req() req: RequestAutenticada,
+    @Param('institucion_id') institucionId: string,
+    @Query(new ZodValidationPipe(dashboardQuerySchema)) query: DashboardQuery,
+  ): Promise<DashboardPedagogico> {
+    if (req.autenticado === undefined) throw new UnauthorizedException();
+    if (!UUID_RE.test(institucionId)) {
+      throw new HttpException({ title: 'No encontrado', detail: 'Recurso inexistente' }, 404);
+    }
+    try {
+      // Default: últimos 30 días
+      const hasta = query.hasta ?? new Date();
+      const desde = query.desde ?? new Date(hasta.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      return await this.verDashboard.ejecutar(institucionId, req.autenticado.id, desde, hasta);
+    } catch (error) {
+      mapearError(error);
+    }
+  }
 }
+

@@ -2,10 +2,13 @@ import { Module } from '@nestjs/common';
 import type { Pool } from 'pg';
 import { PG_POOL } from '../../../platform/db/pg.module';
 import { AsignarLicencias } from '../application/asignar-licencias';
+import { ExportarReporte } from '../application/exportar-reporte';
 import { RegistrarInstitucion } from '../application/registrar-institucion';
 import { RevocarLicencias } from '../application/revocar-licencias';
+import { VerDashboardPedagogico } from '../application/ver-dashboard-pedagogico';
 import { VerDocentesAsignados } from '../application/ver-docentes-asignados';
 import { VerInventario } from '../application/ver-inventario';
+import { VerReporteInstitucional } from '../application/ver-reporte-institucional';
 import {
   UOW_INSTITUCIONAL,
   type UnidadDeTrabajoInstitucional,
@@ -13,9 +16,13 @@ import {
 import { InstitucionesController } from './http/instituciones.controller';
 import { UnidadDeTrabajoInstitucionalPg } from './persistencia/unidad-de-trabajo.pg';
 
-/** BC Institucional (CU-23 …). Composición propia: no reutiliza la UoW de Identidad (ADR-002). */
+import { DocentesController } from './http/docentes.controller';
+import { CargarSesionJuego } from '../application/cargar-sesion-juego';
+import { VerHistorialSesiones } from '../application/ver-historial-sesiones';
+
+/** BC Institucional (CU-23 … CU-33). Composición propia: no reutiliza la UoW de Identidad (ADR-002). */
 @Module({
-  controllers: [InstitucionesController],
+  controllers: [InstitucionesController, DocentesController],
   providers: [
     {
       provide: UOW_INSTITUCIONAL,
@@ -52,6 +59,37 @@ import { UnidadDeTrabajoInstitucionalPg } from './persistencia/unidad-de-trabajo
         new VerDocentesAsignados(uow),
       inject: [UOW_INSTITUCIONAL],
     },
+    {
+      provide: CargarSesionJuego,
+      useFactory: (uow: UnidadDeTrabajoInstitucional): CargarSesionJuego =>
+        new CargarSesionJuego(uow),
+      inject: [UOW_INSTITUCIONAL],
+    },
+    {
+      provide: VerHistorialSesiones,
+      useFactory: (uow: UnidadDeTrabajoInstitucional): VerHistorialSesiones =>
+        new VerHistorialSesiones(uow),
+      inject: [UOW_INSTITUCIONAL],
+    },
+    {
+      provide: VerReporteInstitucional,
+      useFactory: (uow: UnidadDeTrabajoInstitucional): VerReporteInstitucional =>
+        new VerReporteInstitucional(uow),
+      inject: [UOW_INSTITUCIONAL],
+    },
+    {
+      provide: ExportarReporte,
+      useFactory: (uow: UnidadDeTrabajoInstitucional): ExportarReporte =>
+        new ExportarReporte(uow),
+      inject: [UOW_INSTITUCIONAL],
+    },
+    {
+      provide: VerDashboardPedagogico,
+      useFactory: (uow: UnidadDeTrabajoInstitucional): VerDashboardPedagogico =>
+        new VerDashboardPedagogico(uow),
+      inject: [UOW_INSTITUCIONAL],
+    },
   ],
 })
 export class InstitucionalModule {}
+

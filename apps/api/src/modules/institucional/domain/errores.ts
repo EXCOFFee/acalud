@@ -108,3 +108,22 @@ export class CantidadRevocacionInvalida extends ErrorDeDominio {
     );
   }
 }
+
+
+/** CU-29 A7: el docente no tiene asignado el producto (o cantidad > 0). → 403 / 404 (tratado como recurso inexistente/ajeno). */
+export class JuegoNoAsignado extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('No tenés permisos para registrar sesiones de este juego. Contactá a tu encargado institucional');
+  }
+}
+
+/** CU-32 PI-04: el export supera las 5000 filas; hay que acotar los filtros. → 422. */
+export class ExportExcedeLimite extends ErrorDeDominio {
+  readonly clase = 'VALIDATION' as const;
+  constructor(filas: number) {
+    super(
+      `El reporte tiene ${filas} filas y supera el límite de 5000. Acotá los filtros para reducir los resultados`,
+    );
+  }
+}

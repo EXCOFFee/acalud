@@ -48,6 +48,8 @@ export interface AuditoriaInstitucional {
   }): Promise<void>;
 }
 
+import type { SesionesRepository } from './sesiones.repository';
+
 export interface ReposInstitucional {
   instituciones: InstitucionRepository;
   inventario: InventarioRepository;
@@ -56,6 +58,7 @@ export interface ReposInstitucional {
   notificaciones: NotificacionesInstitucional;
   outbox: OutboxInstitucional;
   auditoria: AuditoriaInstitucional;
+  sesiones: SesionesRepository;
 }
 
 /** Unit of Work de este bounded context: commit total o rollback total (ADR-002). */

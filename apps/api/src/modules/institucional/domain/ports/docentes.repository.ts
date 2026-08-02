@@ -61,6 +61,8 @@ export interface DocentesRepository {
   resumen(institucionId: string): Promise<ResumenDocentes>;
   /** null si el docente no está vinculado (activo) a la institución. */
   detalle(institucionId: string, docenteId: string): Promise<DetalleDocente | null>;
+  /** CU-29: Busca la membresía activa de un usuario que tenga asignado un producto específico con cantidad > 0. */
+  buscarMembresiaConJuegoAsignado(usuarioId: string, productoId: string): Promise<{ institucionId: string; docenteId: string } | null>;
 }
 
 export const DOCENTES_REPOSITORY = Symbol('DocentesRepository');

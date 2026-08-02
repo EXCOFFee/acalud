@@ -532,22 +532,24 @@ paths:
       parameters: [ { $ref: '#/components/parameters/institucion_id' }, { name: membresia_id, in: path, required: true, schema: { type: string, format: uuid } } ]
       responses: { '204': { description: Desvinculada }, '409': { description: Ya desvinculada / encargado único (E) } }
 
-  /instituciones/{institucion_id}/sesiones-uso:
+  /docentes/me/sesiones-juego:
     post:
       tags: [instituciones]
-      summary: Cargar sesión de uso (CU-029; juego debe estar en catálogo institucional S-13; rangos PI-05)
-      parameters: [ { $ref: '#/components/parameters/institucion_id' } ]
+      summary: Cargar sesión de uso (CU-029; juego debe estar asignado)
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/SesionUsoInput' } } } }
       responses:
-        '201': { description: Registrada (advertencia de posible duplicado en cuerpo si aplica) }
-        '422': { description: Juego fuera de catálogo (E1) o rangos inválidos (E2) }
+        '201': { description: Registrada }
+        '403': { description: Juego no asignado }
+        '422': { description: Validación de rangos/fechas }
 
-  /me/sesiones-uso:
     get:
       tags: [instituciones]
-      summary: Mis sesiones (CU-030; indica editables vs inmutables PI-02)
-      parameters: [ { name: institucion_id, in: query, schema: { type: string, format: uuid } } ]
-      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/SesionUsoView' } } } } } }
+      summary: Mis sesiones de juego (CU-030)
+      parameters: 
+        - { name: producto_id, in: query, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/pagina' }
+        - { $ref: '#/components/parameters/tamanio' }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { datos: { type: array, items: { $ref: '#/components/schemas/SesionUsoView' } }, paginacion: { $ref: '#/components/schemas/Paginacion' } } } } } } }
 
   /sesiones-uso/{sesion_id}:
     patch:
