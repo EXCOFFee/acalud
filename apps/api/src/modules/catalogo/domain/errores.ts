@@ -31,3 +31,19 @@ export class RecursoNoAutorizado extends ErrorDeDominio {
     super('No tiene permisos para descargar este recurso');
   }
 }
+
+/** CU-19 A1/A2: el producto administrado no existe. → 404. */
+export class ProductoAdminNoEncontrado extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Producto no encontrado');
+  }
+}
+
+/** CU-19 p6: la categoría elegida no existe en `categories`. → 422. */
+export class CategoriaInvalida extends ErrorDeDominio {
+  readonly clase = 'VALIDATION' as const;
+  constructor() {
+    super('La categoría seleccionada no existe');
+  }
+}

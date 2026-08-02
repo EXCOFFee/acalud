@@ -18,13 +18,22 @@ import { DescargasRepositoryPg } from './persistencia/descargas.repository.pg';
 import { RecursosAutorizacionPg } from './persistencia/recursos-autorizacion.pg';
 import { DescargarRecurso } from '../application/descargar-recurso';
 import { STORAGE_PROVIDER } from '../../../platform/storage/storage-provider.port';
+import { ActualizarProducto } from '../application/actualizar-producto';
+import { CrearProducto } from '../application/crear-producto';
+import { DesactivarProducto } from '../application/desactivar-producto';
+import {
+  UOW_CATALOGO_ADMIN,
+  type UnidadDeTrabajoCatalogoAdmin,
+} from '../domain/ports/catalogo-admin.uow';
+import { UnidadDeTrabajoCatalogoAdminPg } from './persistencia/unidad-de-trabajo-admin.pg';
+import { AdminCatalogoController } from './http/admin-catalogo.controller';
 
 /**
  * BC2 · Catálogo (read-only, CU-006). Cablea el puerto de lectura con su adapter PG; los casos
  * de uso son clases framework-agnósticas instanciadas por `useFactory` (ADR-002).
  */
 @Module({
-  controllers: [CatalogoController],
+  controllers: [CatalogoController, AdminCatalogoController],
   providers: [
     {
       provide: CATALOGO_REPOSITORY,
@@ -85,6 +94,26 @@ import { STORAGE_PROVIDER } from '../../../platform/storage/storage-provider.por
         RECURSOS_AUTORIZACION_PORT,
         STORAGE_PROVIDER,
       ],
+    },
+    {
+      provide: UOW_CATALOGO_ADMIN,
+      useFactory: (pool: Pool): UnidadDeTrabajoCatalogoAdmin => new UnidadDeTrabajoCatalogoAdminPg(pool),
+      inject: [PG_POOL],
+    },
+    {
+      provide: CrearProducto,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): CrearProducto => new CrearProducto(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: ActualizarProducto,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): ActualizarProducto => new ActualizarProducto(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: DesactivarProducto,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): DesactivarProducto => new DesactivarProducto(uow),
+      inject: [UOW_CATALOGO_ADMIN],
     },
   ],
 })
