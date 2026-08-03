@@ -1,6 +1,14 @@
 import type { PoolClient } from 'pg';
 import type { AdminDestino, PropuestasRepository } from '../../domain/ports/propuestas.repository';
-import type { DatosPropuesta, EstadoPropuesta, Propuesta, PropuestaResumen } from '../../domain/propuesta';
+import type {
+  DatosPropuesta,
+  EstadoPropuesta,
+  FiltroPropuestasAdmin,
+  Propuesta,
+  PropuestaDetalleAdmin,
+  PropuestaResumen,
+  PropuestaResumenAdmin,
+} from '../../domain/propuesta';
 
 interface FilaPropuesta {
   id: string;
@@ -90,5 +98,56 @@ export class PropuestasRepositoryPg implements PropuestasRepository {
       `SELECT id, email, full_name FROM users WHERE role = 'admin'`,
     );
     return r.rows.map((f) => ({ id: f.id, email: f.email, nombre: f.full_name }));
+  }
+
+  async listarAdmin(filtro: FiltroPropuestasAdmin): Promise<PropuestaResumenAdmin[]> {
+    const orden = filtro.ordenDir === 'asc' ? 'ASC' : 'DESC';
+    const r = await this.client.query<{
+      id: string;
+      title: string;
+      full_name: string;
+      status: EstadoPropuesta;
+      created_at: Date;
+    }>(
+      `SELECT p.id, p.title, u.full_name, p.status, p.created_at
+         FROM proposals p JOIN users u ON u.id = p.user_id
+        WHERE ($1::text IS NULL OR p.status::text = $1)
+          AND ($2::text IS NULL OR p.title ILIKE '%' || $2 || '%'
+                                 OR p.description ILIKE '%' || $2 || '%'
+                                 OR u.full_name ILIKE '%' || $2 || '%')
+        ORDER BY p.created_at ${orden}`,
+      [filtro.status ?? null, filtro.search ?? null],
+    );
+    return r.rows.map((f) => ({
+      id: f.id,
+      title: f.title,
+      autorNombre: f.full_name,
+      status: f.status,
+      createdAt: f.created_at,
+    }));
+  }
+
+  async obtenerAdmin(id: string): Promise<PropuestaDetalleAdmin | null> {
+    const r = await this.client.query<FilaPropuesta & { full_name: string; email: string }>(
+      `SELECT p.*, u.full_name, u.email
+         FROM proposals p JOIN users u ON u.id = p.user_id
+        WHERE p.id = $1`,
+      [id],
+    );
+    const fila = r.rows[0];
+    if (!fila) return null;
+    return { ...aPropuesta(fila), autorNombre: fila.full_name, autorEmail: fila.email };
+  }
+
+  async actualizarEstado(
+    id: string,
+    status: EstadoPropuesta,
+    feedback: string | null,
+  ): Promise<Propuesta | null> {
+    const r = await this.client.query<FilaPropuesta>(
+      `UPDATE proposals SET status = $2, admin_feedback = $3 WHERE id = $1 RETURNING *`,
+      [id, status, feedback],
+    );
+    return r.rows[0] ? aPropuesta(r.rows[0]) : null;
   }
 }

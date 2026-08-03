@@ -133,6 +133,24 @@ export function renderizar(tipo: string, payload: Record<string, unknown>): Plan
         ),
       };
     }
+    case 'propuesta-revisada': {
+      // CU-21 RN-005: el docente autor recibe el nuevo estado y el feedback del admin.
+      const nombre = String(payload['nombre'] ?? '');
+      const titulo = String(payload['titulo'] ?? '');
+      const estado = String(payload['estado'] ?? '');
+      const feedback = String(payload['feedback'] ?? '');
+      const bloqueFeedback =
+        feedback !== '' ? `<p style="margin:0 0 8px;">Comentario del equipo: "${feedback}"</p>` : '';
+      return {
+        asunto: `Tu propuesta "${titulo}" fue revisada`,
+        html: base(
+          `<h1 style="font-size:22px;margin:0 0 12px;">Novedades sobre tu propuesta 📋</h1>
+           <p style="margin:0 0 8px;">Hola ${nombre}, tu propuesta <strong>${titulo}</strong> pasó a estado <strong>${estado}</strong>.</p>
+           ${bloqueFeedback}
+           <p style="margin:0;">${boton(`${WEB}/cuenta/propuestas`, 'Ver mis propuestas')}</p>`,
+        ),
+      };
+    }
     case 'aviso-bloqueo':
       return {
         asunto: 'Alerta de seguridad en tu cuenta de Acalud',

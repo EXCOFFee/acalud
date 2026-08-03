@@ -25,10 +25,19 @@ import { VerMisPropuestas } from '../application/ver-mis-propuestas';
 import { UOW_PROPUESTAS, type UnidadDeTrabajoPropuestas } from '../domain/ports/propuestas.uow';
 import { UnidadDeTrabajoPropuestasPg } from './persistencia/unidad-de-trabajo-propuestas.pg';
 import { PropuestasController } from './http/propuestas.controller';
+import { ListarPropuestasAdmin } from '../application/listar-propuestas-admin';
+import { VerDetallePropuestaAdmin } from '../application/ver-detalle-propuesta-admin';
+import { ActualizarEstadoPropuesta } from '../application/actualizar-estado-propuesta';
+import { AdminPropuestasController } from './http/admin-propuestas.controller';
 
-/** BC6 · Comunidad (CU-14/15/16/20/21). Hasta ahora: ABM admin (CU-20), lectura pública (CU-16), voto (CU-14) y envío de propuestas (CU-15). */
+/** BC6 · Comunidad (CU-14/15/16/20/21) — completo. */
 @Module({
-  controllers: [AdminEncuestasController, EncuestasController, PropuestasController],
+  controllers: [
+    AdminEncuestasController,
+    EncuestasController,
+    PropuestasController,
+    AdminPropuestasController,
+  ],
   providers: [
     {
       provide: UOW_COMUNIDAD_ADMIN,
@@ -99,6 +108,21 @@ import { PropuestasController } from './http/propuestas.controller';
     {
       provide: VerMisPropuestas,
       useFactory: (uow: UnidadDeTrabajoPropuestas): VerMisPropuestas => new VerMisPropuestas(uow),
+      inject: [UOW_PROPUESTAS],
+    },
+    {
+      provide: ListarPropuestasAdmin,
+      useFactory: (uow: UnidadDeTrabajoPropuestas): ListarPropuestasAdmin => new ListarPropuestasAdmin(uow),
+      inject: [UOW_PROPUESTAS],
+    },
+    {
+      provide: VerDetallePropuestaAdmin,
+      useFactory: (uow: UnidadDeTrabajoPropuestas): VerDetallePropuestaAdmin => new VerDetallePropuestaAdmin(uow),
+      inject: [UOW_PROPUESTAS],
+    },
+    {
+      provide: ActualizarEstadoPropuesta,
+      useFactory: (uow: UnidadDeTrabajoPropuestas): ActualizarEstadoPropuesta => new ActualizarEstadoPropuesta(uow),
       inject: [UOW_PROPUESTAS],
     },
   ],

@@ -67,3 +67,27 @@ export class PropuestaDuplicada extends ErrorDeDominio {
   }
 }
 
+/** CU-21 A4: la propuesta administrada no existe. → 404. */
+export class PropuestaNoEncontrada extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('La propuesta que buscás no está disponible');
+  }
+}
+
+/** CU-21 RN-008: una propuesta aprobada o rechazada no puede volver a `pending`. → 409. */
+export class TransicionEstadoInvalida extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Una propuesta aprobada o rechazada no puede volver a pendiente');
+  }
+}
+
+/** CU-21 A3: mismo estado y mismo feedback — no hay nada que guardar. → 409. */
+export class RevisionSinCambios extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('No se detectaron cambios. Seleccioná un estado diferente o agregá feedback');
+  }
+}
+
