@@ -3,17 +3,17 @@
 import { type ChangeEvent, type FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Alerta, Campo } from '@/components/ui';
-import { SiteNav } from '@/components/site-nav';
-import { api, ApiError } from '@/lib/api';
+import { Alerta, Boton, Campo, EstadoCarga } from '@/components/ui';
+import { precioARS, SiteNav } from '@/components/site-nav';
+import { api, ApiError, type ModalidadEnvio, type OpcionEnvio } from '@/lib/api';
 
 type Paso = 'form' | 'pagar' | 'resultado';
+type EstadoEnvio = 'inactivo' | 'calculando' | 'ok' | 'error';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const [paso, setPaso] = useState<Paso>('form');
   const [datos, setDatos] = useState({
-    modalidad: 'home_delivery' as 'home_delivery' | 'branch_pickup',
     calle: '',
     numero: '',
     codigo_postal: '',
@@ -25,18 +25,64 @@ export default function CheckoutPage() {
   const [cargando, setCargando] = useState(false);
   const [resultado, setResultado] = useState('');
 
+  // CU-11: opciones de envío cotizadas contra el código postal ingresado.
+  const [envioEstado, setEnvioEstado] = useState<EstadoEnvio>('inactivo');
+  const [envioError, setEnvioError] = useState<string | null>(null);
+  const [opciones, setOpciones] = useState<OpcionEnvio[]>([]);
+  const [modalidad, setModalidad] = useState<ModalidadEnvio | null>(null);
+
   const set =
     (campo: keyof typeof datos) =>
-    (e: ChangeEvent<HTMLInputElement>): void =>
+    (e: ChangeEvent<HTMLInputElement>): void => {
       setDatos((d) => ({ ...d, [campo]: e.target.value }));
+      if (campo === 'codigo_postal') {
+        // Un código postal distinto invalida la cotización anterior (A9: evita cobrar el envío
+        // calculado para otra dirección).
+        setEnvioEstado('inactivo');
+        setOpciones([]);
+        setModalidad(null);
+      }
+    };
+
+  async function calcularEnvio(): Promise<void> {
+    setEnvioError(null);
+    if (!/^\d{4}$/.test(datos.codigo_postal)) {
+      setEnvioError('Ingresá un código postal de 4 dígitos (ej: 1425).');
+      return;
+    }
+    setEnvioEstado('calculando');
+    try {
+      const carrito = await api.verCarrito();
+      if (carrito.lineas.length === 0) {
+        setEnvioError('Tu carrito está vacío.');
+        setEnvioEstado('error');
+        return;
+      }
+      const r = await api.calcularEnvio(
+        datos.codigo_postal,
+        carrito.lineas.map((l) => ({ product_id: l.juego_id, quantity: l.cantidad })),
+      );
+      setOpciones(r.opciones);
+      setModalidad(r.opciones[0]?.modalidad ?? null); // la más económica, ya viene ordenada así
+      setEnvioEstado('ok');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return router.replace('/login?volver=/checkout');
+      if (err instanceof ApiError && err.status === 422) setEnvioError('Ese código postal no es válido.');
+      else if (err instanceof ApiError && err.status === 503)
+        setEnvioError('El servicio de envíos no está disponible ahora. Probá de nuevo en un rato.');
+      else setEnvioError('No pudimos calcular el envío. Probá de nuevo.');
+      setEnvioEstado('error');
+    }
+  }
 
   async function iniciar(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
+    if (!modalidad) return;
     setError(null);
     setCargando(true);
     try {
       const r = await api.iniciarCheckout({
-        modalidad_envio: datos.modalidad,
+        modalidad_envio: modalidad,
         codigo_postal: datos.codigo_postal,
         domicilio: {
           calle: datos.calle,
@@ -92,32 +138,87 @@ export default function CheckoutPage() {
             </h1>
             <form onSubmit={iniciar} noValidate>
               {error ? <Alerta tipo="error">{error}</Alerta> : null}
-              <div className="campo">
-                <span className="campo__label">Modalidad de envío</span>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  {(['home_delivery', 'branch_pickup'] as const).map((m) => (
-                    <label key={m} style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                      <input
-                        type="radio"
-                        name="modalidad"
-                        checked={datos.modalidad === m}
-                        onChange={() => setDatos((d) => ({ ...d, modalidad: m }))}
-                      />
-                      {m === 'home_delivery' ? 'A domicilio' : 'Retiro en sucursal'}
-                    </label>
-                  ))}
-                </div>
-              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.9rem' }}>
                 <Campo id="calle" etiqueta="Calle" required value={datos.calle} onChange={set('calle')} />
                 <Campo id="numero" etiqueta="Número" required value={datos.numero} onChange={set('numero')} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.9rem' }}>
-                <Campo id="codigo_postal" etiqueta="Código postal" required value={datos.codigo_postal} onChange={set('codigo_postal')} />
-                <Campo id="localidad" etiqueta="Localidad" required value={datos.localidad} onChange={set('localidad')} />
+              <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                  <Campo
+                    id="codigo_postal"
+                    etiqueta="Código postal"
+                    required
+                    placeholder="1425"
+                    error={envioError ?? undefined}
+                    value={datos.codigo_postal}
+                    onChange={set('codigo_postal')}
+                  />
+                </div>
+                <Boton
+                  variante="fantasma"
+                  type="button"
+                  cargando={envioEstado === 'calculando'}
+                  onClick={calcularEnvio}
+                  disabled={!datos.codigo_postal}
+                  style={{ marginBottom: '1rem' }}
+                >
+                  Calcular envío
+                </Boton>
               </div>
-              <Campo id="provincia" etiqueta="Provincia" required value={datos.provincia} onChange={set('provincia')} />
-              <button className="boton boton--primario boton--bloque" type="submit" disabled={cargando}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.9rem' }}>
+                <Campo id="localidad" etiqueta="Localidad" required value={datos.localidad} onChange={set('localidad')} />
+                <Campo id="provincia" etiqueta="Provincia" required value={datos.provincia} onChange={set('provincia')} />
+              </div>
+
+              {envioEstado === 'calculando' ? <EstadoCarga>Buscando opciones de envío…</EstadoCarga> : null}
+
+              {envioEstado === 'ok' && opciones.length > 0 ? (
+                <div className="campo">
+                  <span className="campo__label">Elegí una opción de envío</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                    {opciones.map((o) => (
+                      <label
+                        key={o.modalidad}
+                        className="tarjeta"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '0.8rem',
+                          padding: '0.85rem 1.1rem',
+                          cursor: 'pointer',
+                          borderColor: modalidad === o.modalidad ? 'var(--marca)' : undefined,
+                        }}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+                          <input
+                            type="radio"
+                            name="modalidad_envio"
+                            checked={modalidad === o.modalidad}
+                            onChange={() => setModalidad(o.modalidad)}
+                          />
+                          <span>
+                            <strong>{o.nombre_servicio}</strong>
+                            <br />
+                            <span style={{ fontSize: '0.85rem', color: 'var(--tinta-suave)' }}>
+                              Llega en {o.plazo_estimado_dias} día{o.plazo_estimado_dias === 1 ? '' : 's'} hábiles
+                              {o.tracking_disponible ? ' · con seguimiento' : ''}
+                            </span>
+                          </span>
+                        </span>
+                        <strong>{precioARS(o.costo)}</strong>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <button
+                className="boton boton--primario boton--bloque"
+                type="submit"
+                disabled={cargando || !modalidad}
+                style={{ marginTop: '1.2rem' }}
+              >
                 {cargando ? 'Creando pedido…' : 'Continuar al pago'}
               </button>
               <p style={{ textAlign: 'center', margin: '0.9rem 0 0' }}>

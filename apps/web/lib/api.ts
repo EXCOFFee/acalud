@@ -139,6 +139,16 @@ export interface CarritoView {
   contexto: string | null;
 }
 
+export type ModalidadEnvio = 'home_delivery' | 'branch_pickup';
+
+export interface OpcionEnvio {
+  modalidad: ModalidadEnvio;
+  nombre_servicio: string;
+  costo: number;
+  plazo_estimado_dias: number;
+  tracking_disponible: boolean;
+}
+
 export type EstadoPedido = 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'under_review';
 
 export interface OrdenHistorial {
@@ -241,8 +251,11 @@ export const api = {
   ponerLinea: (juegoId: string, cantidad: number) =>
     pedir<CarritoView>('PUT', `/carrito/lineas/${juegoId}`, { cantidad }),
   quitarLinea: (juegoId: string) => pedir<CarritoView>('DELETE', `/carrito/lineas/${juegoId}`),
+  // CU-11: cotización en tiempo real, sin autenticación (también la usa un usuario anónimo).
+  calcularEnvio: (codigo_postal: string, items: { product_id: string; quantity: number }[]) =>
+    pedir<{ opciones: OpcionEnvio[] }>('POST', '/shipping/calculate', { codigo_postal, items }),
   iniciarCheckout: (d: {
-    modalidad_envio: 'home_delivery' | 'branch_pickup';
+    modalidad_envio: ModalidadEnvio;
     codigo_postal: string;
     domicilio: {
       calle: string;
