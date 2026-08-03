@@ -1,5 +1,9 @@
 import type { PoolClient } from 'pg';
-import type { ProductosAdminRepository } from '../../domain/ports/productos-admin.repository';
+import type {
+  FiltroProductosAdmin,
+  PaginaProductosAdmin,
+  ProductosAdminRepository,
+} from '../../domain/ports/productos-admin.repository';
 import type { DatosProducto, ProductoAdmin } from '../../domain/producto-admin';
 
 interface FilaProducto {
@@ -46,6 +50,49 @@ export class ProductosAdminRepositoryPg implements ProductosAdminRepository {
   async existeCategoria(categoriaId: string): Promise<boolean> {
     const r = await this.client.query('SELECT 1 FROM categories WHERE id = $1', [categoriaId]);
     return r.rowCount !== null && r.rowCount > 0;
+  }
+
+  async existeProducto(id: string): Promise<boolean> {
+    const r = await this.client.query('SELECT 1 FROM products WHERE id = $1', [id]);
+    return r.rowCount !== null && r.rowCount > 0;
+  }
+
+  // p4: incluye inactivos (a diferencia del catálogo público) — el admin necesita verlos para
+  // poder reactivarlos vía edición.
+  async listar(filtro: FiltroProductosAdmin): Promise<PaginaProductosAdmin> {
+    const offset = (filtro.pagina - 1) * filtro.tamanio;
+    const datos = await this.client.query<{
+      id: string;
+      name: string;
+      price: string;
+      stock: number;
+      is_active: boolean;
+      tiene_demo: boolean;
+    }>(
+      `SELECT p.id, p.name, p.price, p.stock, p.is_active,
+              EXISTS (SELECT 1 FROM demos d WHERE d.product_id = p.id) AS tiene_demo
+         FROM products p
+        WHERE ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%')
+        ORDER BY p.name
+        LIMIT $2 OFFSET $3`,
+      [filtro.q ?? null, filtro.tamanio, offset],
+    );
+    const total = await this.client.query<{ total: number }>(
+      `SELECT count(*)::int AS total FROM products p
+        WHERE ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%')`,
+      [filtro.q ?? null],
+    );
+    return {
+      datos: datos.rows.map((f) => ({
+        id: f.id,
+        name: f.name,
+        price: Number(f.price),
+        stock: f.stock,
+        isActive: f.is_active,
+        tieneDemo: f.tiene_demo,
+      })),
+      total: total.rows[0]?.total ?? 0,
+    };
   }
 
   async crear(datos: DatosProducto): Promise<ProductoAdmin> {

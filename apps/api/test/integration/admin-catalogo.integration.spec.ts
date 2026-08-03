@@ -208,4 +208,34 @@ describe('CU-19 · ABM de Productos (admin)', () => {
       expect(res.status).toBe(404);
     });
   });
+
+  describe('Listado admin (p4)', () => {
+    it('incluye productos inactivos, a diferencia del catálogo público', async () => {
+      const alta = await ctx.request
+        .post('/api/v1/admin/products')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...productoValido, titulo: 'Producto Listado Test' });
+      const id = alta.body.id as string;
+      await ctx.request
+        .delete(`/api/v1/admin/products/${id}`)
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+
+      const res = await ctx.request
+        .get('/api/v1/admin/products?q=Producto Listado Test')
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      expect(res.status).toBe(200);
+      const fila = res.body.datos.find((p: { id: string }) => p.id === id);
+      expect(fila).toBeDefined();
+      expect(fila.activo).toBe(false);
+      expect(fila.tiene_demo).toBe(false);
+      expect(res.body.paginacion.total).toBeGreaterThanOrEqual(1);
+    });
+
+    it('sin rol admin responde 403', async () => {
+      const res = await ctx.request
+        .get('/api/v1/admin/products')
+        .set('Cookie', `acalud_sesion=${docenteToken}`);
+      expect(res.status).toBe(403);
+    });
+  });
 });

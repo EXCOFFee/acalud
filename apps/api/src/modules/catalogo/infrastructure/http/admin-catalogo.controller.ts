@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, HttpException, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpException, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../../../../platform/auth/admin.guard';
 import { AuthGuard } from '../../../../platform/auth/auth.guard';
 import type { RequestAutenticada } from '../../../../platform/auth/autenticado';
@@ -6,9 +6,15 @@ import { ZodValidationPipe } from '../../../../platform/http/zod-validation.pipe
 import { ActualizarProducto } from '../../application/actualizar-producto';
 import { CrearProducto } from '../../application/crear-producto';
 import { DesactivarProducto } from '../../application/desactivar-producto';
+import { ListarProductosAdmin } from '../../application/listar-productos-admin';
 import { CategoriaInvalida, ProductoAdminNoEncontrado } from '../../domain/errores';
 import type { ProductoAdmin } from '../../domain/producto-admin';
-import { type ProductoAdminBody, productoAdminSchema } from './admin-catalogo.esquemas';
+import {
+  type ListadoProductosAdminQuery,
+  listadoProductosAdminSchema,
+  type ProductoAdminBody,
+  productoAdminSchema,
+} from './admin-catalogo.esquemas';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -61,10 +67,27 @@ function aRespuesta(p: ProductoAdmin) {
 @UseGuards(AuthGuard, AdminGuard)
 export class AdminCatalogoController {
   constructor(
+    private readonly listarProductos: ListarProductosAdmin,
     private readonly crearProducto: CrearProducto,
     private readonly actualizarProducto: ActualizarProducto,
     private readonly desactivarProducto: DesactivarProducto,
   ) {}
+
+  @Get()
+  async listar(@Query(new ZodValidationPipe(listadoProductosAdminSchema)) query: ListadoProductosAdminQuery) {
+    const pagina = await this.listarProductos.ejecutar(query);
+    return {
+      datos: pagina.datos.map((p) => ({
+        id: p.id,
+        titulo: p.name,
+        precio: p.price,
+        stock: p.stock,
+        activo: p.isActive,
+        tiene_demo: p.tieneDemo,
+      })),
+      paginacion: { pagina: query.pagina, tamanio: query.tamanio, total: pagina.total },
+    };
+  }
 
   @Post()
   async crear(

@@ -29,3 +29,11 @@ export const productoAdminSchema = z
   });
 
 export type ProductoAdminBody = z.infer<typeof productoAdminSchema>;
+
+/** Query de GET /admin/products (CU-19 p4: búsqueda, filtros y paginación). */
+export const listadoProductosAdminSchema = z.object({
+  q: z.string().trim().min(1).optional(),
+  pagina: z.coerce.number().int().min(1).default(1),
+  tamanio: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type ListadoProductosAdminQuery = z.infer<typeof listadoProductosAdminSchema>;

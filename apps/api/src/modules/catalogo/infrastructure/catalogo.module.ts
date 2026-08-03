@@ -21,6 +21,7 @@ import { STORAGE_PROVIDER } from '../../../platform/storage/storage-provider.por
 import { ActualizarProducto } from '../application/actualizar-producto';
 import { CrearProducto } from '../application/crear-producto';
 import { DesactivarProducto } from '../application/desactivar-producto';
+import { ListarProductosAdmin } from '../application/listar-productos-admin';
 import {
   UOW_CATALOGO_ADMIN,
   type UnidadDeTrabajoCatalogoAdmin,
@@ -32,13 +33,20 @@ import { CrearCategoria } from '../application/crear-categoria';
 import { EliminarCategoria } from '../application/eliminar-categoria';
 import { ListarCategoriasAdmin } from '../application/listar-categorias-admin';
 import { AdminCategoriasController } from './http/admin-categorias.controller';
+import { AsignarDemo } from '../application/asignar-demo';
+import { AdminDemosController } from './http/admin-demos.controller';
 
 /**
  * BC2 · Catálogo (read-only, CU-006). Cablea el puerto de lectura con su adapter PG; los casos
  * de uso son clases framework-agnósticas instanciadas por `useFactory` (ADR-002).
  */
 @Module({
-  controllers: [CatalogoController, AdminCatalogoController, AdminCategoriasController],
+  controllers: [
+    CatalogoController,
+    AdminCatalogoController,
+    AdminCategoriasController,
+    AdminDemosController,
+  ],
   providers: [
     {
       provide: CATALOGO_REPOSITORY,
@@ -106,6 +114,11 @@ import { AdminCategoriasController } from './http/admin-categorias.controller';
       inject: [PG_POOL],
     },
     {
+      provide: ListarProductosAdmin,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): ListarProductosAdmin => new ListarProductosAdmin(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
       provide: CrearProducto,
       useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): CrearProducto => new CrearProducto(uow),
       inject: [UOW_CATALOGO_ADMIN],
@@ -138,6 +151,11 @@ import { AdminCategoriasController } from './http/admin-categorias.controller';
     {
       provide: EliminarCategoria,
       useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): EliminarCategoria => new EliminarCategoria(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: AsignarDemo,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): AsignarDemo => new AsignarDemo(uow),
       inject: [UOW_CATALOGO_ADMIN],
     },
   ],

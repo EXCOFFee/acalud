@@ -7,7 +7,7 @@ export class AuditoriaCatalogoPg implements AuditoriaCatalogo {
 
   async registrar(evento: {
     tipo: 'create' | 'update' | 'delete';
-    sujetoTipo: 'product' | 'category';
+    sujetoTipo: 'product' | 'category' | 'demo';
     sujetoId: string;
     actorId: string;
     datos?: Record<string, unknown>;
