@@ -237,5 +237,70 @@ describe('CU-19 · ABM de Productos (admin)', () => {
         .set('Cookie', `acalud_sesion=${docenteToken}`);
       expect(res.status).toBe(403);
     });
+
+    it('CU-22 A8: expone la config mayorista en el listado ("Umbral X - Descuento Y%" o null)', async () => {
+      const conConfig = await ctx.request
+        .post('/api/v1/admin/products')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({
+          ...productoValido,
+          titulo: 'Producto Mayorista Test',
+          umbral_mayorista: 10,
+          descuento_mayorista_porcentaje: 15,
+        });
+      const sinConfig = await ctx.request
+        .post('/api/v1/admin/products')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...productoValido, titulo: 'Producto Sin Mayorista Test' });
+
+      const res = await ctx.request
+        .get('/api/v1/admin/products?q=Producto Mayorista Test')
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      const fila = res.body.datos.find((p: { id: string }) => p.id === conConfig.body.id);
+      expect(fila.umbral_mayorista).toBe(10);
+      expect(fila.descuento_mayorista_porcentaje).toBe(15);
+
+      const res2 = await ctx.request
+        .get('/api/v1/admin/products?q=Producto Sin Mayorista Test')
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      const fila2 = res2.body.datos.find((p: { id: string }) => p.id === sinConfig.body.id);
+      expect(fila2.umbral_mayorista).toBeNull();
+      expect(fila2.descuento_mayorista_porcentaje).toBeNull();
+    });
+
+    it('CU-22 A11: marca tiene_ordenes cuando el producto ya tiene compras asociadas', async () => {
+      const alta = await ctx.request
+        .post('/api/v1/admin/products')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...productoValido, titulo: 'Producto Con Ordenes Test' });
+      const productoId = alta.body.id as string;
+
+      const orden = await ctx.pg.query<{ id: string }>(
+        `INSERT INTO orders (order_number, order_type, user_id, status, shipping_method, total_amount)
+         VALUES ($1, 'b2c', (SELECT id FROM users WHERE email = 'admin@test.com'), 'paid', 'home_delivery', 1000)
+         RETURNING id`,
+        [`ACA-TEST-${productoId.slice(0, 8)}`],
+      );
+      await ctx.pg.query(
+        `INSERT INTO order_items (order_id, product_id, product_name_snapshot, quantity, unit_price)
+         VALUES ($1, $2, 'Producto Con Ordenes Test', 1, 1000)`,
+        [orden.rows[0]!.id, productoId],
+      );
+
+      const res = await ctx.request
+        .get('/api/v1/admin/products?q=Producto Con Ordenes Test')
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      const fila = res.body.datos.find((p: { id: string }) => p.id === productoId);
+      expect(fila.tiene_ordenes).toBe(true);
+
+      // Actualizar la config mayorista de un producto con órdenes no debe fallar (RN-007: la
+      // advertencia es informativa, no bloqueante; las órdenes existentes quedan intactas por
+      // el snapshot de order_items, ya cubierto en checkout.integration.spec.ts).
+      const edicion = await ctx.request
+        .put(`/api/v1/admin/products/${productoId}`)
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...productoValido, titulo: 'Producto Con Ordenes Test', umbral_mayorista: 5, descuento_mayorista_porcentaje: 10 });
+      expect(edicion.status).toBe(200);
+    });
   });
 });

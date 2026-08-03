@@ -15,6 +15,11 @@ export interface ProductoAdminResumen {
   stock: number;
   isActive: boolean;
   tieneDemo: boolean;
+  /** CU-22 A8/RNF-005: config mayorista visible en el listado (null = "Sin configuración"). */
+  wholesaleThreshold: number | null;
+  wholesaleDiscountPercent: number | null;
+  /** CU-22 A11: para la advertencia de "producto con órdenes existentes" antes de guardar. */
+  tieneOrdenes: boolean;
 }
 
 export interface PaginaProductosAdmin {

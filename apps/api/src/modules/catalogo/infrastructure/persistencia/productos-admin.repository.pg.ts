@@ -68,9 +68,15 @@ export class ProductosAdminRepositoryPg implements ProductosAdminRepository {
       stock: number;
       is_active: boolean;
       tiene_demo: boolean;
+      wholesale_threshold: number | null;
+      wholesale_discount_percent: string | null;
+      tiene_ordenes: boolean;
     }>(
+      // CU-22 A8/RNF-005 (config mayorista) y A11 (advertencia si ya tiene órdenes).
       `SELECT p.id, p.name, p.price, p.stock, p.is_active,
-              EXISTS (SELECT 1 FROM demos d WHERE d.product_id = p.id) AS tiene_demo
+              p.wholesale_threshold, p.wholesale_discount_percent,
+              EXISTS (SELECT 1 FROM demos d WHERE d.product_id = p.id) AS tiene_demo,
+              EXISTS (SELECT 1 FROM order_items oi WHERE oi.product_id = p.id) AS tiene_ordenes
          FROM products p
         WHERE ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%')
         ORDER BY p.name
@@ -90,6 +96,10 @@ export class ProductosAdminRepositoryPg implements ProductosAdminRepository {
         stock: f.stock,
         isActive: f.is_active,
         tieneDemo: f.tiene_demo,
+        wholesaleThreshold: f.wholesale_threshold,
+        wholesaleDiscountPercent:
+          f.wholesale_discount_percent === null ? null : Number(f.wholesale_discount_percent),
+        tieneOrdenes: f.tiene_ordenes,
       })),
       total: total.rows[0]?.total ?? 0,
     };

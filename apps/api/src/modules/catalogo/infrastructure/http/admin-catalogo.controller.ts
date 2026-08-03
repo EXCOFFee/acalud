@@ -84,6 +84,11 @@ export class AdminCatalogoController {
         stock: p.stock,
         activo: p.isActive,
         tiene_demo: p.tieneDemo,
+        // CU-22 A8/RNF-005: "Umbral: X unidades - Descuento: Y%" o "Sin configuración" si es null.
+        umbral_mayorista: p.wholesaleThreshold,
+        descuento_mayorista_porcentaje: p.wholesaleDiscountPercent,
+        // CU-22 A11: advertencia no bloqueante antes de guardar cambios de config mayorista.
+        tiene_ordenes: p.tieneOrdenes,
       })),
       paginacion: { pagina: query.pagina, tamanio: query.tamanio, total: pagina.total },
     };
