@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Alerta } from '@/components/ui';
+import { Alerta, Boton, Campo, Dialogo } from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
 import { api, ApiError, type PerfilPropio } from '@/lib/api';
 
@@ -19,6 +19,12 @@ export default function CuentaPage() {
     materia: '',
     institucion: '',
   });
+
+  const [cambioAbierto, setCambioAbierto] = useState(false);
+  const [cambioForm, setCambioForm] = useState({ nuevo_email: '', contrasena: '' });
+  const [cambioError, setCambioError] = useState<string | null>(null);
+  const [cambioEnviando, setCambioEnviando] = useState(false);
+  const [cambioMensaje, setCambioMensaje] = useState<string | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -69,6 +75,33 @@ export default function CuentaPage() {
     }
   }
 
+  function abrirCambioCorreo(): void {
+    setCambioForm({ nuevo_email: '', contrasena: '' });
+    setCambioError(null);
+    setCambioAbierto(true);
+  }
+
+  async function solicitarCambioCorreo(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setCambioError(null);
+    setCambioEnviando(true);
+    try {
+      const r = await api.cambioCorreo(cambioForm.nuevo_email, cambioForm.contrasena);
+      setCambioMensaje(r.mensaje);
+      setCambioAbierto(false);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 401) setCambioError('Contraseña incorrecta.');
+        else if (err.status === 422) setCambioError(err.problema.detail ?? 'No pudimos procesar el cambio.');
+        else setCambioError('No pudimos procesar el cambio. Intentá de nuevo.');
+      } else {
+        setCambioError('No pudimos conectar. Revisá tu conexión.');
+      }
+    } finally {
+      setCambioEnviando(false);
+    }
+  }
+
   return (
     <>
       <SiteNav />
@@ -93,6 +126,7 @@ export default function CuentaPage() {
                 Verificá tu email para habilitar compras y recursos licenciados.
               </Alerta>
             ) : null}
+            {cambioMensaje ? <Alerta tipo="ok">{cambioMensaje}</Alerta> : null}
             <p style={{ margin: '0 0 1.2rem' }}>
               <Link className="boton boton--fantasma" href="/cuenta/pedidos">
                 📦 Ver mis pedidos
@@ -119,7 +153,12 @@ export default function CuentaPage() {
               </div>
               <div className="dato">
                 <span className="dato__k">Email</span>
-                <span className="dato__v">{perfil.email}</span>
+                <span className="dato__v" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  {perfil.email}
+                  <Boton variante="fantasma" type="button" onClick={abrirCambioCorreo}>
+                    Cambiar
+                  </Boton>
+                </span>
               </div>
               <div className="dato">
                 <span className="dato__k">Estado</span>
@@ -158,6 +197,46 @@ export default function CuentaPage() {
           </>
         ) : null}
       </div>
+
+      <Dialogo
+        abierto={cambioAbierto}
+        onCerrar={() => setCambioAbierto(false)}
+        titulo="Cambiar correo electrónico"
+      >
+        <form onSubmit={solicitarCambioCorreo} noValidate>
+          {cambioError ? <Alerta tipo="error">{cambioError}</Alerta> : null}
+          <p style={{ color: 'var(--tinta-suave)', marginTop: 0 }}>
+            Te vamos a enviar un enlace de verificación al correo nuevo. Tu correo actual sigue
+            funcionando hasta que confirmes el cambio.
+          </p>
+          <Campo
+            id="nuevo-email"
+            etiqueta="Nuevo correo electrónico"
+            type="email"
+            autoComplete="email"
+            required
+            value={cambioForm.nuevo_email}
+            onChange={(e) => setCambioForm((f) => ({ ...f, nuevo_email: e.target.value }))}
+          />
+          <Campo
+            id="contrasena-vigente"
+            etiqueta="Contraseña vigente"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={cambioForm.contrasena}
+            onChange={(e) => setCambioForm((f) => ({ ...f, contrasena: e.target.value }))}
+          />
+          <div className="dialogo__acciones">
+            <Boton variante="fantasma" type="button" onClick={() => setCambioAbierto(false)} disabled={cambioEnviando}>
+              Cancelar
+            </Boton>
+            <Boton variante="primario" type="submit" cargando={cambioEnviando}>
+              Enviar solicitud
+            </Boton>
+          </div>
+        </form>
+      </Dialogo>
     </>
   );
 }

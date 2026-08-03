@@ -213,6 +213,10 @@ export const api = {
     guardarTokenSesion(null);
   },
   me: () => pedir<PerfilPropio>('GET', '/me'),
+  cambioCorreo: (nuevo_email: string, contrasena: string) =>
+    pedir<{ mensaje: string }>('POST', '/me/cambio-correo', { nuevo_email, contrasena }),
+  confirmarCambioCorreo: (token: string) =>
+    pedir<{ mensaje: string }>('POST', '/auth/cambio-correo/confirmar', { token }),
   actualizarPerfil: (datos: {
     nombre: string;
     apellido: string;
