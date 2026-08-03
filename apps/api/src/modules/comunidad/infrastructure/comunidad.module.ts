@@ -12,10 +12,15 @@ import {
 } from '../domain/ports/comunidad-admin.uow';
 import { AdminEncuestasController } from './http/admin-encuestas.controller';
 import { UnidadDeTrabajoComunidadAdminPg } from './persistencia/unidad-de-trabajo-admin.pg';
+import { VerListadoEncuestas } from '../application/ver-listado-encuestas';
+import { VerResultadosEncuesta } from '../application/ver-resultados-encuesta';
+import { ENCUESTAS_REPOSITORY, type EncuestasRepository } from '../domain/ports/encuestas.repository';
+import { EncuestasRepositoryPg } from './persistencia/encuestas.repository.pg';
+import { EncuestasController } from './http/encuestas.controller';
 
-/** BC6 · Comunidad (CU-14/15/16/20/21). Por ahora, solo el ABM admin de encuestas (CU-20). */
+/** BC6 · Comunidad (CU-14/15/16/20/21). Hasta ahora: ABM admin (CU-20) y lectura pública (CU-16). */
 @Module({
-  controllers: [AdminEncuestasController],
+  controllers: [AdminEncuestasController, EncuestasController],
   providers: [
     {
       provide: UOW_COMUNIDAD_ADMIN,
@@ -46,6 +51,21 @@ import { UnidadDeTrabajoComunidadAdminPg } from './persistencia/unidad-de-trabaj
       provide: EliminarEncuesta,
       useFactory: (uow: UnidadDeTrabajoComunidadAdmin): EliminarEncuesta => new EliminarEncuesta(uow),
       inject: [UOW_COMUNIDAD_ADMIN],
+    },
+    {
+      provide: ENCUESTAS_REPOSITORY,
+      useFactory: (pool: Pool): EncuestasRepository => new EncuestasRepositoryPg(pool),
+      inject: [PG_POOL],
+    },
+    {
+      provide: VerListadoEncuestas,
+      useFactory: (repo: EncuestasRepository): VerListadoEncuestas => new VerListadoEncuestas(repo),
+      inject: [ENCUESTAS_REPOSITORY],
+    },
+    {
+      provide: VerResultadosEncuesta,
+      useFactory: (repo: EncuestasRepository): VerResultadosEncuesta => new VerResultadosEncuesta(repo),
+      inject: [ENCUESTAS_REPOSITORY],
     },
   ],
 })

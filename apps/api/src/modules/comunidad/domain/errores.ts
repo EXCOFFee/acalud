@@ -23,3 +23,11 @@ export class NivelEducativoInvalido extends ErrorDeDominio {
     super('El nivel educativo seleccionado no es válido');
   }
 }
+
+/** CU-16 A2: la encuesta no existe o está en `draft` (no publicada, no visible). → 404. */
+export class EncuestaNoEncontrada extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('La encuesta que buscás no está disponible');
+  }
+}
