@@ -310,6 +310,31 @@ export interface FiltroInventario {
   direccion?: 'asc' | 'desc';
 }
 
+export interface DocenteInstitucion {
+  docente_id: string;
+  nombre: string;
+  email: string;
+  total_licencias: number;
+}
+
+export interface ListadoDocentesInstitucion {
+  institucion_id: string;
+  docentes: DocenteInstitucion[];
+}
+
+export interface LicenciasAsignadas {
+  producto_id: string;
+  asignaciones: { asignacion_id: string; docente_id: string; cantidad: number }[];
+  cantidad_disponible: number;
+}
+
+export interface LicenciaRevocada {
+  producto_id: string;
+  docente_id: string;
+  cantidad_revocada: number;
+  cantidad_restante: number;
+}
+
 export interface FiltroPedidos {
   estado?: EstadoPedido | undefined;
   orden_por?: 'created_at' | 'total_amount' | undefined;
@@ -432,4 +457,19 @@ export const api = {
   },
   verDetalleInventario: (institucionId: string, productoId: string) =>
     pedir<DetalleProductoInventario>('GET', `/instituciones/${institucionId}/inventario/${productoId}`),
+  // CU-28: se usa acá solo para poblar el selector de docentes de CU-26 (D3) — el listado
+  // completo con asignaciones (D4) trae más campos que esta unidad no necesita.
+  listarDocentesInstitucion: (institucionId: string) =>
+    pedir<ListadoDocentesInstitucion>('GET', `/instituciones/${institucionId}/docentes/asignaciones`),
+  // CU-26: uno o más docentes por request; esta unidad manda de a un docente por vez (simplifica
+  // la UI, el backend igual acepta batch si en el futuro se arma un formulario multi-línea).
+  asignarLicencias: (
+    institucionId: string,
+    d: { producto_id: string; asignaciones: { docente_id: string; cantidad: number }[]; observaciones?: string | null },
+  ) => pedir<LicenciasAsignadas>('POST', `/instituciones/${institucionId}/asignaciones`, d),
+  // CU-27.
+  revocarLicencia: (
+    institucionId: string,
+    d: { docente_id: string; producto_id: string; cantidad_a_revocar: number; observaciones?: string | null },
+  ) => pedir<LicenciaRevocada>('POST', `/instituciones/${institucionId}/revocaciones`, d),
 };
