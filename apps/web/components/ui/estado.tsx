@@ -1,8 +1,13 @@
 import type { ReactNode } from 'react';
 
-/** Texto simple centrado, para esperas cortas dentro de listas/formularios. */
+/** Texto simple centrado, para esperas cortas dentro de listas/formularios. `role="status"` para
+ *  que un lector de pantalla anuncie el cambio (y el que sigue, cuando el contenido llega). */
 export function EstadoCarga({ children = 'Cargando…' }: { children?: ReactNode }) {
-  return <p className="estado-carga">{children}</p>;
+  return (
+    <p className="estado-carga" role="status">
+      {children}
+    </p>
+  );
 }
 
 interface EstadoBaseProps {

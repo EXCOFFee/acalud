@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Alerta, Boton, Campo, Selector, useToast } from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
 import { api, ApiError } from '@/lib/api';
-
-const NIVELES = ['Inicial', 'Primaria', 'Secundaria'];
+import { NIVELES_EDUCATIVOS } from '@/lib/institucion';
 
 export default function RegistrarInstitucionPage() {
   const router = useRouter();
@@ -130,7 +129,7 @@ export default function RegistrarInstitucionPage() {
             <Campo id="telefono" etiqueta="Teléfono (opcional)" value={datos.telefono} onChange={set('telefono')} />
             <Selector id="nivel_educativo" etiqueta="Nivel educativo (opcional)" value={datos.nivel_educativo} onChange={set('nivel_educativo')}>
               <option value="">Sin especificar</option>
-              {NIVELES.map((n) => (
+              {NIVELES_EDUCATIVOS.map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>

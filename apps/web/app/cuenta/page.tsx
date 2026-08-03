@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Alerta, Boton, Campo, Dialogo } from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
 import { api, ApiError, type PerfilPropio } from '@/lib/api';
+import { NIVELES_EDUCATIVOS } from '@/lib/institucion';
 
 export default function CuentaPage() {
   const router = useRouter();
@@ -140,8 +141,11 @@ export default function CuentaPage() {
             </p>
             <form className="tarjeta" onSubmit={guardarPerfil}>
               <div className="dato">
-                <span className="dato__k">Nombre</span>
+                <label className="dato__k" htmlFor="nombre">
+                  Nombre
+                </label>
                 <input
+                  id="nombre"
                   className="campo__input"
                   value={form.nombre}
                   onChange={(e) => setForm((prev) => ({ ...prev, nombre: e.target.value }))}
@@ -149,8 +153,11 @@ export default function CuentaPage() {
                 />
               </div>
               <div className="dato">
-                <span className="dato__k">Apellido</span>
+                <label className="dato__k" htmlFor="apellido">
+                  Apellido
+                </label>
                 <input
+                  id="apellido"
                   className="campo__input"
                   value={form.apellido}
                   onChange={(e) => setForm((prev) => ({ ...prev, apellido: e.target.value }))}
@@ -173,24 +180,40 @@ export default function CuentaPage() {
                 </span>
               </div>
               <div className="dato">
-                <span className="dato__k">Nivel educativo</span>
-                <input
-                  className="campo__input"
+                <label className="dato__k" htmlFor="nivel_educativo">
+                  Nivel educativo
+                </label>
+                <select
+                  id="nivel_educativo"
+                  className="campo__select"
                   value={form.nivel_educativo}
                   onChange={(e) => setForm((prev) => ({ ...prev, nivel_educativo: e.target.value }))}
-                />
+                >
+                  <option value="">Sin especificar</option>
+                  {NIVELES_EDUCATIVOS.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="dato">
-                <span className="dato__k">Materia</span>
+                <label className="dato__k" htmlFor="materia">
+                  Materia
+                </label>
                 <input
+                  id="materia"
                   className="campo__input"
                   value={form.materia}
                   onChange={(e) => setForm((prev) => ({ ...prev, materia: e.target.value }))}
                 />
               </div>
               <div className="dato">
-                <span className="dato__k">Institución</span>
+                <label className="dato__k" htmlFor="institucion_docente">
+                  Institución
+                </label>
                 <input
+                  id="institucion_docente"
                   className="campo__input"
                   value={form.institucion}
                   onChange={(e) => setForm((prev) => ({ ...prev, institucion: e.target.value }))}
