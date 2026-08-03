@@ -75,6 +75,11 @@ export default function InstitucionPage() {
                 📊 Reporte de uso
               </Link>
             ) : null}
+            {mia?.es_encargado ? (
+              <Link className="boton boton--fantasma" href="/institucion/dashboard" style={{ marginLeft: '0.6rem' }}>
+                📈 Dashboard pedagógico
+              </Link>
+            ) : null}
           </div>
         ) : null}
       </main>

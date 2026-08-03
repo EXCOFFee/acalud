@@ -486,6 +486,33 @@ export interface ReporteInstitucional {
   datos: FilaReporteJuego[] | FilaReporteDocente[];
 }
 
+// CU-33: dashboard pedagógico — 4 KPIs con variación % vs período anterior, serie semanal y
+// top 5 juegos/docentes. Solo admite filtro por rango de fechas (a diferencia de lo que pide
+// el CU: juego/docente/nivel educativo quedaron pendientes, ver docs/claude/05-pendientes-post-frontend.md).
+export interface KPIDashboard {
+  valor: number;
+  variacion_porcentual: number | null;
+}
+
+export interface DashboardPedagogico {
+  institucion_id: string;
+  rango: { desde: string; hasta: string };
+  kpis: {
+    sesiones: KPIDashboard;
+    docentes_activos: KPIDashboard;
+    alumnos_alcanzados: KPIDashboard;
+    minutos_de_juego: KPIDashboard;
+  };
+  serie_semanal: { semana: string; sesiones: number }[];
+  top_juegos: { producto_id: string; nombre: string; sesiones: number }[];
+  top_docentes: { docente_id: string; nombre: string; sesiones: number }[];
+}
+
+export interface FiltroDashboard {
+  desde?: string | undefined;
+  hasta?: string | undefined;
+}
+
 function armarQueryReporte(filtro: FiltroReporte): string {
   const qs = new URLSearchParams();
   qs.set('corte', filtro.corte);
@@ -689,5 +716,13 @@ export const api = {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  },
+  // CU-33: sin filtro, el backend usa los últimos 30 días por defecto.
+  verDashboard: (institucionId: string, filtro?: FiltroDashboard) => {
+    const qs = new URLSearchParams();
+    if (filtro?.desde) qs.set('desde', filtro.desde);
+    if (filtro?.hasta) qs.set('hasta', filtro.hasta);
+    const cola = qs.toString() ? `?${qs.toString()}` : '';
+    return pedir<DashboardPedagogico>('GET', `/instituciones/${institucionId}/dashboard${cola}`);
   },
 };
