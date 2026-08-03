@@ -7,6 +7,7 @@ import type { EstadoPedido, NuevoPedido, PedidoParaPago } from '../../domain/ped
 import type {
   AuditoriaCheckout,
   CarritoCheckout,
+  InventarioInstitucionalCheckout,
   OutboxCheckout,
   PagoRepositorio,
   PedidoRepositorio,
@@ -102,10 +103,11 @@ class PedidoRepositorioPg implements PedidoRepositorio {
       monto_total: number;
       carrito_id: string | null;
       email: string;
+      institution_id: string | null;
       lineas: { juego_id: string; cantidad: number }[];
     }>(
       `SELECT p.id, p.order_number AS numero, p.status AS estado, p.total_amount::float8 AS monto_total,
-              p.cart_id AS carrito_id, u.email,
+              p.cart_id AS carrito_id, p.institution_id, u.email,
               COALESCE(
                 json_agg(json_build_object('juego_id', pl.product_id, 'cantidad', pl.quantity) ORDER BY pl.id)
                   FILTER (WHERE pl.id IS NOT NULL), '[]'
@@ -114,7 +116,7 @@ class PedidoRepositorioPg implements PedidoRepositorio {
          JOIN users u ON u.id = p.user_id
          LEFT JOIN order_items pl ON pl.order_id = p.id
         WHERE p.id = $1
-        GROUP BY p.id, p.order_number, p.status, p.total_amount, p.cart_id, u.email`,
+        GROUP BY p.id, p.order_number, p.status, p.total_amount, p.cart_id, p.institution_id, u.email`,
       [pedidoId],
     );
     return r.rows[0] ?? null;
@@ -224,6 +226,21 @@ class CarritoCheckoutPg implements CarritoCheckout {
   }
 }
 
+class InventarioInstitucionalCheckoutPg implements InventarioInstitucionalCheckout {
+  constructor(private readonly db: PoolClient) {}
+
+  async sumarComprado(institutionId: string, productId: string, cantidad: number): Promise<void> {
+    // Cierra D-32: confirmado el pago B2B, acumula lo adquirido (UNIQUE institution_id+product_id).
+    await this.db.query(
+      `INSERT INTO institutional_inventories (institution_id, product_id, quantity_purchased)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (institution_id, product_id)
+       DO UPDATE SET quantity_purchased = institutional_inventories.quantity_purchased + EXCLUDED.quantity_purchased`,
+      [institutionId, productId, cantidad],
+    );
+  }
+}
+
 class OutboxCheckoutPg implements OutboxCheckout {
   constructor(private readonly db: PoolClient) {}
 
@@ -277,6 +294,7 @@ export class UnidadDeTrabajoComprasPg implements UnidadDeTrabajoCompras {
         stock: new StockRepositorioPg(client),
         pagos: new PagoRepositorioPg(client),
         carrito: new CarritoCheckoutPg(client),
+        inventarioInstitucional: new InventarioInstitucionalCheckoutPg(client),
         outbox: new OutboxCheckoutPg(client),
         auditoria: new AuditoriaCheckoutPg(client),
       };

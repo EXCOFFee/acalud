@@ -1,10 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ProcesarPago } from '../../src/modules/compras/application/procesar-pago';
+import { MercadoPagoFakeAdapter } from '../../src/modules/compras/infrastructure/adapters/mercado-pago-fake.adapter';
 import { type CtxApp, levantarApp } from './helpers/app';
 
-// CU-24 · Adquirir Lote B2B (unidad 2: checkout institucional — order_type/institution_id).
+// CU-24 · Adquirir Lote B2B (unidad 2: checkout institucional — order_type/institution_id;
+// unidad 3: sync de institutional_inventories.quantity_purchased al confirmarse el pago, D-32).
 describe('CU-24 · Checkout institucional', () => {
   let ctx: CtxApp;
+  let procesar: ProcesarPago;
   const PW = 'correcta-bateria-caballo-grapa';
   const DOM = {
     calle: 'Av. Siempre Viva',
@@ -22,6 +26,7 @@ describe('CU-24 · Checkout institucional', () => {
 
   beforeAll(async () => {
     ctx = await levantarApp();
+    procesar = ctx.app.get(ProcesarPago);
 
     const producto = await ctx.pg.query(
       `INSERT INTO products (name, price, stock, is_active) VALUES ('Producto Checkout B2B Test', 1000, 100, true) RETURNING id`,
@@ -58,6 +63,28 @@ describe('CU-24 · Checkout institucional', () => {
       [institucionId, docenteSinPermiso.id],
     );
   });
+
+  /** Institución + encargado propios, para tests que necesitan un carrito institucional limpio
+   *  (sin el pedido pendiente_pago que dejan otros tests sobre el mismo carrito). */
+  async function crearInstitucionConEncargado(): Promise<{ institucionId: string; token: string }> {
+    const institucion = await ctx.pg.query(
+      `INSERT INTO institutions (legal_name, tax_id, email, status)
+       VALUES ('Escuela Aislada Test', $1, $2, 'active') RETURNING id`,
+      [`30-${randomUUID().slice(0, 8)}`, `${randomUUID()}@escuela.edu.ar`],
+    );
+    const nuevaInstitucionId = institucion.rows[0].id;
+
+    const email = `${randomUUID()}@escuela.edu.ar`;
+    await ctx.request.post('/api/v1/auth/registro').send({ email, contrasena: PW, nombre: 'N', apellido: 'A' });
+    const login = await ctx.request.post('/api/v1/auth/sesion').send({ email, contrasena: PW });
+    const id = (await ctx.pg.query(`SELECT id FROM users WHERE email = $1`, [email])).rows[0].id;
+    await ctx.pg.query(
+      `INSERT INTO institutional_teachers (institution_id, user_id, invited_email, is_admin, status, joined_at)
+       VALUES ($1, $2, $3, true, 'active', now())`,
+      [nuevaInstitucionId, id, email],
+    );
+    return { institucionId: nuevaInstitucionId, token: login.body.token as string };
+  }
 
   afterAll(async () => {
     await ctx?.detener();
@@ -123,5 +150,95 @@ describe('CU-24 · Checkout institucional', () => {
     ]);
     expect(orden.rows[0].order_type).toBe('b2c');
     expect(orden.rows[0].institution_id).toBeNull();
+  });
+
+  it('D-32: al aprobarse el pago B2B, acumula quantity_purchased en institutional_inventories', async () => {
+    const aislada = await crearInstitucionConEncargado();
+
+    await ctx.request
+      .put(`/api/v1/carrito/lineas/${productoId}?contexto=${aislada.institucionId}`)
+      .set(bearer(aislada.token))
+      .send({ cantidad: 7 });
+
+    const co = await ctx.request
+      .post('/api/v1/checkout')
+      .set(bearer(aislada.token))
+      .send({
+        contexto: aislada.institucionId,
+        modalidad_envio: 'home_delivery',
+        codigo_postal: DOM.codigo_postal,
+        domicilio: DOM,
+      });
+    expect(co.status).toBe(201);
+    const pedidoId = co.body.pedido_id as string;
+
+    // Ninguna fila previa: la institución es nueva.
+    const antes = await ctx.pg.query(
+      `SELECT quantity_purchased FROM institutional_inventories WHERE institution_id = $1 AND product_id = $2`,
+      [aislada.institucionId, productoId],
+    );
+    expect(antes.rows).toHaveLength(0);
+
+    const resultado = await procesar.ejecutar(MercadoPagoFakeAdapter.paymentIdDe(pedidoId));
+    expect(resultado).toBe('paid');
+
+    const despues = await ctx.pg.query(
+      `SELECT quantity_purchased FROM institutional_inventories WHERE institution_id = $1 AND product_id = $2`,
+      [aislada.institucionId, productoId],
+    );
+    expect(despues.rows[0].quantity_purchased).toBe(7);
+
+    // Segunda compra del mismo producto: se ACUMULA, no se reemplaza (upsert).
+    await ctx.request
+      .put(`/api/v1/carrito/lineas/${productoId}?contexto=${aislada.institucionId}`)
+      .set(bearer(aislada.token))
+      .send({ cantidad: 3 });
+    const co2 = await ctx.request
+      .post('/api/v1/checkout')
+      .set(bearer(aislada.token))
+      .send({
+        contexto: aislada.institucionId,
+        modalidad_envio: 'home_delivery',
+        codigo_postal: DOM.codigo_postal,
+        domicilio: DOM,
+      });
+    expect(co2.status).toBe(201);
+    await procesar.ejecutar(MercadoPagoFakeAdapter.paymentIdDe(co2.body.pedido_id as string));
+
+    const final = await ctx.pg.query(
+      `SELECT quantity_purchased FROM institutional_inventories WHERE institution_id = $1 AND product_id = $2`,
+      [aislada.institucionId, productoId],
+    );
+    expect(final.rows[0].quantity_purchased).toBe(10);
+  });
+
+  it('el pago de una compra personal NO crea fila en institutional_inventories', async () => {
+    const otroProducto = await ctx.pg.query(
+      `INSERT INTO products (name, price, stock, is_active) VALUES ('Producto Personal Test', 500, 50, true) RETURNING id`,
+    );
+    const otroProductoId = otroProducto.rows[0].id;
+
+    await ctx.request
+      .put(`/api/v1/carrito/lineas/${otroProductoId}`)
+      .set(bearer(docenteSinPermisoToken))
+      .send({ cantidad: 2 });
+    const co = await ctx.request
+      .post('/api/v1/checkout')
+      .set(bearer(docenteSinPermisoToken))
+      .send({
+        modalidad_envio: 'home_delivery',
+        codigo_postal: DOM.codigo_postal,
+        domicilio: DOM,
+      });
+    expect(co.status).toBe(201);
+    const pedidoId = co.body.pedido_id as string;
+
+    expect(await procesar.ejecutar(MercadoPagoFakeAdapter.paymentIdDe(pedidoId))).toBe('paid');
+
+    const fila = await ctx.pg.query(
+      `SELECT 1 FROM institutional_inventories WHERE institution_id = $1 AND product_id = $2`,
+      [institucionId, otroProductoId],
+    );
+    expect(fila.rows).toHaveLength(0);
   });
 });

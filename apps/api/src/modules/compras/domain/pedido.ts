@@ -50,6 +50,8 @@ export interface PedidoParaPago {
   monto_total: number;
   carrito_id: string | null;
   email: string;
+  /** CU-24: institution_id si es una compra institucional (order_type='b2b'); null = personal. */
+  institution_id: string | null;
   lineas: { juego_id: string; cantidad: number }[];
 }
 

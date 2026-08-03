@@ -38,6 +38,15 @@ export interface CarritoCheckout {
   esEncargadoActivo(userId: string, institutionId: string): Promise<boolean>;
 }
 
+/**
+ * CU-24/D-32: al confirmarse el pago de una orden B2B, acumula lo comprado en el inventario
+ * institucional (SQL directo dentro de la misma transacción de `ProcesarPago`, mismo precedente
+ * que `institucional` leyendo `orders`/`order_items`).
+ */
+export interface InventarioInstitucionalCheckout {
+  sumarComprado(institutionId: string, productId: string, cantidad: number): Promise<void>;
+}
+
 export interface OutboxCheckout {
   encolar(email: {
     tipo: string;
@@ -60,6 +69,7 @@ export interface ReposCheckout {
   stock: StockRepositorio;
   pagos: PagoRepositorio;
   carrito: CarritoCheckout;
+  inventarioInstitucional: InventarioInstitucionalCheckout;
   outbox: OutboxCheckout;
   auditoria: AuditoriaCheckout;
 }

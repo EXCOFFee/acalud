@@ -69,6 +69,14 @@ export class ProcesarPago {
           await repos.stock.movimientoVenta(l.juego_id, l.cantidad, pedido.id);
         }
 
+        // 2.1) CU-24/D-32: orden B2B → acumula lo comprado en el inventario institucional.
+        if (pedido.institution_id !== null) {
+          for (const l of pedido.lineas) {
+            await repos.inventarioInstitucional.sumarComprado(pedido.institution_id, l.juego_id, l.cantidad);
+          }
+          await repos.auditoria.registrar({ tipo: 'InventarioInstitucionalActualizado', sujetoId: pedido.id });
+        }
+
         // 3) Vaciar carrito + email de confirmación + auditoría (todo en la misma tx).
         // El comprobante-PDF real (ReceiptProvider, BC Comprobantes) llega en la Etapa 3.
         if (pedido.carrito_id !== null) await repos.carrito.vaciar(pedido.carrito_id);
