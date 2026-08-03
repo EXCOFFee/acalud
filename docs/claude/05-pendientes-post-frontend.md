@@ -63,6 +63,18 @@ personales vía `contexto` (institution_id) — sin motor de precios ni direcci�
 - Facturación a nombre de la institución (RN-007, `billing_data` en `orders`) — no implementado;
   las órdenes B2B no llevan ningún dato de facturación distinto al de una compra personal.
 
+## Bloque E — CU-14/16 Encuestas y CU-15 Propuestas
+
+`nivel_educativo_id` (encuestas, `GET /polls?level_id=`) y `materia_id`/`nivel_educativo_id`
+(propuestas, `POST /proposals`) son columnas uuid sin ningún endpoint público que devuelva
+`{id, nombre}` de `levels`/`subjects` para armar un selector legible.
+
+**Falta:**
+- Un endpoint público de catálogo (`GET /levels`, `GET /subjects` o similar) para poder
+  ofrecer el filtro por nivel en `/encuestas` y los selectores de materia/nivel opcionales en
+  el formulario de `/propuestas` — hoy esos campos directamente no se piden/filtran desde el
+  frontend.
+
 ## Notas generales
 
 - Ninguno de estos ítems bloqueaba el resto del plan de frontend — se priorizó cubrir los 34
