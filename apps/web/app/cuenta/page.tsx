@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Alerta } from '@/components/ui';
+import { SiteNav } from '@/components/site-nav';
 import { api, ApiError, type PerfilPropio } from '@/lib/api';
 
 export default function CuentaPage() {
@@ -44,14 +45,6 @@ export default function CuentaPage() {
     };
   }, [router]);
 
-  async function salir(): Promise<void> {
-    try {
-      await api.logout();
-    } finally {
-      router.replace('/login');
-    }
-  }
-
   async function guardarPerfil(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setGuardando(true);
@@ -78,17 +71,7 @@ export default function CuentaPage() {
 
   return (
     <>
-      <header className="nav">
-        <Link href="/" className="marca">
-          <span className="marca__ficha" aria-hidden="true" />
-          Acalud
-        </Link>
-        <div className="nav__acciones">
-          <button className="boton boton--fantasma" onClick={salir}>
-            Cerrar sesión
-          </button>
-        </div>
-      </header>
+      <SiteNav />
 
       <div className="contenedor">
         {estado === 'cargando' ? (
