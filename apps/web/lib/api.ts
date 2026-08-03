@@ -394,6 +394,61 @@ export interface FiltroPedidos {
   limite?: number | undefined;
 }
 
+// CU-29/CU-30: juegos asignados al docente autenticado + sesiones de uso que cargó.
+export interface MiJuegoAsignado {
+  producto_id: string;
+  nombre_producto: string;
+  cantidad: number;
+  asignada_en: string;
+  total_sesiones: number;
+  ultima_sesion_en: string | null;
+}
+
+export interface CargarSesionInput {
+  producto_id: string;
+  fecha_uso: string;
+  grupo: string;
+  cantidad_estudiantes: number;
+  duracion_minutos: number;
+  satisfaccion_docente: number;
+  aprendizajes_clave: string;
+  dificultades?: string | null;
+  reutilizaria: boolean;
+}
+
+// El controlador de docentes/me devuelve estos objetos tal cual los arma la capa de aplicación,
+// en camelCase — a diferencia del resto de la API, no hay un mapeo a snake_case en el borde HTTP.
+export interface SesionResumen {
+  id: string;
+  fecha: string;
+  productoId: string;
+  nombreProducto: string;
+  grupo: string;
+  estudiantes: number;
+  duracionMinutos: number;
+  satisfaccion: number;
+  aprendizajes: string;
+}
+
+export interface SesionDetalle extends SesionResumen {
+  dificultades: string | null;
+  reutilizaria: boolean;
+  registradaEn: string;
+}
+
+export interface ResultadoPaginadoSesiones {
+  items: SesionResumen[];
+  totalItems: number;
+  totalPaginas: number;
+  paginaActual: number;
+}
+
+export interface FiltroMisSesiones {
+  producto_id?: string | undefined;
+  pagina?: number | undefined;
+  limite?: number | undefined;
+}
+
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
@@ -537,4 +592,20 @@ export const api = {
   // CU-28 A9: detalle de un docente, incluye asignaciones revocadas (RN-007/RN-008).
   verDetalleDocenteAsignado: (institucionId: string, docenteId: string) =>
     pedir<DetalleDocenteAsignaciones>('GET', `/instituciones/${institucionId}/docentes/asignaciones/${docenteId}`),
+  // CU-29 paso 2/CU-30: juegos que el propio docente tiene asignados (lista vacía si no está
+  // vinculado a ninguna institución — no es un error, RN de CU-29 A1).
+  misJuegosAsignados: () => pedir<{ juegos: MiJuegoAsignado[] }>('GET', '/docentes/me/asignaciones'),
+  // CU-29: registra una sesión de uso pedagógico de un juego asignado.
+  cargarSesion: (d: CargarSesionInput) => pedir<{ sessionId: string }>('POST', '/docentes/me/sesiones-juego', d),
+  // CU-30: historial paginado de sesiones propias, opcionalmente filtrado por juego.
+  misSesiones: (filtro?: FiltroMisSesiones) => {
+    const qs = new URLSearchParams();
+    if (filtro?.producto_id) qs.set('producto_id', filtro.producto_id);
+    if (filtro?.pagina) qs.set('pagina', String(filtro.pagina));
+    if (filtro?.limite) qs.set('limite', String(filtro.limite));
+    const cola = qs.toString() ? `?${qs.toString()}` : '';
+    return pedir<ResultadoPaginadoSesiones>('GET', `/docentes/me/sesiones-juego${cola}`);
+  },
+  // CU-30 A9: detalle completo de una sesión propia.
+  verDetalleSesion: (id: string) => pedir<SesionDetalle>('GET', `/docentes/me/sesiones-juego/${id}`),
 };

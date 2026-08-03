@@ -138,6 +138,12 @@ export default function CuentaPage() {
               <Link className="boton boton--fantasma" href="/institucion">
                 🏫 Mi institución
               </Link>
+              <Link className="boton boton--fantasma" href="/mis-juegos">
+                🎲 Mis juegos asignados
+              </Link>
+              <Link className="boton boton--fantasma" href="/mis-sesiones">
+                📝 Mis sesiones
+              </Link>
             </p>
             <form className="tarjeta" onSubmit={guardarPerfil}>
               <div className="dato">
