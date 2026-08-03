@@ -9,13 +9,13 @@ export class DemosRepositoryPg implements DemosRepository {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
 
   async obtenerDemo(juegoId: string, tipo: 'publica' | 'completa'): Promise<ContenidoDemo> {
-    // 1. Verificamos si el producto existe y está publicado
+    // 1. Verificamos si el producto existe y está publicado (is_active, no hay columna `status`).
     const prodRes = await this.pool.query(
-      'SELECT status FROM products WHERE id = $1',
+      'SELECT is_active FROM products WHERE id = $1',
       [juegoId]
     );
 
-    if (prodRes.rows.length === 0 || prodRes.rows[0].status !== 'publicado') {
+    if (prodRes.rows.length === 0 || prodRes.rows[0].is_active !== true) {
       throw new JuegoNoEncontrado();
     }
 
@@ -48,10 +48,10 @@ export class DemosRepositoryPg implements DemosRepository {
   async registrarPrueba(docenteId: string, juegoId: string, demoId: string): Promise<void> {
     // CU-07: Registra el evento en game_progress como "isDemo" (según Matriz F6 y OK del usuario)
     const query = `
-      INSERT INTO game_progress (user_id, game_id, progress_data, last_played_at)
+      INSERT INTO game_progress (user_id, product_id, progress_data, last_played_at)
       VALUES ($1, $2, $3, NOW())
-      ON CONFLICT (user_id, game_id) 
-      DO UPDATE SET 
+      ON CONFLICT (user_id, product_id)
+      DO UPDATE SET
         progress_data = game_progress.progress_data || EXCLUDED.progress_data,
         last_played_at = NOW()
     `;

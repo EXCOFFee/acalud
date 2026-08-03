@@ -23,8 +23,10 @@ beforeAll(async () => {
     [A, B, C],
   );
   await ctx.pg.query(
-    `INSERT INTO demos (product_id, config_json) VALUES ($1, '{"tipo":"publica","formato":"html5"}'::jsonb)`,
-    [A],
+    `INSERT INTO demos (product_id, config_json) VALUES
+       ($1, '{"tipo":"publica","formato":"html5","contenido_ref":"https://embebido.test/publica"}'::jsonb),
+       ($2, '{"tipo":"completa","formato":"video","contenido_ref":"https://embebido.test/completa"}'::jsonb)`,
+    [A, B],
   );
   await ctx.pg.query(
     `UPDATE products SET wholesale_threshold = 5, wholesale_discount_percent = 10 WHERE id = $1`,
@@ -103,5 +105,57 @@ describe('CU-006 · Catálogo (ficha)', () => {
   it('un id inexistente o mal formado responde 404 (no 500)', async () => {
     expect((await ctx.request.get('/api/v1/catalogo/juegos/dddddddd-dddd-4ddd-8ddd-dddddddddddd')).status).toBe(404);
     expect((await ctx.request.get('/api/v1/catalogo/juegos/no-es-uuid')).status).toBe(404);
+  });
+});
+
+describe('CU-006/CU-007 · Contenido de la demo', () => {
+  // Regresión: obtenerDemo consultaba `products.status` (columna inexistente), así que la
+  // verificación "está publicado" siempre fallaba y estos endpoints devolvían 404 siempre,
+  // incluso para un producto activo con demo. Corregido a `is_active`.
+  it('demo pública de un producto activo devuelve el contenido embebido', async () => {
+    const res = await ctx.request.get(`/api/v1/catalogo/juegos/${A}/demo/publica`);
+    expect(res.status).toBe(200);
+    expect(res.body.tipo).toBe('publica');
+    expect(res.body.urlEmbebido).toBe('https://embebido.test/publica');
+  });
+
+  it('demo pública de un producto inactivo responde 404', async () => {
+    const res = await ctx.request.get(`/api/v1/catalogo/juegos/${C}/demo/publica`);
+    expect(res.status).toBe(404);
+  });
+
+  it('demo completa exige autenticación', async () => {
+    const res = await ctx.request.get(`/api/v1/catalogo/juegos/${B}/demo/completa`);
+    expect(res.status).toBe(401);
+  });
+
+  it('demo completa autenticada devuelve el contenido y registra la prueba', async () => {
+    const PW = 'Password123!';
+    await ctx.request
+      .post('/api/v1/auth/registro')
+      .send({ email: 'demo-completa@test.com', contrasena: PW, nombre: 'Test', apellido: 'Docente' });
+    await ctx.pg.query(`UPDATE users SET email_verified = true WHERE email = $1`, [
+      'demo-completa@test.com',
+    ]);
+    const login = await ctx.request
+      .post('/api/v1/auth/sesion')
+      .send({ email: 'demo-completa@test.com', contrasena: PW });
+    const token = login.body.token as string;
+    const userId = (
+      await ctx.pg.query(`SELECT id FROM users WHERE email = $1`, ['demo-completa@test.com'])
+    ).rows[0].id as string;
+
+    const res = await ctx.request
+      .get(`/api/v1/catalogo/juegos/${B}/demo/completa`)
+      .set('Cookie', `acalud_sesion=${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.tipo).toBe('completa');
+    expect(res.body.urlEmbebido).toBe('https://embebido.test/completa');
+
+    const progreso = await ctx.pg.query(
+      `SELECT * FROM game_progress WHERE user_id = $1 AND product_id = $2`,
+      [userId, B],
+    );
+    expect(progreso.rows).toHaveLength(1);
   });
 });
