@@ -263,6 +263,53 @@ export interface RegistrarInstitucionInput {
   cantidad_alumnos?: number | null;
 }
 
+export interface ItemInventarioInstitucional {
+  producto_id: string;
+  nombre_producto: string;
+  descripcion_producto: string | null;
+  cantidad_adquirida: number;
+  cantidad_asignada: number;
+  cantidad_disponible: number;
+  ultima_compra_en: string | null;
+  total_gastado: number | null;
+}
+
+export interface InventarioInstitucional {
+  institucion_id: string;
+  resumen: {
+    total_adquiridas: number;
+    docentes_asignados: number;
+    total_en_uso: number;
+    total_disponibles: number;
+  };
+  items: ItemInventarioInstitucional[];
+}
+
+export interface DetalleProductoInventario {
+  producto_id: string;
+  nombre_producto: string;
+  descripcion_producto: string | null;
+  precio: number;
+  cantidad_adquirida: number;
+  cantidad_asignada: number;
+  cantidad_disponible: number;
+  compras: { orden_id: string; numero: string; fecha: string; cantidad: number; monto: number }[];
+  docentes: {
+    docente_id: string;
+    nombre: string;
+    cantidad: number;
+    asignada_en: string;
+    estado: 'active' | 'revoked';
+  }[];
+}
+
+export type OrdenInventario = 'cantidad_adquirida' | 'cantidad_asignada' | 'cantidad_disponible' | 'ultima_compra' | 'nombre';
+
+export interface FiltroInventario {
+  orden?: OrdenInventario;
+  direccion?: 'asc' | 'desc';
+}
+
 export interface FiltroPedidos {
   estado?: EstadoPedido | undefined;
   orden_por?: 'created_at' | 'total_amount' | undefined;
@@ -374,4 +421,15 @@ export const api = {
   miInstitucion: () => pedir<MiInstitucion>('GET', '/instituciones/mine'),
   registrarInstitucion: (d: RegistrarInstitucionInput) =>
     pedir<{ institucion_id: string }>('POST', '/instituciones', d),
+  // CU-25: RN-004, solo el encargado (is_admin) ve el inventario — el backend responde 404 (no
+  // 403) para cualquier otro caso, mismo criterio "ajeno = 404" del resto del proyecto.
+  verInventario: (institucionId: string, filtro?: FiltroInventario) => {
+    const qs = new URLSearchParams();
+    if (filtro?.orden) qs.set('orden', filtro.orden);
+    if (filtro?.direccion) qs.set('direccion', filtro.direccion);
+    const cola = qs.toString() ? `?${qs.toString()}` : '';
+    return pedir<InventarioInstitucional>('GET', `/instituciones/${institucionId}/inventario${cola}`);
+  },
+  verDetalleInventario: (institucionId: string, productoId: string) =>
+    pedir<DetalleProductoInventario>('GET', `/instituciones/${institucionId}/inventario/${productoId}`),
 };

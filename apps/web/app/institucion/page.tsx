@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Boton, EstadoCarga, EstadoError, EstadoVacio } from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
 import { api, ApiError, type MiInstitucion } from '@/lib/api';
@@ -56,11 +57,14 @@ export default function InstitucionPage() {
 
         {estado === 'ok' && mia?.institucion_id !== null ? (
           <div className="tarjeta">
-            <p style={{ margin: 0 }}>
+            <p style={{ margin: '0 0 1rem' }}>
               {mia?.es_encargado
                 ? 'Sos el encargado principal de tu institución.'
                 : 'Formás parte de tu institución.'}
             </p>
+            <Link className="boton boton--fantasma" href="/institucion/inventario">
+              📦 Ver inventario institucional
+            </Link>
           </div>
         ) : null}
       </main>
