@@ -23,6 +23,7 @@ Mi objetivo es ayudar a refactorizar y mantener el código siguiendo las reglas 
 - **Base de datos y esquema**: `@docs/claude/02-database.md`
 - **Seguridad y Testing**: `@docs/claude/03-seguridad-testing.md`
 - **Flujo de trabajo y Gates**: `@docs/claude/04-workflow.md`
+- **Pendientes post-frontend** (gaps de CU conocidos, no bloqueantes): `@docs/claude/05-pendientes-post-frontend.md`
 
 ## Flujo de trabajo
 - Una tarea = una unidad revisable.
