@@ -139,6 +139,59 @@ export interface CarritoView {
   contexto: string | null;
 }
 
+export type EstadoPedido = 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'under_review';
+
+export interface OrdenHistorial {
+  id: string;
+  numero: string;
+  fecha: string; // ISO 8601
+  total: number;
+  estado: EstadoPedido;
+  tracking_code: string | null;
+}
+
+export interface ResultadoPaginado<T> {
+  items: T[];
+  total_items: number;
+  total_paginas: number;
+  pagina_actual: number;
+}
+
+export interface LineaOrdenHistorial {
+  juego_id: string;
+  nombre: string;
+  cantidad: number;
+  precio_unitario: number;
+  descuento_pct: number;
+}
+
+export interface DetalleOrdenHistorial {
+  id: string;
+  numero: string;
+  fecha: string;
+  estado: EstadoPedido;
+  subtotal: number;
+  envio_costo: number;
+  total: number;
+  tracking_code: string | null;
+  domicilio: {
+    calle: string | null;
+    numero: string | null;
+    localidad: string | null;
+    provincia: string | null;
+    codigo_postal: string | null;
+  };
+  lineas: LineaOrdenHistorial[];
+}
+
+export interface FiltroPedidos {
+  estado?: EstadoPedido | undefined;
+  orden_por?: 'created_at' | 'total_amount' | undefined;
+  orden_dir?: 'asc' | 'desc' | undefined;
+  pagina?: number | undefined;
+  limite?: number | undefined;
+}
+
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
@@ -198,4 +251,15 @@ export const api = {
   // Demo del pago fake (Etapa 1): simula la notificación de MP. En prod es el webhook firmado.
   confirmarPagoDemo: (paymentId: string) =>
     pedir<{ resultado: string }>('POST', '/webhooks/mercadopago', { payment_id: paymentId }),
+  listarPedidos: (filtro?: FiltroPedidos) => {
+    const qs = new URLSearchParams();
+    if (filtro?.estado) qs.set('estado', filtro.estado);
+    if (filtro?.orden_por) qs.set('orden_por', filtro.orden_por);
+    if (filtro?.orden_dir) qs.set('orden_dir', filtro.orden_dir);
+    if (filtro?.pagina) qs.set('pagina', String(filtro.pagina));
+    if (filtro?.limite) qs.set('limite', String(filtro.limite));
+    const cola = qs.toString() ? `?${qs.toString()}` : '';
+    return pedir<ResultadoPaginado<OrdenHistorial>>('GET', `/pedidos${cola}`);
+  },
+  verPedido: (id: string) => pedir<DetalleOrdenHistorial>('GET', `/pedidos/${id}`),
 };

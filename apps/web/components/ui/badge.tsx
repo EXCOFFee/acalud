@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-type VarianteInsignia = 'default' | 'ok' | 'off' | 'neutra';
+type VarianteInsignia = 'default' | 'ok' | 'off' | 'neutra' | 'marca';
 
 /** Insignia corta (envuelve `.chip`): estado, categoría, conteo. */
 export function Insignia({

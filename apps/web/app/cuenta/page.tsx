@@ -93,6 +93,11 @@ export default function CuentaPage() {
                 Verificá tu email para habilitar compras y recursos licenciados.
               </Alerta>
             ) : null}
+            <p style={{ margin: '0 0 1.2rem' }}>
+              <Link className="boton boton--fantasma" href="/cuenta/pedidos">
+                📦 Ver mis pedidos
+              </Link>
+            </p>
             <form className="tarjeta" onSubmit={guardarPerfil}>
               <div className="dato">
                 <span className="dato__k">Nombre</span>

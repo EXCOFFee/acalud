@@ -610,6 +610,10 @@ a {
   background: var(--superficie-2);
   color: var(--tinta-suave);
 }
+.chip--marca {
+  background: color-mix(in srgb, var(--marca) 16%, transparent);
+  color: var(--marca);
+}
 
 /* ---------- Tabla genérica ---------- */
 .tabla-wrap {
