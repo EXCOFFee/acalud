@@ -40,6 +40,12 @@ import { CrearRecurso } from '../application/crear-recurso';
 import { EliminarRecurso } from '../application/eliminar-recurso';
 import { ListarRecursosAdmin } from '../application/listar-recursos-admin';
 import { AdminRecursosController } from './http/admin-recursos.controller';
+import { ListarEditoriales } from '../application/listar-editoriales';
+import { VerEditorial } from '../application/ver-editorial';
+import { RegistrarClickEditorial } from '../application/registrar-click-editorial';
+import { EDITORIALES_REPOSITORY, type EditorialesRepository } from '../domain/ports/editoriales.repository';
+import { EditorialesRepositoryPg } from './persistencia/editoriales.repository.pg';
+import { EditorialesController } from './http/editoriales.controller';
 
 /**
  * BC2 · Catálogo (read-only, CU-006). Cablea el puerto de lectura con su adapter PG; los casos
@@ -52,6 +58,7 @@ import { AdminRecursosController } from './http/admin-recursos.controller';
     AdminCategoriasController,
     AdminDemosController,
     AdminRecursosController,
+    EditorialesController,
   ],
   providers: [
     {
@@ -183,6 +190,26 @@ import { AdminRecursosController } from './http/admin-recursos.controller';
       provide: EliminarRecurso,
       useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): EliminarRecurso => new EliminarRecurso(uow),
       inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: EDITORIALES_REPOSITORY,
+      useFactory: (pool: Pool): EditorialesRepository => new EditorialesRepositoryPg(pool),
+      inject: [PG_POOL],
+    },
+    {
+      provide: ListarEditoriales,
+      useFactory: (repo: EditorialesRepository): ListarEditoriales => new ListarEditoriales(repo),
+      inject: [EDITORIALES_REPOSITORY],
+    },
+    {
+      provide: VerEditorial,
+      useFactory: (repo: EditorialesRepository): VerEditorial => new VerEditorial(repo),
+      inject: [EDITORIALES_REPOSITORY],
+    },
+    {
+      provide: RegistrarClickEditorial,
+      useFactory: (repo: EditorialesRepository): RegistrarClickEditorial => new RegistrarClickEditorial(repo),
+      inject: [EDITORIALES_REPOSITORY],
     },
   ],
 })

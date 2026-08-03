@@ -79,3 +79,11 @@ export class ProductoRelacionadoInvalido extends ErrorDeDominio {
     super('El producto relacionado seleccionado no existe');
   }
 }
+
+/** CU-17 A3: la editorial no existe o no está activa (recurso ajeno = 404). → 404. */
+export class EditorialNoEncontrada extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('La editorial que buscás no está disponible');
+  }
+}
