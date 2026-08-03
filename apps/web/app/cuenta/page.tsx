@@ -134,6 +134,9 @@ export default function CuentaPage() {
               <Link className="boton boton--fantasma" href="/cuenta/favoritos">
                 ☆ Mis favoritos
               </Link>
+              <Link className="boton boton--fantasma" href="/institucion">
+                🏫 Mi institución
+              </Link>
             </p>
             <form className="tarjeta" onSubmit={guardarPerfil}>
               <div className="dato">

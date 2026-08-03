@@ -240,6 +240,29 @@ export interface FavoritoResumen {
   creado_en: string;
 }
 
+export interface MiInstitucion {
+  institucion_id: string | null;
+  es_encargado: boolean;
+}
+
+export interface DomicilioInstitucion {
+  calle: string;
+  numero: string;
+  localidad: string;
+  provincia: string;
+  codigo_postal: string;
+}
+
+export interface RegistrarInstitucionInput {
+  nombre_legal: string;
+  identificador_tributario: string;
+  email_institucional: string;
+  domicilio: DomicilioInstitucion;
+  telefono?: string | null;
+  nivel_educativo?: string | null;
+  cantidad_alumnos?: number | null;
+}
+
 export interface FiltroPedidos {
   estado?: EstadoPedido | undefined;
   orden_por?: 'created_at' | 'total_amount' | undefined;
@@ -346,4 +369,9 @@ export const api = {
   guardarFavorito: (campo: 'producto_id' | 'recurso_id' | 'editorial_id', id: string) =>
     pedir<{ id: string }>('POST', '/favorites', { [campo]: id }),
   quitarFavorito: (favoritoId: string) => pedir<void>('DELETE', `/favorites/${favoritoId}`),
+  // CU-23/BC Institucional. `miInstitucion` es la única forma de recuperar institucion_id
+  // fuera del instante de creación (registrarInstitucion lo devuelve una sola vez).
+  miInstitucion: () => pedir<MiInstitucion>('GET', '/instituciones/mine'),
+  registrarInstitucion: (d: RegistrarInstitucionInput) =>
+    pedir<{ institucion_id: string }>('POST', '/instituciones', d),
 };
