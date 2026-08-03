@@ -144,6 +144,11 @@ export default function CuentaPage() {
               <Link className="boton boton--fantasma" href="/mis-sesiones">
                 📝 Mis sesiones
               </Link>
+              {perfil.es_admin ? (
+                <Link className="boton boton--fantasma" href="/admin">
+                  🛠️ Panel de administración
+                </Link>
+              ) : null}
             </p>
             <form className="tarjeta" onSubmit={guardarPerfil}>
               <div className="dato">

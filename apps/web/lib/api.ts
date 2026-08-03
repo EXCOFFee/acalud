@@ -86,6 +86,7 @@ export interface PerfilPropio {
   apellido: string;
   email: string;
   estado: string;
+  es_admin: boolean;
   capacidades_limitadas: boolean;
   nivel_educativo: string | null;
   materia: string | null;
@@ -577,6 +578,14 @@ export interface PropuestaCreada {
   creada_en: string;
 }
 
+// CU-19 A7 (Bloque F, admin): ABM de categorías del catálogo. Requiere `es_admin` global
+// (rol de plataforma, distinto del "encargado" institucional) — el backend responde 403 vía
+// AdminGuard si no lo es, a diferencia del resto del proyecto que usa 404 para "ajeno".
+export interface CategoriaAdmin {
+  id: string;
+  nombre: string;
+}
+
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
@@ -795,4 +804,10 @@ export const api = {
   misPropuestas: () => pedir<MiPropuesta[]>('GET', '/proposals'),
   enviarPropuesta: (d: { titulo: string; descripcion: string }) =>
     pedir<PropuestaCreada>('POST', '/proposals', d),
+  // CU-19 A7 (admin): ABM de categorías.
+  listarCategoriasAdmin: () => pedir<CategoriaAdmin[]>('GET', '/admin/categories'),
+  crearCategoriaAdmin: (nombre: string) => pedir<CategoriaAdmin>('POST', '/admin/categories', { nombre }),
+  actualizarCategoriaAdmin: (id: string, nombre: string) =>
+    pedir<CategoriaAdmin>('PUT', `/admin/categories/${id}`, { nombre }),
+  eliminarCategoriaAdmin: (id: string) => pedir<void>('DELETE', `/admin/categories/${id}`),
 };
