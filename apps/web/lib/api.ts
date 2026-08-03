@@ -218,6 +218,18 @@ export interface Seguimiento {
   desde_cache: boolean;
 }
 
+export interface EditorialResumen {
+  id: string;
+  nombre: string;
+  logo_url: string | null;
+  descripcion: string;
+  sitio_web: string | null;
+}
+
+export interface EditorialDetalle extends EditorialResumen {
+  categoria: string | null;
+}
+
 export interface FiltroPedidos {
   estado?: EstadoPedido | undefined;
   orden_por?: 'created_at' | 'total_amount' | undefined;
@@ -311,4 +323,12 @@ export const api = {
   verPedido: (id: string) => pedir<DetalleOrdenHistorial>('GET', `/pedidos/${id}`),
   // CU-13: RNF-009, el código de tracking nunca va en la URL — se resuelve server-side por order_id.
   verSeguimiento: (id: string) => pedir<Seguimiento>('GET', `/pedidos/${id}/tracking`),
+  // CU-17: directorio público (anónimo o logueado). `category` es texto libre, sin tabla maestra.
+  listarEditoriales: (category?: string) => {
+    const qs = category ? `?category=${encodeURIComponent(category)}` : '';
+    return pedir<EditorialResumen[]>('GET', `/editorial-partners${qs}`);
+  },
+  verEditorial: (id: string) => pedir<EditorialDetalle>('GET', `/editorial-partners/${id}`),
+  // A1/A2: se llama antes de abrir la URL externa, tanto logueado como anónimo.
+  clickEditorial: (id: string) => pedir<void>('POST', `/editorial-partners/${id}/click`),
 };

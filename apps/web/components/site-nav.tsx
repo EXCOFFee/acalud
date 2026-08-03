@@ -50,6 +50,9 @@ export function SiteNav() {
           <Link className="boton boton--fantasma" href="/catalogo">
             Catálogo
           </Link>
+          <Link className="boton boton--fantasma" href="/editoriales">
+            Editoriales
+          </Link>
           <Link className="boton boton--fantasma" href="/carrito">
             Carrito
           </Link>
