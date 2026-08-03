@@ -53,6 +53,12 @@ export function SiteNav() {
           <Link className="boton boton--fantasma" href="/editoriales">
             Editoriales
           </Link>
+          <Link className="boton boton--fantasma" href="/encuestas">
+            Encuestas
+          </Link>
+          <Link className="boton boton--fantasma" href="/propuestas">
+            Proponer un juego
+          </Link>
           <Link className="boton boton--fantasma" href="/carrito">
             Carrito
           </Link>

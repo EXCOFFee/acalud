@@ -523,6 +523,60 @@ function armarQueryReporte(filtro: FiltroReporte): string {
   return qs.toString();
 }
 
+// CU-14/CU-16: encuestas comunitarias — listado público, resultados (con o sin sesión) y voto
+// (requiere sesión). `nivel_educativo_id` no tiene endpoint público que resuelva su nombre, así
+// que no se usa como filtro en el frontend (ver docs/claude/05-pendientes-post-frontend.md).
+export type EstadoEncuesta = 'active' | 'closed';
+
+export interface EncuestaResumen {
+  id: string;
+  pregunta: string;
+  estado: EstadoEncuesta;
+  nivel_educativo_id: string | null;
+  total_votos: number;
+  creada_en: string;
+}
+
+export interface OpcionResultado {
+  id: string;
+  texto: string;
+  votos: number;
+  porcentaje: number;
+}
+
+export interface ResultadosEncuesta {
+  poll_id: string;
+  pregunta: string;
+  estado: EstadoEncuesta;
+  total_votos: number;
+  opciones: OpcionResultado[];
+  ya_voto: boolean;
+  opcion_votada_id: string | null;
+}
+
+// CU-15: propuestas de juego — envío (requiere sesión) y "mis propuestas". `materia_id`/
+// `nivel_educativo_id` son opcionales y no se piden en el form (mismo motivo: sin catálogo
+// público para resolver nombres a partir del uuid).
+export type EstadoPropuesta = 'pending' | 'reviewed' | 'approved' | 'rejected';
+
+export interface MiPropuesta {
+  id: string;
+  titulo: string;
+  estado: EstadoPropuesta;
+  creada_en: string;
+  actualizada_en: string;
+}
+
+export interface PropuestaCreada {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  materia_id: string | null;
+  nivel_educativo_id: string | null;
+  estado: EstadoPropuesta;
+  creada_en: string;
+}
+
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
@@ -729,4 +783,16 @@ export const api = {
     const cola = qs.toString() ? `?${qs.toString()}` : '';
     return pedir<DashboardPedagogico>('GET', `/instituciones/${institucionId}/dashboard${cola}`);
   },
+  // CU-16: listado público de encuestas (sin sesión).
+  listarEncuestas: (status?: EstadoEncuesta) =>
+    pedir<EncuestaResumen[]>('GET', `/polls${status ? `?status=${status}` : ''}`),
+  // CU-16: resultados de una encuesta puntual — funciona logueado o anónimo (OpcionalAuthGuard).
+  verResultadosEncuesta: (pollId: string) => pedir<ResultadosEncuesta>('GET', `/polls/${pollId}/results`),
+  // CU-14: votar, requiere sesión. Devuelve los resultados actualizados (mismo shape que arriba).
+  votarEncuesta: (pollId: string, opcionId: string) =>
+    pedir<ResultadosEncuesta>('POST', `/polls/${pollId}/responses`, { opcion_id: opcionId }),
+  // CU-15: "mis propuestas" (requiere sesión, solo las propias).
+  misPropuestas: () => pedir<MiPropuesta[]>('GET', '/proposals'),
+  enviarPropuesta: (d: { titulo: string; descripcion: string }) =>
+    pedir<PropuestaCreada>('POST', '/proposals', d),
 };
