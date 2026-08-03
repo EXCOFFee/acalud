@@ -230,6 +230,16 @@ export interface EditorialDetalle extends EditorialResumen {
   categoria: string | null;
 }
 
+export type TipoFavorito = 'product' | 'resource' | 'editorial_partner';
+
+export interface FavoritoResumen {
+  id: string;
+  tipo: TipoFavorito;
+  item_id: string;
+  titulo: string;
+  creado_en: string;
+}
+
 export interface FiltroPedidos {
   estado?: EstadoPedido | undefined;
   orden_por?: 'created_at' | 'total_amount' | undefined;
@@ -331,4 +341,9 @@ export const api = {
   verEditorial: (id: string) => pedir<EditorialDetalle>('GET', `/editorial-partners/${id}`),
   // A1/A2: se llama antes de abrir la URL externa, tanto logueado como anónimo.
   clickEditorial: (id: string) => pedir<void>('POST', `/editorial-partners/${id}/click`),
+  // CU-18: favoritos polimórficos (producto/recurso/editorial), requiere sesión (RN-008).
+  misFavoritos: () => pedir<FavoritoResumen[]>('GET', '/favorites'),
+  guardarFavorito: (campo: 'producto_id' | 'recurso_id' | 'editorial_id', id: string) =>
+    pedir<{ id: string }>('POST', '/favorites', { [campo]: id }),
+  quitarFavorito: (favoritoId: string) => pedir<void>('DELETE', `/favorites/${favoritoId}`),
 };

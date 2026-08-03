@@ -557,6 +557,37 @@ a {
   margin-top: 2rem;
 }
 
+/* ============================ Favoritos (CU-18) ============================ */
+/* RNF-005: 44px de área táctil mínima. */
+.favorito-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  border-radius: 50%;
+  border: 1px solid var(--borde);
+  background: var(--superficie);
+  color: var(--acento);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    border-color 0.15s ease;
+}
+.favorito-boton:hover:not(:disabled) {
+  border-color: var(--acento);
+}
+.favorito-boton:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.favorito-boton:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
 /* ============================ Seguimiento (CU-13) ============================ */
 .linea-tiempo {
   list-style: none;

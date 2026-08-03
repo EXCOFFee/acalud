@@ -2,8 +2,9 @@
 
 import { type FormEvent, useEffect, useState } from 'react';
 import { Alerta, Boton, Dialogo, EstadoCarga, EstadoError, EstadoVacio } from '@/components/ui';
+import { BotonFavorito } from '@/components/favorito-boton';
 import { SiteNav } from '@/components/site-nav';
-import { api, type EditorialDetalle, type EditorialResumen } from '@/lib/api';
+import { api, type EditorialDetalle, type EditorialResumen, type FavoritoResumen } from '@/lib/api';
 
 export default function EditorialesPage() {
   const [editoriales, setEditoriales] = useState<EditorialResumen[]>([]);
@@ -17,11 +18,22 @@ export default function EditorialesPage() {
   const [detalleEstado, setDetalleEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
   const [retencionAbierta, setRetencionAbierta] = useState(false);
 
+  // CU-18: favoritos ya guardados (vacío si es anónimo, RN-008).
+  const [favoritos, setFavoritos] = useState<FavoritoResumen[]>([]);
+  const favoritoEditorial = detalle ? favoritos.find((f) => f.tipo === 'editorial_partner' && f.item_id === detalle.id)?.id ?? null : null;
+
   useEffect(() => {
     api
       .me()
       .then(() => setLogueado(true))
       .catch(() => setLogueado(false));
+    api.misFavoritos().then(setFavoritos).catch(() => setFavoritos([]));
+  }, []);
+
+  // A partir de /editoriales?id=... (deep link, ej. desde "Mis favoritos"), abre el detalle directo.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (id) abrirDetalle(id);
   }, []);
 
   useEffect(() => {
@@ -174,13 +186,31 @@ export default function EditorialesPage() {
             {detalle.categoria ? <p className="eyebrow" style={{ margin: '0 0 0.3rem' }}>{detalle.categoria}</p> : null}
             <p style={{ color: 'var(--tinta-suave)', lineHeight: 1.6 }}>{detalle.descripcion}</p>
 
-            {detalle.sitio_web ? (
-              <Boton variante="primario" onClick={alHacerClicIrAlSitio}>
-                Ir al sitio web ↗
-              </Boton>
-            ) : (
-              <Alerta tipo="aviso">Esta editorial no tiene sitio web disponible en este momento.</Alerta>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+              {detalle.sitio_web ? (
+                <Boton variante="primario" onClick={alHacerClicIrAlSitio}>
+                  Ir al sitio web ↗
+                </Boton>
+              ) : null}
+              <BotonFavorito
+                tipo="editorial"
+                itemId={detalle.id}
+                favoritoId={favoritoEditorial}
+                onCambio={(id) =>
+                  setFavoritos((actual) => {
+                    const sinEsta = actual.filter((f) => !(f.tipo === 'editorial_partner' && f.item_id === detalle.id));
+                    return id === null
+                      ? sinEsta
+                      : [...sinEsta, { id, tipo: 'editorial_partner' as const, item_id: detalle.id, titulo: detalle.nombre, creado_en: '' }];
+                  })
+                }
+              />
+            </div>
+            {!detalle.sitio_web ? (
+              <div style={{ marginTop: '0.6rem' }}>
+                <Alerta tipo="aviso">Esta editorial no tiene sitio web disponible en este momento.</Alerta>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </Dialogo>

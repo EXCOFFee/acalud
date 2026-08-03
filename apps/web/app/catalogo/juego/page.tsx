@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Alerta, Boton, Dialogo } from '@/components/ui';
+import { BotonFavorito } from '@/components/favorito-boton';
 import { emojiArea, precioARS, SiteNav } from '@/components/site-nav';
-import { api, ApiError, type ContenidoDemo, type JuegoDetalle } from '@/lib/api';
+import { api, ApiError, type ContenidoDemo, type FavoritoResumen, type JuegoDetalle } from '@/lib/api';
 
 const FORMATO: Record<string, string> = { html5: 'interactiva', pdf: 'PDF', video: 'video' };
 
@@ -26,6 +27,19 @@ export default function FichaJuegoPage() {
   // CU-08/CU-09: descargar un recurso (libre o licenciado, ya resuelto por `desbloqueado`).
   const [descargando, setDescargando] = useState<string | null>(null);
   const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
+
+  // CU-18: favoritos ya guardados por el usuario (vacío si es anónimo, RN-008).
+  const [favoritos, setFavoritos] = useState<FavoritoResumen[]>([]);
+  const favoritoDe = (tipo: 'product' | 'resource', itemId: string): string | null =>
+    favoritos.find((f) => f.tipo === tipo && f.item_id === itemId)?.id ?? null;
+  function alCambiarFavorito(tipo: 'product' | 'resource', itemId: string, favoritoId: string | null): void {
+    setFavoritos((actual) => {
+      const sinEste = actual.filter((f) => !(f.tipo === tipo && f.item_id === itemId));
+      return favoritoId === null
+        ? sinEste
+        : [...sinEste, { id: favoritoId, tipo, item_id: itemId, titulo: '', creado_en: '' }];
+    });
+  }
 
   async function descargar(recursoId: string): Promise<void> {
     setErrorDescarga(null);
@@ -94,6 +108,7 @@ export default function FichaJuegoPage() {
         setEstado('ok');
       })
       .catch((err: { status?: number }) => setEstado(err?.status === 404 ? 'no-encontrado' : 'error'));
+    api.misFavoritos().then(setFavoritos).catch(() => setFavoritos([])); // anónimo → sin favoritos (RN-008)
   }, []);
 
   return (
@@ -126,9 +141,15 @@ export default function FichaJuegoPage() {
               <p className="eyebrow" style={{ margin: 0 }}>
                 {juego.area}
               </p>
-              <h1 style={{ fontSize: 'clamp(1.7rem, 4vw, 2.5rem)', margin: '0.2rem 0 0.4rem' }}>
-                {juego.nombre}
-              </h1>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', margin: '0.2rem 0 0.4rem' }}>
+                <h1 style={{ fontSize: 'clamp(1.7rem, 4vw, 2.5rem)', margin: 0 }}>{juego.nombre}</h1>
+                <BotonFavorito
+                  tipo="producto"
+                  itemId={juego.id}
+                  favoritoId={favoritoDe('product', juego.id)}
+                  onCambio={(id) => alCambiarFavorito('product', juego.id, id)}
+                />
+              </div>
               <p className="ficha__precio">{precioARS(juego.precio_lista)}</p>
 
               <p style={{ marginBottom: '0.7rem' }}>
@@ -242,13 +263,21 @@ export default function FichaJuegoPage() {
                     {juego.recursos.map((r) => (
                       <li key={r.id}>
                         <span>{r.nombre}</span>
-                        {r.desbloqueado ? (
-                          <Boton variante="fantasma" cargando={descargando === r.id} onClick={() => descargar(r.id)}>
-                            ⬇ Descargar
-                          </Boton>
-                        ) : (
-                          <span className="chip">🔒 Con compra</span>
-                        )}
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {r.desbloqueado ? (
+                            <Boton variante="fantasma" cargando={descargando === r.id} onClick={() => descargar(r.id)}>
+                              ⬇ Descargar
+                            </Boton>
+                          ) : (
+                            <span className="chip">🔒 Con compra</span>
+                          )}
+                          <BotonFavorito
+                            tipo="recurso"
+                            itemId={r.id}
+                            favoritoId={favoritoDe('resource', r.id)}
+                            onCambio={(id) => alCambiarFavorito('resource', r.id, id)}
+                          />
+                        </span>
                       </li>
                     ))}
                   </ul>

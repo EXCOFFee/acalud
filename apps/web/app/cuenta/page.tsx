@@ -127,9 +127,12 @@ export default function CuentaPage() {
               </Alerta>
             ) : null}
             {cambioMensaje ? <Alerta tipo="ok">{cambioMensaje}</Alerta> : null}
-            <p style={{ margin: '0 0 1.2rem' }}>
+            <p style={{ margin: '0 0 1.2rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Link className="boton boton--fantasma" href="/cuenta/pedidos">
                 📦 Ver mis pedidos
+              </Link>
+              <Link className="boton boton--fantasma" href="/cuenta/favoritos">
+                ☆ Mis favoritos
               </Link>
             </p>
             <form className="tarjeta" onSubmit={guardarPerfil}>
