@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Alerta } from '@/components/ui';
+import { Alerta, Boton, Dialogo } from '@/components/ui';
 import { emojiArea, precioARS, SiteNav } from '@/components/site-nav';
-import { api, ApiError, type JuegoDetalle } from '@/lib/api';
+import { api, ApiError, type ContenidoDemo, type JuegoDetalle } from '@/lib/api';
 
 const FORMATO: Record<string, string> = { html5: 'interactiva', pdf: 'PDF', video: 'video' };
 
@@ -17,6 +17,29 @@ export default function FichaJuegoPage() {
   const [agregando, setAgregando] = useState(false);
   const [agregado, setAgregado] = useState(false);
   const [errorCarrito, setErrorCarrito] = useState<string | null>(null);
+
+  // CU-06/CU-07: probar demo pública o completa.
+  const [demo, setDemo] = useState<ContenidoDemo | null>(null);
+  const [demoCargando, setDemoCargando] = useState<'publica' | 'completa' | null>(null);
+  const [demoError, setDemoError] = useState<string | null>(null);
+
+  async function probarDemo(tipo: 'publica' | 'completa'): Promise<void> {
+    if (!juego) return;
+    setDemoError(null);
+    setDemoCargando(tipo);
+    try {
+      const d = tipo === 'publica' ? await api.probarDemoPublica(juego.id) : await api.probarDemoCompleta(juego.id);
+      setDemo(d);
+    } catch (err) {
+      if (tipo === 'completa' && err instanceof ApiError && err.status === 401) {
+        router.replace(`/login?volver=${encodeURIComponent(`/catalogo/juego?id=${juego.id}`)}`);
+        return;
+      }
+      setDemoError('No pudimos cargar la demo. Probá de nuevo.');
+    } finally {
+      setDemoCargando(null);
+    }
+  }
 
   async function agregarAlCarrito(): Promise<void> {
     if (!juego) return;
@@ -150,13 +173,23 @@ export default function FichaJuegoPage() {
               ) : null}
 
               {juego.demos.length > 0 ? (
-                <p style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
                   {juego.demos.map((d, i) => (
-                    <span className="chip" key={i}>
-                      ▶ Demo {d.tipo === 'publica' ? 'pública' : 'completa'} · {FORMATO[d.formato] ?? d.formato}
-                    </span>
+                    <Boton
+                      key={i}
+                      variante="fantasma"
+                      cargando={demoCargando === d.tipo}
+                      onClick={() => probarDemo(d.tipo as 'publica' | 'completa')}
+                    >
+                      ▶ Probar demo {d.tipo === 'publica' ? 'pública' : 'completa'} ({FORMATO[d.formato] ?? d.formato})
+                    </Boton>
                   ))}
-                </p>
+                </div>
+              ) : null}
+              {demoError ? (
+                <div style={{ marginTop: '0.6rem' }}>
+                  <Alerta tipo="error">{demoError}</Alerta>
+                </div>
               ) : null}
 
               {juego.tramos.length > 0 ? (
@@ -202,6 +235,30 @@ export default function FichaJuegoPage() {
           </article>
         ) : null}
       </main>
+
+      <Dialogo
+        abierto={demo !== null}
+        onCerrar={() => setDemo(null)}
+        titulo={demo ? `Demo ${demo.tipo === 'publica' ? 'pública' : 'completa'}` : 'Demo'}
+        ancho="ancho"
+      >
+        {demo ? (
+          demo.formato === 'video' ? (
+            <video
+              src={demo.urlEmbebido}
+              controls
+              style={{ width: '100%', borderRadius: 'var(--r)', display: 'block' }}
+            />
+          ) : (
+            <iframe
+              src={demo.urlEmbebido}
+              title={`Demo ${demo.tipo} del juego`}
+              style={{ width: '100%', aspectRatio: '16 / 10', border: 'none', borderRadius: 'var(--r)' }}
+              allow="fullscreen"
+            />
+          )
+        ) : null}
+      </Dialogo>
     </>
   );
 }

@@ -121,6 +121,14 @@ export interface ListadoJuegos {
   paginacion: { pagina: number; tamanio: number; total: number };
 }
 
+export interface ContenidoDemo {
+  juegoId: string;
+  demoId: string;
+  tipo: 'publica' | 'completa';
+  formato: 'html5' | 'pdf' | 'video';
+  urlEmbebido: string;
+}
+
 export interface LineaCarrito {
   juego_id: string;
   nombre: string;
@@ -263,6 +271,9 @@ export const api = {
     return pedir<ListadoJuegos>('GET', `/catalogo/juegos${cola}`);
   },
   verJuego: (id: string) => pedir<JuegoDetalle>('GET', `/catalogo/juegos/${id}`),
+  // CU-06: pública, sin sesión. CU-07: completa, requiere sesión (401 si no hay).
+  probarDemoPublica: (juegoId: string) => pedir<ContenidoDemo>('GET', `/catalogo/juegos/${juegoId}/demo/publica`),
+  probarDemoCompleta: (juegoId: string) => pedir<ContenidoDemo>('GET', `/catalogo/juegos/${juegoId}/demo/completa`),
   verCarrito: () => pedir<CarritoView>('GET', '/carrito'),
   ponerLinea: (juegoId: string, cantidad: number) =>
     pedir<CarritoView>('PUT', `/carrito/lineas/${juegoId}`, { cantidad }),

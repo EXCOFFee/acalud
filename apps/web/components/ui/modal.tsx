@@ -8,6 +8,8 @@ interface DialogoProps {
   titulo: string;
   children: ReactNode;
   acciones?: ReactNode;
+  /** `ancho`: para contenido que necesita más espacio (embeds, formularios grandes). */
+  ancho?: 'normal' | 'ancho';
 }
 
 /**
@@ -15,7 +17,7 @@ interface DialogoProps {
  * navegador (sin librería de terceros). `onCancel` intercepta el Escape para que el cierre
  * siempre pase por `onCerrar` y el estado del padre quede consistente.
  */
-export function Dialogo({ abierto, onCerrar, titulo, children, acciones }: DialogoProps) {
+export function Dialogo({ abierto, onCerrar, titulo, children, acciones, ancho = 'normal' }: DialogoProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const idTitulo = useId();
 
@@ -33,7 +35,7 @@ export function Dialogo({ abierto, onCerrar, titulo, children, acciones }: Dialo
   return (
     <dialog
       ref={ref}
-      className="dialogo"
+      className={ancho === 'ancho' ? 'dialogo dialogo--ancho' : 'dialogo'}
       aria-labelledby={idTitulo}
       onCancel={(e) => {
         e.preventDefault();
