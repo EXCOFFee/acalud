@@ -574,10 +574,13 @@ export const api = {
   // CU-08 (recurso libre, sin sesión) / CU-09 (licenciado, requiere haberlo comprado).
   descargarRecurso: (recursoId: string) =>
     pedir<{ url_firmada: string; expira_en?: string }>('POST', `/catalogo/recursos/${recursoId}/descarga`),
-  verCarrito: () => pedir<CarritoView>('GET', '/carrito'),
-  ponerLinea: (juegoId: string, cantidad: number) =>
-    pedir<CarritoView>('PUT', `/carrito/lineas/${juegoId}`, { cantidad }),
-  quitarLinea: (juegoId: string) => pedir<CarritoView>('DELETE', `/carrito/lineas/${juegoId}`),
+  // `contexto` = institucion_id (CU-24, carrito institucional) — ausente = carrito personal.
+  verCarrito: (contexto?: string) =>
+    pedir<CarritoView>('GET', `/carrito${contexto ? `?contexto=${contexto}` : ''}`),
+  ponerLinea: (juegoId: string, cantidad: number, contexto?: string) =>
+    pedir<CarritoView>('PUT', `/carrito/lineas/${juegoId}${contexto ? `?contexto=${contexto}` : ''}`, { cantidad }),
+  quitarLinea: (juegoId: string, contexto?: string) =>
+    pedir<CarritoView>('DELETE', `/carrito/lineas/${juegoId}${contexto ? `?contexto=${contexto}` : ''}`),
   // CU-11: cotización en tiempo real, sin autenticación (también la usa un usuario anónimo).
   calcularEnvio: (codigo_postal: string, items: { product_id: string; quantity: number }[]) =>
     pedir<{ opciones: OpcionEnvio[] }>('POST', '/shipping/calculate', { codigo_postal, items }),
@@ -591,6 +594,7 @@ export const api = {
       provincia: string;
       localidad: string;
     };
+    contexto?: string;
   }) => pedir<{ pedido_id: string; init_point: string }>('POST', '/checkout', d),
   // Demo del pago fake (Etapa 1): simula la notificación de MP. En prod es el webhook firmado.
   confirmarPagoDemo: (paymentId: string) =>

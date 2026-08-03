@@ -19,6 +19,12 @@ export default function FichaJuegoPage() {
   const [agregado, setAgregado] = useState(false);
   const [errorCarrito, setErrorCarrito] = useState<string | null>(null);
 
+  // CU-24: solo el encargado institucional ve la opción de comprar para su institución.
+  const [institucionId, setInstitucionId] = useState<string | null>(null);
+  const [agregandoInstitucional, setAgregandoInstitucional] = useState(false);
+  const [agregadoInstitucional, setAgregadoInstitucional] = useState(false);
+  const [errorCarritoInstitucional, setErrorCarritoInstitucional] = useState<string | null>(null);
+
   // CU-06/CU-07: probar demo pública o completa.
   const [demo, setDemo] = useState<ContenidoDemo | null>(null);
   const [demoCargando, setDemoCargando] = useState<'publica' | 'completa' | null>(null);
@@ -95,6 +101,27 @@ export default function FichaJuegoPage() {
     }
   }
 
+  async function agregarAlCarritoInstitucional(): Promise<void> {
+    if (!juego || !institucionId) return;
+    setAgregandoInstitucional(true);
+    setErrorCarritoInstitucional(null);
+    setAgregadoInstitucional(false);
+    try {
+      await api.ponerLinea(juego.id, cantidad, institucionId);
+      setAgregadoInstitucional(true);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.replace('/login?volver=/institucion/carrito');
+      } else {
+        setErrorCarritoInstitucional(
+          'Error de conexión. No se pudo agregar el producto al carrito institucional. Intentá nuevamente más tarde.',
+        );
+      }
+    } finally {
+      setAgregandoInstitucional(false);
+    }
+  }
+
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('id');
     if (!id) {
@@ -109,6 +136,11 @@ export default function FichaJuegoPage() {
       })
       .catch((err: { status?: number }) => setEstado(err?.status === 404 ? 'no-encontrado' : 'error'));
     api.misFavoritos().then(setFavoritos).catch(() => setFavoritos([])); // anónimo → sin favoritos (RN-008)
+    // CU-24: si es encargado institucional, habilita "Agregar a compra institucional".
+    api
+      .miInstitucion()
+      .then((mia) => setInstitucionId(mia.es_encargado ? mia.institucion_id : null))
+      .catch(() => setInstitucionId(null));
   }, []);
 
   return (
@@ -195,6 +227,11 @@ export default function FichaJuegoPage() {
                   >
                     {agregando ? 'Agregando…' : 'Agregar al carrito'}
                   </button>
+                  {institucionId ? (
+                    <Boton variante="fantasma" onClick={agregarAlCarritoInstitucional} cargando={agregandoInstitucional}>
+                      🏫 Agregar a compra institucional
+                    </Boton>
+                  ) : null}
                 </div>
               ) : (
                 <button className="boton boton--primario boton--bloque" type="button" disabled>
@@ -211,6 +248,18 @@ export default function FichaJuegoPage() {
               {errorCarrito ? (
                 <div style={{ marginTop: '0.7rem' }}>
                   <Alerta tipo="error">{errorCarrito}</Alerta>
+                </div>
+              ) : null}
+              {agregadoInstitucional ? (
+                <div style={{ marginTop: '0.7rem' }}>
+                  <Alerta tipo="ok">
+                    Agregado a la compra institucional. <Link href="/institucion/carrito">Ver carrito institucional</Link>.
+                  </Alerta>
+                </div>
+              ) : null}
+              {errorCarritoInstitucional ? (
+                <div style={{ marginTop: '0.7rem' }}>
+                  <Alerta tipo="error">{errorCarritoInstitucional}</Alerta>
                 </div>
               ) : null}
 

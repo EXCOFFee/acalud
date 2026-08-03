@@ -277,8 +277,8 @@ export default function InventarioInstitucionalPage() {
             icono="📦"
             titulo="Tu institución aún no adquirió juegos"
             accion={
-              <Boton variante="primario" href="/catalogo">
-                Ir al catálogo
+              <Boton variante="primario" href="/institucion/carrito">
+                Comprar en lote
               </Boton>
             }
           >

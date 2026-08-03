@@ -66,6 +66,11 @@ export default function InstitucionPage() {
               📦 Ver inventario institucional
             </Link>
             {mia?.es_encargado ? (
+              <Link className="boton boton--fantasma" href="/institucion/carrito" style={{ marginLeft: '0.6rem' }}>
+                🛒 Comprar en lote
+              </Link>
+            ) : null}
+            {mia?.es_encargado ? (
               <Link className="boton boton--fantasma" href="/institucion/docentes" style={{ marginLeft: '0.6rem' }}>
                 👩‍🏫 Ver docentes asignados
               </Link>
