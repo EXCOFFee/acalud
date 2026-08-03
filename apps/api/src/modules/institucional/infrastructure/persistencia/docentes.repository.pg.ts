@@ -6,6 +6,7 @@ import type {
   DocenteConAsignaciones,
   DocentesRepository,
   FiltroDocentes,
+  MiAsignacion,
   ResumenDocentes,
 } from '../../domain/ports/docentes.repository';
 
@@ -206,5 +207,40 @@ export class DocentesRepositoryPg implements DocentesRepository {
       institucionId: r.rows[0]!.institution_id,
       docenteId: r.rows[0]!.id,
     };
+  }
+
+  async misAsignaciones(usuarioId: string): Promise<MiAsignacion[]> {
+    const r = await this.client.query<{
+      product_id: string;
+      name: string;
+      cantidad: number;
+      asignada_en: Date;
+      total_sesiones: number;
+      ultima_sesion_en: Date | null;
+    }>(
+      `SELECT p.id AS product_id, p.name,
+              SUM(a.quantity_assigned)::int AS cantidad,
+              MAX(a.assigned_at) AS asignada_en,
+              COUNT(gs.id)::int AS total_sesiones,
+              MAX(gs.session_date) AS ultima_sesion_en
+         FROM institutional_assignments a
+         JOIN institutional_teachers it ON it.id = a.institutional_teacher_id
+         JOIN products p ON p.id = a.product_id
+         LEFT JOIN game_sessions gs
+           ON gs.institutional_teacher_id = it.id AND gs.product_id = a.product_id
+        WHERE it.user_id = $1 AND it.status = 'active' AND a.status = 'active'
+        GROUP BY p.id, p.name
+        ORDER BY p.name ASC`,
+      [usuarioId],
+    );
+
+    return r.rows.map((fila) => ({
+      productoId: fila.product_id,
+      nombreProducto: fila.name,
+      cantidad: fila.cantidad,
+      asignadaEn: fila.asignada_en,
+      totalSesiones: fila.total_sesiones,
+      ultimaSesionEn: fila.ultima_sesion_en,
+    }));
   }
 }

@@ -107,6 +107,9 @@ const cargarSesion = (token: string, body: Record<string, unknown>) =>
 const listarSesiones = (token: string) =>
   ctx.request.get('/api/v1/docentes/me/sesiones-juego').set(bearer(token));
 
+const misAsignaciones = (token: string) =>
+  ctx.request.get('/api/v1/docentes/me/asignaciones').set(bearer(token));
+
 describe('CU-029 y CU-030 · Sesiones de Juego', () => {
   it('INS-CU029-HAPPY-001: Carga válida sobre un juego del catálogo institucional y su listado', async () => {
     const encargado = await docente('Director Juan');
@@ -177,5 +180,59 @@ describe('CU-029 y CU-030 · Sesiones de Juego', () => {
     // Como no está asignado, esperamos un 403 (JuegoNoAsignado mapped to 403)
     expect(res.status).toBe(403);
     expect(res.body.title).toBe('No encontrado'); // Wait, mapped error in docentes.controller is 'No encontrado', 403
+  });
+});
+
+describe('CU-029 paso 2 / CU-030 · GET /docentes/me/asignaciones', () => {
+  it('INS-CU029-ASIG-001: lista los juegos asignados al docente con su conteo de sesiones', async () => {
+    const encargado = await docente('Directora Marta');
+    const institucionId = await institucionDe(encargado.token);
+    const rEncargado = await ctx.pg.query<{ id: string }>(
+      `SELECT id FROM institutional_teachers WHERE user_id = $1`,
+      [encargado.id],
+    );
+    const encargadoTeacherId = rEncargado.rows[0]!.id;
+
+    const productoId = await producto('Juego Ajedrez');
+    await inventario(institucionId, productoId, 5, 1);
+    const profe = await docenteVinculado(institucionId, 'Pedro Profe');
+    await asignarLicencia(institucionId, productoId, profe.teacherId, encargadoTeacherId);
+
+    // Sin sesiones cargadas todavía.
+    const antes = await misAsignaciones(profe.token);
+    expect(antes.status).toBe(200);
+    expect(antes.body.juegos).toHaveLength(1);
+    expect(antes.body.juegos[0].producto_id).toBe(productoId);
+    expect(antes.body.juegos[0].cantidad).toBe(1);
+    expect(antes.body.juegos[0].total_sesiones).toBe(0);
+    expect(antes.body.juegos[0].ultima_sesion_en).toBeNull();
+
+    // Tras cargar una sesión, el conteo se refleja.
+    await cargarSesion(profe.token, {
+      producto_id: productoId,
+      fecha_uso: new Date().toISOString(),
+      grupo: '3°A',
+      cantidad_estudiantes: 20,
+      duracion_minutos: 30,
+      satisfaccion_docente: 4,
+      aprendizajes_clave: 'Estrategias básicas de apertura en ajedrez escolar.',
+      reutilizaria: true,
+    });
+
+    const despues = await misAsignaciones(profe.token);
+    expect(despues.body.juegos[0].total_sesiones).toBe(1);
+    expect(despues.body.juegos[0].ultima_sesion_en).not.toBeNull();
+  });
+
+  it('INS-CU029-ASIG-002: docente sin vinculación institucional recibe lista vacía (no error)', async () => {
+    const suelto = await docente('Docente Suelto');
+    const res = await misAsignaciones(suelto.token);
+    expect(res.status).toBe(200);
+    expect(res.body.juegos).toEqual([]);
+  });
+
+  it('INS-CU029-ASIG-003: sin sesión → 401', async () => {
+    const res = await ctx.request.get('/api/v1/docentes/me/asignaciones');
+    expect(res.status).toBe(401);
   });
 });

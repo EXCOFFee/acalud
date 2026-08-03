@@ -56,6 +56,16 @@ export interface DetalleDocente {
   asignaciones: DetalleAsignacion[];
 }
 
+/** CU-29 paso 2: juego asignado al docente autenticado, con su propio conteo de sesiones. */
+export interface MiAsignacion {
+  productoId: string;
+  nombreProducto: string;
+  cantidad: number;
+  asignadaEn: Date;
+  totalSesiones: number;
+  ultimaSesionEn: Date | null;
+}
+
 export interface DocentesRepository {
   listar(institucionId: string, filtro: FiltroDocentes): Promise<DocenteConAsignaciones[]>;
   resumen(institucionId: string): Promise<ResumenDocentes>;
@@ -63,6 +73,8 @@ export interface DocentesRepository {
   detalle(institucionId: string, docenteId: string): Promise<DetalleDocente | null>;
   /** CU-29: Busca la membresía activa de un usuario que tenga asignado un producto específico con cantidad > 0. */
   buscarMembresiaConJuegoAsignado(usuarioId: string, productoId: string): Promise<{ institucionId: string; docenteId: string } | null>;
+  /** CU-29 paso 2/CU-30: juegos asignados al propio docente autenticado (cualquier institución a la que esté vinculado). */
+  misAsignaciones(usuarioId: string): Promise<MiAsignacion[]>;
 }
 
 export const DOCENTES_REPOSITORY = Symbol('DocentesRepository');

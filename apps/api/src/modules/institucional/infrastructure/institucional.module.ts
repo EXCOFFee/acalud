@@ -20,6 +20,7 @@ import { UnidadDeTrabajoInstitucionalPg } from './persistencia/unidad-de-trabajo
 import { DocentesController } from './http/docentes.controller';
 import { CargarSesionJuego } from '../application/cargar-sesion-juego';
 import { VerHistorialSesiones } from '../application/ver-historial-sesiones';
+import { VerMisJuegosAsignados } from '../application/ver-mis-juegos-asignados';
 
 /** BC Institucional (CU-23 … CU-33). Composición propia: no reutiliza la UoW de Identidad (ADR-002). */
 @Module({
@@ -93,6 +94,12 @@ import { VerHistorialSesiones } from '../application/ver-historial-sesiones';
     {
       provide: VerMiInstitucion,
       useFactory: (uow: UnidadDeTrabajoInstitucional): VerMiInstitucion => new VerMiInstitucion(uow),
+      inject: [UOW_INSTITUCIONAL],
+    },
+    {
+      provide: VerMisJuegosAsignados,
+      useFactory: (uow: UnidadDeTrabajoInstitucional): VerMisJuegosAsignados =>
+        new VerMisJuegosAsignados(uow),
       inject: [UOW_INSTITUCIONAL],
     },
   ],

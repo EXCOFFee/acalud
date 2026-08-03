@@ -3,6 +3,7 @@ import { AuthGuard } from '../../../../platform/auth/auth.guard';
 import { ZodValidationPipe } from '../../../../platform/http/zod-validation.pipe';
 import { CargarSesionJuego } from '../../application/cargar-sesion-juego';
 import { VerHistorialSesiones } from '../../application/ver-historial-sesiones';
+import { VerMisJuegosAsignados } from '../../application/ver-mis-juegos-asignados';
 import { CargarSesionBody, cargarSesionSchema } from './docentes.esquemas';
 import type { RequestAutenticada } from '../../../../platform/auth/autenticado';
 import { DocenteNoVinculado, JuegoNoAsignado } from '../../domain/errores';
@@ -21,8 +22,17 @@ function mapearErrorLocal(error: unknown): never {
 export class DocentesController {
   constructor(
     private readonly cargarSesion: CargarSesionJuego,
-    private readonly verHistorialSesiones: VerHistorialSesiones
+    private readonly verHistorialSesiones: VerHistorialSesiones,
+    private readonly verMisJuegosAsignados: VerMisJuegosAsignados
   ) {}
+
+  // CU-29 paso 2 / CU-30: juegos que el docente autenticado tiene asignados.
+  @Get('asignaciones')
+  @UseGuards(AuthGuard)
+  async misAsignaciones(@Req() req: RequestAutenticada) {
+    if (!req.autenticado) throw new UnauthorizedException();
+    return await this.verMisJuegosAsignados.ejecutar(req.autenticado.id);
+  }
 
   @Post('sesiones-juego')
   @UseGuards(AuthGuard)
