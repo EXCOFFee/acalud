@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Bricolage_Grotesque, Public_Sans } from 'next/font/google';
+import { ToastProvider } from '@/components/ui/toast';
 import './globals.css';
 
 // Fuentes variables self-hosted por next/font → funcionan offline en la APK (Capacitor).
@@ -22,7 +23,9 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es-AR" className={`${display.variable} ${body.variable}`}>
-      <body>{children}</body>
+      <body>
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

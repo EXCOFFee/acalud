@@ -556,3 +556,273 @@ a {
   color: var(--tinta-suave);
   margin-top: 2rem;
 }
+
+/* ======================= Componentes base (Fase 0) ======================= */
+
+/* ---------- Botón: variantes adicionales + spinner ---------- */
+.boton--peligro {
+  background: var(--error);
+  color: #fff;
+}
+.boton--peligro:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--error) 85%, black);
+}
+.boton__spinner {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: boton-girar 0.6s linear infinite;
+}
+@keyframes boton-girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Select dentro de un .campo ---------- */
+.campo__select {
+  font: inherit;
+  color: var(--tinta);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--r-sm);
+  padding: 0.7rem 0.85rem;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.campo__select:hover {
+  border-color: color-mix(in srgb, var(--marca) 40%, var(--borde));
+}
+.campo__select:focus-visible {
+  border-color: var(--marca);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca) 22%, transparent);
+}
+.campo__select[aria-invalid='true'] {
+  border-color: var(--error);
+}
+
+/* ---------- Insignia (variantes adicionales de .chip) ---------- */
+.chip--neutra {
+  background: var(--superficie-2);
+  color: var(--tinta-suave);
+}
+
+/* ---------- Tabla genérica ---------- */
+.tabla-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--borde);
+  border-radius: var(--r);
+  background: var(--superficie);
+}
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.tabla th,
+.tabla td {
+  text-align: left;
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid var(--borde);
+  white-space: nowrap;
+}
+.tabla th {
+  font-weight: 600;
+  color: var(--tinta-suave);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--superficie-2);
+}
+.tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+.tabla tbody tr:hover td {
+  background: color-mix(in srgb, var(--marca) 4%, transparent);
+}
+
+/* ---------- Paginación ---------- */
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  margin-top: 1.6rem;
+  font-size: 0.88rem;
+  color: var(--tinta-suave);
+}
+
+/* ---------- Estados (vacío / error, además de .estado-carga) ---------- */
+.estado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  padding: clamp(2rem, 6vw, 3.5rem) 1rem;
+  color: var(--tinta-suave);
+}
+.estado__icono {
+  font-size: 2.1rem;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+.estado__titulo {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--tinta);
+  font-size: 1.05rem;
+}
+.estado__accion {
+  margin-top: 0.6rem;
+}
+
+/* ---------- Diálogo (modal, sobre <dialog> nativo) ---------- */
+.dialogo {
+  border: none;
+  border-radius: var(--r-lg);
+  padding: 0;
+  background: var(--superficie);
+  color: var(--tinta);
+  box-shadow: var(--sombra);
+  max-width: min(32rem, calc(100vw - 2rem));
+  width: 100%;
+}
+.dialogo::backdrop {
+  background: color-mix(in srgb, var(--tinta) 45%, transparent);
+  backdrop-filter: blur(2px);
+}
+.dialogo__cuerpo {
+  padding: clamp(1.3rem, 4vw, 2rem);
+}
+.dialogo__cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+.dialogo__titulo {
+  font-size: 1.3rem;
+}
+.dialogo__cerrar {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--tinta-suave);
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 0.2rem 0.35rem;
+  border-radius: var(--r-sm);
+  flex: none;
+}
+.dialogo__cerrar:hover {
+  color: var(--tinta);
+  background: var(--superficie-2);
+}
+.dialogo__acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1.4rem;
+}
+@media (max-width: 480px) {
+  .dialogo__acciones {
+    flex-direction: column-reverse;
+  }
+  .dialogo__acciones .boton {
+    width: 100%;
+  }
+}
+
+/* ---------- Tabs ---------- */
+.tabs__lista {
+  display: flex;
+  gap: 0.3rem;
+  border-bottom: 1px solid var(--borde);
+  overflow-x: auto;
+}
+.tabs__boton {
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.92rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.75rem 0.9rem;
+  color: var(--tinta-suave);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tabs__boton:hover {
+  color: var(--tinta);
+}
+.tabs__boton[aria-selected='true'] {
+  color: var(--marca);
+  border-bottom-color: var(--marca);
+}
+.tabs__panel {
+  padding-top: 1.3rem;
+}
+
+/* ---------- Toasts ---------- */
+.toasts {
+  position: fixed;
+  bottom: 1.2rem;
+  right: 1.2rem;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: min(24rem, calc(100vw - 2rem));
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.8rem 1rem;
+  border-radius: var(--r);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  box-shadow: var(--sombra);
+  font-size: 0.9rem;
+  animation: toast-entra 0.18s ease;
+}
+.toast--ok {
+  border-color: color-mix(in srgb, var(--ok) 35%, var(--borde));
+}
+.toast--error {
+  border-color: color-mix(in srgb, var(--error) 35%, var(--borde));
+}
+.toast__cerrar {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--tinta-suave);
+  line-height: 1;
+  padding: 0.1rem;
+  flex: none;
+}
+@keyframes toast-entra {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 480px) {
+  .toasts {
+    left: 1rem;
+    right: 1rem;
+    max-width: none;
+  }
+}
