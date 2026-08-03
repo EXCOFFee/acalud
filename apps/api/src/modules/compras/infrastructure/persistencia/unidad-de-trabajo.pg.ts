@@ -29,6 +29,7 @@ const CONFLICTO_INSTITUCIONAL = 'ON CONFLICT (user_id, institution_context_id)';
 const PG_VIOLACION_UNICIDAD = '23505';
 const IDX_UN_PEDIDO_PENDIENTE_POR_CARRITO = 'uq_orders_pending_per_cart';
 const VALOR_ORDER_TYPE_B2C = 'b2c';
+const VALOR_ORDER_TYPE_B2B = 'b2b';
 const VALOR_ORIGEN_COTIZACION_LOCAL = 'local_fallback';
 const VALOR_MOVIMIENTO_VENTA = 'sale';
 
@@ -41,20 +42,23 @@ class PedidoRepositorioPg implements PedidoRepositorio {
 
   async crear(datos: NuevoPedido): Promise<{ id: string; numero: string }> {
     const numero = nuevoNumero();
+    // CHECK ck_orders_buyer_coherence: b2b exige institution_id no nulo, b2c lo exige nulo.
+    const orderType = datos.institution_id !== null ? VALOR_ORDER_TYPE_B2B : VALOR_ORDER_TYPE_B2C;
     let id: string;
     try {
       const r = await this.db.query<{ id: string }>(
         // `shipping_quote_source` guarda qué adaptador cotizó, no el transportista:
         // `shipping_carrier` es un campo distinto que entra con CU-13.
         `INSERT INTO orders
-           (order_number, order_type, user_id, cart_id,
+           (order_number, order_type, user_id, institution_id, cart_id,
             shipping_street, shipping_number, shipping_city, shipping_province, shipping_postal_code,
             shipping_method, shipping_cost, shipping_quote_source, total_amount)
-         VALUES ($1, $12::order_type, $2, $3, $4, $5, $6, $7, $8, $9, $10, $13::shipping_quote_source, $11)
+         VALUES ($1, $13::order_type, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $14::shipping_quote_source, $12)
          RETURNING id`,
         [
           numero,
           datos.cuenta_id,
+          datos.institution_id,
           datos.carrito_id,
           datos.domicilio_snapshot.calle,
           datos.domicilio_snapshot.numero,
@@ -64,7 +68,7 @@ class PedidoRepositorioPg implements PedidoRepositorio {
           datos.envio_modalidad,
           datos.envio_costo,
           datos.monto_total,
-          VALOR_ORDER_TYPE_B2C,
+          orderType,
           VALOR_ORIGEN_COTIZACION_LOCAL,
         ],
       );
@@ -208,6 +212,15 @@ class CarritoCheckoutPg implements CarritoCheckout {
 
   async vaciar(carritoId: string): Promise<void> {
     await this.db.query(`DELETE FROM cart_items WHERE cart_id = $1`, [carritoId]);
+  }
+
+  async esEncargadoActivo(userId: string, institutionId: string): Promise<boolean> {
+    const r = await this.db.query(
+      `SELECT 1 FROM institutional_teachers
+        WHERE institution_id = $1 AND user_id = $2 AND is_admin = true AND status = 'active'`,
+      [institutionId, userId],
+    );
+    return r.rows.length > 0;
   }
 }
 

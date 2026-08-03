@@ -8,14 +8,6 @@ export class JuegoNoDisponible extends ErrorDeDominio {
   }
 }
 
-/** Compra en contexto institucional: el módulo Institucional (BC7) aún no está. → 422. */
-export class ContextoInstitucionalNoDisponible extends ErrorDeDominio {
-  readonly clase = 'VALIDATION' as const;
-  constructor() {
-    super('La compra institucional todavía no está disponible');
-  }
-}
-
 /**
  * CU-24 A1/A3 / RN-001: el usuario no está vinculado a esa institución, o no es su encargado
  * principal (`is_admin = true`, membresía `active`). Recurso ajeno = 404 (mismo criterio que

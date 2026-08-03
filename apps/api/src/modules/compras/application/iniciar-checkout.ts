@@ -1,4 +1,4 @@
-import { CarritoNoCheckouteable, PagoIndisponible } from '../domain/errores';
+import { CarritoNoCheckouteable, PagoIndisponible, SinPermisosInstitucionales } from '../domain/errores';
 import type { Domicilio, LineaPedido, ModalidadEnvio, NuevoPedido } from '../domain/pedido';
 import type { UnidadDeTrabajoCompras } from '../domain/ports/checkout.repository';
 import type { PaymentProvider } from '../domain/ports/payment-provider.port';
@@ -38,6 +38,11 @@ export class IniciarCheckout {
 
   async ejecutar(input: IniciarCheckoutInput): Promise<CheckoutIniciado> {
     const creado = await this.uow.transaccion(async (repos) => {
+      // CU-24 RN-001/A1/A3: solo el encargado institucional puede finalizar la compra B2B.
+      if (input.contexto !== null && !(await repos.carrito.esEncargadoActivo(input.cuentaId, input.contexto))) {
+        throw new SinPermisosInstitucionales();
+      }
+
       const { carritoId, lineas } = await repos.carrito.leer(input.cuentaId, input.contexto);
       if (lineas.length === 0) throw new CarritoNoCheckouteable('Tu carrito está vacío');
 
@@ -58,6 +63,7 @@ export class IniciarCheckout {
 
       const nuevo: NuevoPedido = {
         cuenta_id: input.cuentaId,
+        institution_id: input.contexto,
         carrito_id: carritoId,
         domicilio_snapshot: input.domicilio,
         envio_modalidad: input.modalidadEnvio,
@@ -67,9 +73,15 @@ export class IniciarCheckout {
       };
       const pedido = await repos.pedidos.crear(nuevo); // lanza PedidoPendienteExistente (409) si ya hay uno
       await repos.auditoria.registrar({
-        tipo: 'PedidoCreado',
+        // RN-008/RNF-008 (CU-24): institution_id viaja en `datos` — audit_log no tiene columna
+        // propia para eso (es de alcance transversal, D-27), igual que en el resto del proyecto.
+        tipo: input.contexto !== null ? 'B2BOrderCreated' : 'PedidoCreado',
         sujetoId: pedido.id,
-        datos: { numero: pedido.numero, monto_total: montoTotal },
+        datos: {
+          numero: pedido.numero,
+          monto_total: montoTotal,
+          ...(input.contexto !== null ? { institution_id: input.contexto } : {}),
+        },
       });
       return { pedidoId: pedido.id, numero: pedido.numero, montoTotal };
     });

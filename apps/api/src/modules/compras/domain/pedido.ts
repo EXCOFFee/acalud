@@ -32,6 +32,8 @@ export interface LineaPedido {
 /** Datos para crear el pedido pendiente_pago con su snapshot (server-side). */
 export interface NuevoPedido {
   cuenta_id: string;
+  /** CU-24: institution_id si es una compra institucional (order_type='b2b'); null = personal. */
+  institution_id: string | null;
   carrito_id: string;
   domicilio_snapshot: Domicilio;
   envio_modalidad: ModalidadEnvio;
