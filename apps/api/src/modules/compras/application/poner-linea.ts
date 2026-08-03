@@ -1,5 +1,5 @@
 import type { CarritoView } from '../domain/carrito';
-import { JuegoNoDisponible } from '../domain/errores';
+import { JuegoNoDisponible, SinPermisosInstitucionales } from '../domain/errores';
 import type { CarritoRepository } from '../domain/ports/carrito.repository';
 import { calcularCarrito } from '../domain/precio';
 
@@ -16,6 +16,10 @@ export class PonerLinea {
     juegoId: string,
     cantidad: number,
   ): Promise<CarritoView> {
+    // CU-24 RN-001/A1/A3: solo el encargado institucional opera el carrito de su institución.
+    if (contexto !== null && !(await this.repo.esEncargadoActivo(cuentaId, contexto))) {
+      throw new SinPermisosInstitucionales();
+    }
     if (!(await this.repo.juegoPublicado(juegoId))) throw new JuegoNoDisponible();
     await this.repo.ponerLinea(cuentaId, contexto, juegoId, cantidad);
     return calcularCarrito(await this.repo.verLineas(cuentaId, contexto), contexto);

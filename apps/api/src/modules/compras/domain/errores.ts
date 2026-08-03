@@ -16,6 +16,18 @@ export class ContextoInstitucionalNoDisponible extends ErrorDeDominio {
   }
 }
 
+/**
+ * CU-24 A1/A3 / RN-001: el usuario no está vinculado a esa institución, o no es su encargado
+ * principal (`is_admin = true`, membresía `active`). Recurso ajeno = 404 (mismo criterio que
+ * `SinPermisosDeEncargado` del lado institucional): no se revela si la institución existe.
+ */
+export class SinPermisosInstitucionales extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('No tenés permisos de encargado institucional para esta operación');
+  }
+}
+
 /** El carrito está vacío o alguna línea no está disponible (stock/publicación). → 422 (CU-012). */
 export class CarritoNoCheckouteable extends ErrorDeDominio {
   readonly clase = 'VALIDATION' as const;

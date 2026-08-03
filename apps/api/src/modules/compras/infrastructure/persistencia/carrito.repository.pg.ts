@@ -91,4 +91,13 @@ export class CarritoRepositoryPg implements CarritoRepository {
     );
     return r.rows.length > 0;
   }
+
+  async esEncargadoActivo(userId: string, institutionId: string): Promise<boolean> {
+    const r = await this.db.query(
+      `SELECT 1 FROM institutional_teachers
+        WHERE institution_id = $1 AND user_id = $2 AND is_admin = true AND status = 'active'`,
+      [institutionId, userId],
+    );
+    return r.rows.length > 0;
+  }
 }

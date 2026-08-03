@@ -19,7 +19,7 @@ import { PonerLinea } from '../../application/poner-linea';
 import { QuitarLinea } from '../../application/quitar-linea';
 import { VerCarrito } from '../../application/ver-carrito';
 import type { CarritoView } from '../../domain/carrito';
-import { ContextoInstitucionalNoDisponible, JuegoNoDisponible } from '../../domain/errores';
+import { JuegoNoDisponible, SinPermisosInstitucionales } from '../../domain/errores';
 import {
   type CantidadInput,
   cantidadSchema,
@@ -33,8 +33,8 @@ function mapearError(error: unknown): never {
   if (error instanceof JuegoNoDisponible) {
     throw new HttpException({ title: 'No disponible', detail: error.message }, 404);
   }
-  if (error instanceof ContextoInstitucionalNoDisponible) {
-    throw new HttpException({ title: 'No disponible aún', detail: error.message }, 422);
+  if (error instanceof SinPermisosInstitucionales) {
+    throw new HttpException({ title: 'No encontrado', detail: error.message }, 404);
   }
   throw error;
 }
@@ -101,9 +101,8 @@ export class CarritoController {
     return req.autenticado.id;
   }
 
-  /** Etapa 1: solo carrito personal. El contexto institucional (BC7) llega en Etapa 2. */
+  /** CU-24: `contexto` es el institution_id para el carrito institucional; ausente = personal. */
   private contexto(query: ContextoQuery): string | null {
-    if (query.contexto !== undefined) throw new ContextoInstitucionalNoDisponible();
-    return null;
+    return query.contexto ?? null;
   }
 }
