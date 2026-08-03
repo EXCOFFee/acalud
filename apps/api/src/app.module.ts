@@ -10,6 +10,7 @@ import { CatalogoModule } from './modules/catalogo/infrastructure/catalogo.modul
 import { ComprasModule } from './modules/compras/infrastructure/compras.module';
 import { ComprobantesModule } from './modules/comprobantes/infrastructure/comprobantes.module';
 import { InstitucionalModule } from './modules/institucional/infrastructure/institucional.module';
+import { ComunidadModule } from './modules/comunidad/infrastructure/comunidad.module';
 
 /**
  * Módulo raíz del monolito modular (ADR-002). Composición: PgModule (conexión global) +
@@ -29,6 +30,7 @@ import { InstitucionalModule } from './modules/institucional/infrastructure/inst
     ComprasModule,
     ComprobantesModule,
     InstitucionalModule,
+    ComunidadModule,
   ],
 })
 export class AppModule {}
