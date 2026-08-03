@@ -27,6 +27,12 @@ export class DescargarRecurso {
         throw new UnauthorizedException('Debe iniciar sesión para descargar este recurso licenciado');
       }
 
+      // D-19: un recurso licenciado sin producto asociado no tiene contra qué verificar compra
+      // o asignación — nunca autorizado.
+      if (recurso.productoId === null) {
+        throw new RecursoNoAutorizado();
+      }
+
       const tieneDerecho = await this.autorizacionPort.tieneDerechoAlJuego(usuarioId, recurso.productoId);
       if (!tieneDerecho) {
         throw new RecursoNoAutorizado();

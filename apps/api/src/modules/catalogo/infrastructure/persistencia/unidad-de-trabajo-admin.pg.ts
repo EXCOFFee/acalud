@@ -7,6 +7,7 @@ import { AuditoriaCatalogoPg } from './auditoria-catalogo.repository.pg';
 import { CategoriasAdminRepositoryPg } from './categorias-admin.repository.pg';
 import { DemosAdminRepositoryPg } from './demos-admin.repository.pg';
 import { ProductosAdminRepositoryPg } from './productos-admin.repository.pg';
+import { RecursosAdminRepositoryPg } from './recursos-admin.repository.pg';
 
 /** Unit of Work del ABM de catálogo (CU-19): propia del módulo, no comparte transacción con nada de fuera (ADR-002). */
 export class UnidadDeTrabajoCatalogoAdminPg implements UnidadDeTrabajoCatalogoAdmin {
@@ -20,6 +21,7 @@ export class UnidadDeTrabajoCatalogoAdminPg implements UnidadDeTrabajoCatalogoAd
         productos: new ProductosAdminRepositoryPg(client),
         categorias: new CategoriasAdminRepositoryPg(client),
         demos: new DemosAdminRepositoryPg(client),
+        recursos: new RecursosAdminRepositoryPg(client),
         auditoria: new AuditoriaCatalogoPg(client),
       });
       await client.query('COMMIT');

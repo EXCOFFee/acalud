@@ -1,13 +1,14 @@
 import type { CategoriasAdminRepository } from './categorias-admin.repository';
 import type { DemosAdminRepository } from './demos-admin.repository';
 import type { ProductosAdminRepository } from './productos-admin.repository';
+import type { RecursosAdminRepository } from './recursos-admin.repository';
 
 /** Auditoría propia del BC (RN-002/RNF-002, CU-19). Cada contexto declara la suya: ADR-002. */
 export interface AuditoriaCatalogo {
   registrar(evento: {
     /** `audit_log.action`: CU-19 la enumera taxativamente como create/update/delete. */
     tipo: 'create' | 'update' | 'delete';
-    sujetoTipo: 'product' | 'category' | 'demo';
+    sujetoTipo: 'product' | 'category' | 'demo' | 'resource';
     sujetoId: string;
     actorId: string;
     datos?: Record<string, unknown>;
@@ -18,6 +19,7 @@ export interface ReposCatalogoAdmin {
   productos: ProductosAdminRepository;
   categorias: CategoriasAdminRepository;
   demos: DemosAdminRepository;
+  recursos: RecursosAdminRepository;
   auditoria: AuditoriaCatalogo;
 }
 

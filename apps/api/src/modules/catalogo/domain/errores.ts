@@ -63,3 +63,19 @@ export class NombreCategoriaDuplicado extends ErrorDeDominio {
     super('Ya existe una categoría con ese nombre');
   }
 }
+
+/** CU-19 A9: el recurso administrado no existe. → 404. */
+export class RecursoAdminNoEncontrado extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Recurso no encontrado');
+  }
+}
+
+/** CU-19 A9.4: el producto relacionado (si se indica) no existe. → 422. */
+export class ProductoRelacionadoInvalido extends ErrorDeDominio {
+  readonly clase = 'VALIDATION' as const;
+  constructor() {
+    super('El producto relacionado seleccionado no existe');
+  }
+}

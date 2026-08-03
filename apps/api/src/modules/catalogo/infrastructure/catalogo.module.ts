@@ -35,6 +35,11 @@ import { ListarCategoriasAdmin } from '../application/listar-categorias-admin';
 import { AdminCategoriasController } from './http/admin-categorias.controller';
 import { AsignarDemo } from '../application/asignar-demo';
 import { AdminDemosController } from './http/admin-demos.controller';
+import { ActualizarRecurso } from '../application/actualizar-recurso';
+import { CrearRecurso } from '../application/crear-recurso';
+import { EliminarRecurso } from '../application/eliminar-recurso';
+import { ListarRecursosAdmin } from '../application/listar-recursos-admin';
+import { AdminRecursosController } from './http/admin-recursos.controller';
 
 /**
  * BC2 · Catálogo (read-only, CU-006). Cablea el puerto de lectura con su adapter PG; los casos
@@ -46,6 +51,7 @@ import { AdminDemosController } from './http/admin-demos.controller';
     AdminCatalogoController,
     AdminCategoriasController,
     AdminDemosController,
+    AdminRecursosController,
   ],
   providers: [
     {
@@ -156,6 +162,26 @@ import { AdminDemosController } from './http/admin-demos.controller';
     {
       provide: AsignarDemo,
       useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): AsignarDemo => new AsignarDemo(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: ListarRecursosAdmin,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): ListarRecursosAdmin => new ListarRecursosAdmin(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: CrearRecurso,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): CrearRecurso => new CrearRecurso(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: ActualizarRecurso,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): ActualizarRecurso => new ActualizarRecurso(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: EliminarRecurso,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): EliminarRecurso => new EliminarRecurso(uow),
       inject: [UOW_CATALOGO_ADMIN],
     },
   ],

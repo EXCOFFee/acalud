@@ -1,6 +1,7 @@
 export interface Recurso {
   id: string;
-  productoId: string;
+  /** CU-19 A9.4 / D-19: opcional — hay recursos sin producto asociado. */
+  productoId: string | null;
   titulo: string;
   isLicensed: boolean;
   type: 'pdf' | 'link';

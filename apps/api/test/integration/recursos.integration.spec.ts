@@ -8,6 +8,7 @@ describe('Catálogo: Descarga de Recursos (CU-08 y CU-09)', () => {
   const recursoLibrePdfId = randomUUID();
   const recursoLibreLinkId = randomUUID();
   const recursoLicenciadoId = randomUUID();
+  const recursoLicenciadoSinProductoId = randomUUID();
   const juegoGratisId = randomUUID();
   const juegoLicenciadoId = randomUUID();
 
@@ -79,11 +80,17 @@ describe('Catálogo: Descarga de Recursos (CU-08 y CU-09)', () => {
 
     // Recursos
     await ctx.pg.query(`
-      INSERT INTO resources (id, product_id, title, is_licensed, type, url, download_count) VALUES 
+      INSERT INTO resources (id, product_id, title, is_licensed, type, url, download_count) VALUES
       ($1, $4, 'Recurso Libre PDF', false, 'pdf', 'pdf-libre.pdf', 0),
       ($2, $4, 'Recurso Libre Link', false, 'link', 'http://externo.com/libre', 0),
       ($3, $5, 'Recurso Licenciado PDF', true, 'pdf', 'pdf-premium.pdf', 0)
     `, [recursoLibrePdfId, recursoLibreLinkId, recursoLicenciadoId, juegoGratisId, juegoLicenciadoId]);
+
+    // D-19: recurso licenciado sin producto asociado (CU-19 A9.4 permite product_id nulo).
+    await ctx.pg.query(`
+      INSERT INTO resources (id, product_id, title, is_licensed, type, url, download_count) VALUES
+      ($1, NULL, 'Recurso Licenciado Sin Producto', true, 'pdf', 'pdf-huerfano.pdf', 0)
+    `, [recursoLicenciadoSinProductoId]);
   });
 
   afterAll(async () => {
@@ -138,5 +145,12 @@ describe('Catálogo: Descarga de Recursos (CU-08 y CU-09)', () => {
       .set('Cookie', `acalud_sesion=${profeAsignadoToken}`);
     expect(res.status).toBe(201);
     expect(res.body.url_firmada).toBeDefined();
+  });
+
+  it('D-19: recurso licenciado sin producto asociado nunca se autoriza (no hay contra qué verificar compra)', async () => {
+    const res = await ctx.request
+      .post(`/api/v1/catalogo/recursos/${recursoLicenciadoSinProductoId}/descarga`)
+      .set('Cookie', `acalud_sesion=${profeComproToken}`);
+    expect(res.status).toBe(403);
   });
 });
