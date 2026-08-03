@@ -26,6 +26,11 @@ export interface DatosNuevaInstitucion {
   cantidadAlumnos: number | null;
 }
 
+export interface MembresiaPropia {
+  institucionId: string;
+  esEncargado: boolean;
+}
+
 export interface InstitucionRepository {
   /** CU-23 A1: el usuario no puede estar vinculado a otra institución. */
   estaVinculado(usuarioId: string): Promise<boolean>;
@@ -34,6 +39,12 @@ export interface InstitucionRepository {
   crear(datos: DatosNuevaInstitucion): Promise<string>;
   /** CU-23 p14: vincula al usuario como encargado principal (is_admin = true). */
   vincularEncargado(institucionId: string, usuarioId: string): Promise<void>;
+  /**
+   * A qué institución pertenece el usuario, si a alguna (frontend: sin esto no hay forma de
+   * volver a encontrar `institucion_id` en una visita posterior a la del registro). null si no
+   * está vinculado a ninguna.
+   */
+  buscarPropia(usuarioId: string): Promise<MembresiaPropia | null>;
 }
 
 /** Auditoría propia del BC (RNF-011). Cada contexto declara la suya: ADR-002. */

@@ -4,6 +4,7 @@ import type {
   AuditoriaInstitucional,
   DatosNuevaInstitucion,
   InstitucionRepository,
+  MembresiaPropia,
 } from '../../domain/ports/institucion.repository';
 
 const PG_VIOLACION_UNICIDAD = '23505';
@@ -25,6 +26,17 @@ export class InstitucionRepositoryPg implements InstitucionRepository {
       [usuarioId],
     );
     return r.rowCount !== null && r.rowCount > 0;
+  }
+
+  async buscarPropia(usuarioId: string): Promise<MembresiaPropia | null> {
+    const r = await this.client.query<{ institution_id: string; is_admin: boolean }>(
+      `SELECT institution_id, is_admin FROM institutional_teachers
+        WHERE user_id = $1 AND status <> 'unlinked'
+        LIMIT 1`,
+      [usuarioId],
+    );
+    const fila = r.rows[0];
+    return fila ? { institucionId: fila.institution_id, esEncargado: fila.is_admin } : null;
   }
 
   async buscarNivelPorNombre(nombre: string): Promise<string | null> {

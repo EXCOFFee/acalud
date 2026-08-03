@@ -190,3 +190,49 @@ describe('CU-023 · Registrar institución educativa', () => {
     expect(Number(n.rows[0]!.n)).toBe(0);
   });
 });
+
+// GET /instituciones/mine: sin esto el frontend no puede recuperar `institucion_id` fuera del
+// instante de POST /instituciones (que lo devuelve una sola vez, al crearla).
+describe('GET /instituciones/mine', () => {
+  it('devuelve la institución propia y si el usuario es el encargado', async () => {
+    const { token } = await docente();
+    const alta = await registrar(token, cuerpo());
+    const institucionId = alta.body.institucion_id as string;
+
+    const res = await ctx.request.get('/api/v1/instituciones/mine').set(bearer(token));
+    expect(res.status).toBe(200);
+    expect(res.body.institucion_id).toBe(institucionId);
+    expect(res.body.es_encargado).toBe(true);
+  });
+
+  it('un docente sin institución recibe institucion_id: null', async () => {
+    const { token } = await docente();
+    const res = await ctx.request.get('/api/v1/instituciones/mine').set(bearer(token));
+    expect(res.status).toBe(200);
+    expect(res.body.institucion_id).toBeNull();
+    expect(res.body.es_encargado).toBe(false);
+  });
+
+  it('un docente vinculado pero sin ser encargado recibe es_encargado=false', async () => {
+    const encargado = await docente();
+    const alta = await registrar(encargado.token, cuerpo());
+    const institucionId = alta.body.institucion_id as string;
+
+    const otro = await docente();
+    await ctx.pg.query(
+      `INSERT INTO institutional_teachers (institution_id, user_id, invited_email, is_admin, status, joined_at)
+       VALUES ($1, $2, $3, false, 'active', now())`,
+      [institucionId, otro.id, otro.email],
+    );
+
+    const res = await ctx.request.get('/api/v1/instituciones/mine').set(bearer(otro.token));
+    expect(res.status).toBe(200);
+    expect(res.body.institucion_id).toBe(institucionId);
+    expect(res.body.es_encargado).toBe(false);
+  });
+
+  it('sin sesión responde 401', async () => {
+    const res = await ctx.request.get('/api/v1/instituciones/mine');
+    expect(res.status).toBe(401);
+  });
+});

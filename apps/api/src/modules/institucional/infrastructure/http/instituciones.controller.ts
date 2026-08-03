@@ -29,6 +29,7 @@ import {
   VerDocentesAsignados,
 } from '../../application/ver-docentes-asignados';
 import { type DashboardPedagogico, VerDashboardPedagogico } from '../../application/ver-dashboard-pedagogico';
+import { type MiInstitucion, VerMiInstitucion } from '../../application/ver-mi-institucion';
 import {
   type DetalleProductoInventario,
   type InventarioInstitucional,
@@ -119,7 +120,16 @@ export class InstitucionesController {
     private readonly verReporte: VerReporteInstitucional,
     private readonly exportarReporte: ExportarReporte,
     private readonly verDashboard: VerDashboardPedagogico,
+    private readonly verMiInstitucion: VerMiInstitucion,
   ) {}
+
+  /** Frontend: a qué institución pertenece el usuario. `institucion_id: null` si no está vinculado. */
+  @Get('mine')
+  @UseGuards(AuthGuard)
+  async mia(@Req() req: RequestAutenticada): Promise<MiInstitucion> {
+    if (req.autenticado === undefined) throw new UnauthorizedException();
+    return this.verMiInstitucion.ejecutar(req.autenticado.id);
+  }
 
   @Post()
   @UseGuards(AuthGuard)

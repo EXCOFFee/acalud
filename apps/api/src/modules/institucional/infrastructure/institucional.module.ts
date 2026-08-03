@@ -9,6 +9,7 @@ import { VerDashboardPedagogico } from '../application/ver-dashboard-pedagogico'
 import { VerDocentesAsignados } from '../application/ver-docentes-asignados';
 import { VerInventario } from '../application/ver-inventario';
 import { VerReporteInstitucional } from '../application/ver-reporte-institucional';
+import { VerMiInstitucion } from '../application/ver-mi-institucion';
 import {
   UOW_INSTITUCIONAL,
   type UnidadDeTrabajoInstitucional,
@@ -87,6 +88,11 @@ import { VerHistorialSesiones } from '../application/ver-historial-sesiones';
       provide: VerDashboardPedagogico,
       useFactory: (uow: UnidadDeTrabajoInstitucional): VerDashboardPedagogico =>
         new VerDashboardPedagogico(uow),
+      inject: [UOW_INSTITUCIONAL],
+    },
+    {
+      provide: VerMiInstitucion,
+      useFactory: (uow: UnidadDeTrabajoInstitucional): VerMiInstitucion => new VerMiInstitucion(uow),
       inject: [UOW_INSTITUCIONAL],
     },
   ],
