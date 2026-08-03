@@ -449,6 +449,53 @@ export interface FiltroMisSesiones {
   limite?: number | undefined;
 }
 
+// CU-31/CU-32: reporte institucional agregado (por juego o por docente) + export a CSV. El
+// backend real es un GROUP BY simple, sin gráficos/nube de palabras/PDF/Excel — eso quedó
+// pendiente para cuando se aprueben esas dependencias (ver ADR-006-style comment en el código).
+export interface FiltroReporte {
+  corte: 'juego' | 'docente';
+  desde?: string | undefined;
+  hasta?: string | undefined;
+  producto_id?: string | undefined;
+  docente_id?: string | undefined;
+}
+
+export interface FilaReporteJuego {
+  producto_id: string;
+  nombre_producto: string;
+  total_sesiones: number;
+  docentes_distintos: number;
+  alumnos_alcanzados: number;
+  minutos_totales: number;
+  ultima_sesion: string | null;
+}
+
+export interface FilaReporteDocente {
+  docente_id: string;
+  nombre_docente: string;
+  total_sesiones: number;
+  juegos_distintos: number;
+  alumnos_alcanzados: number;
+  minutos_totales: number;
+}
+
+export interface ReporteInstitucional {
+  institucion_id: string;
+  corte: 'juego' | 'docente';
+  filtros: { desde?: string; hasta?: string; producto_id?: string; docente_id?: string };
+  datos: FilaReporteJuego[] | FilaReporteDocente[];
+}
+
+function armarQueryReporte(filtro: FiltroReporte): string {
+  const qs = new URLSearchParams();
+  qs.set('corte', filtro.corte);
+  if (filtro.desde) qs.set('desde', filtro.desde);
+  if (filtro.hasta) qs.set('hasta', filtro.hasta);
+  if (filtro.producto_id) qs.set('producto_id', filtro.producto_id);
+  if (filtro.docente_id) qs.set('docente_id', filtro.docente_id);
+  return qs.toString();
+}
+
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
@@ -608,4 +655,39 @@ export const api = {
   },
   // CU-30 A9: detalle completo de una sesión propia.
   verDetalleSesion: (id: string) => pedir<SesionDetalle>('GET', `/docentes/me/sesiones-juego/${id}`),
+  // CU-31: reporte agregado por juego o por docente.
+  verReporte: (institucionId: string, filtro: FiltroReporte) =>
+    pedir<ReporteInstitucional>('GET', `/instituciones/${institucionId}/reportes/uso?${armarQueryReporte(filtro)}`),
+  // CU-32: descarga el CSV directamente — no pasa por `pedir` porque la respuesta es un
+  // archivo, no JSON. Reutiliza la misma lógica de auth (cookie web / Bearer APK).
+  exportarReporte: async (institucionId: string, filtro: FiltroReporte): Promise<void> => {
+    const headers: Record<string, string> = {};
+    const token = tokenActual();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(
+      `${BASE}/api/v1/instituciones/${institucionId}/reportes/uso/exportar?${armarQueryReporte(filtro)}`,
+      { method: 'GET', credentials: 'include', headers },
+    );
+    if (!res.ok) {
+      let problema: ProblemDetails = {};
+      try {
+        problema = (await res.json()) as ProblemDetails;
+      } catch {
+        /* respuesta sin cuerpo */
+      }
+      throw new ApiError(res.status, problema);
+    }
+    const disposicion = res.headers.get('Content-Disposition') ?? '';
+    const nombreArchivo = /filename="([^"]+)"/.exec(disposicion)?.[1] ?? 'reporte.csv';
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
 };

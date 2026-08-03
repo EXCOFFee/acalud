@@ -70,6 +70,11 @@ export default function InstitucionPage() {
                 👩‍🏫 Ver docentes asignados
               </Link>
             ) : null}
+            {mia?.es_encargado ? (
+              <Link className="boton boton--fantasma" href="/institucion/reportes" style={{ marginLeft: '0.6rem' }}>
+                📊 Reporte de uso
+              </Link>
+            ) : null}
           </div>
         ) : null}
       </main>
