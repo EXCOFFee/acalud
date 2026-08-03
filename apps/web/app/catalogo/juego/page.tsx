@@ -23,6 +23,27 @@ export default function FichaJuegoPage() {
   const [demoCargando, setDemoCargando] = useState<'publica' | 'completa' | null>(null);
   const [demoError, setDemoError] = useState<string | null>(null);
 
+  // CU-08/CU-09: descargar un recurso (libre o licenciado, ya resuelto por `desbloqueado`).
+  const [descargando, setDescargando] = useState<string | null>(null);
+  const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
+
+  async function descargar(recursoId: string): Promise<void> {
+    setErrorDescarga(null);
+    setDescargando(recursoId);
+    try {
+      const r = await api.descargarRecurso(recursoId);
+      window.open(r.url_firmada, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.replace(`/login?volver=${encodeURIComponent(`/catalogo/juego?id=${juego?.id ?? ''}`)}`);
+        return;
+      }
+      setErrorDescarga('No pudimos iniciar la descarga. Probá de nuevo.');
+    } finally {
+      setDescargando(null);
+    }
+  }
+
   async function probarDemo(tipo: 'publica' | 'completa'): Promise<void> {
     if (!juego) return;
     setDemoError(null);
@@ -222,13 +243,20 @@ export default function FichaJuegoPage() {
                       <li key={r.id}>
                         <span>{r.nombre}</span>
                         {r.desbloqueado ? (
-                          <span className="chip chip--ok">Libre</span>
+                          <Boton variante="fantasma" cargando={descargando === r.id} onClick={() => descargar(r.id)}>
+                            ⬇ Descargar
+                          </Boton>
                         ) : (
                           <span className="chip">🔒 Con compra</span>
                         )}
                       </li>
                     ))}
                   </ul>
+                  {errorDescarga ? (
+                    <div style={{ marginTop: '0.6rem' }}>
+                      <Alerta tipo="error">{errorDescarga}</Alerta>
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
             </div>

@@ -274,6 +274,9 @@ export const api = {
   // CU-06: pública, sin sesión. CU-07: completa, requiere sesión (401 si no hay).
   probarDemoPublica: (juegoId: string) => pedir<ContenidoDemo>('GET', `/catalogo/juegos/${juegoId}/demo/publica`),
   probarDemoCompleta: (juegoId: string) => pedir<ContenidoDemo>('GET', `/catalogo/juegos/${juegoId}/demo/completa`),
+  // CU-08 (recurso libre, sin sesión) / CU-09 (licenciado, requiere haberlo comprado).
+  descargarRecurso: (recursoId: string) =>
+    pedir<{ url_firmada: string; expira_en?: string }>('POST', `/catalogo/recursos/${recursoId}/descarga`),
   verCarrito: () => pedir<CarritoView>('GET', '/carrito'),
   ponerLinea: (juegoId: string, cantidad: number) =>
     pedir<CarritoView>('PUT', `/carrito/lineas/${juegoId}`, { cantidad }),
