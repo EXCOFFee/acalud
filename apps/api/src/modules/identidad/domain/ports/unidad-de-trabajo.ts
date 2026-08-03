@@ -36,6 +36,8 @@ export interface TokenDeUsoNuevo {
 export interface TokenVigente {
   id: string;
   cuentaId: string;
+  /** Solo para tipo `cambio_email`: el correo nuevo asociado al testigo (CU-34). */
+  emailNuevo: string | null;
 }
 
 export interface TokenRepository {

@@ -42,14 +42,14 @@ export class TokenRepositoryPg implements TokenRepository {
     tipo: TipoTokenDeUso,
     ahora: Date,
   ): Promise<TokenVigente | null> {
-    const r = await this.db.query<{ id: string; user_id: string }>(
-      `SELECT id, user_id FROM user_tokens
+    const r = await this.db.query<{ id: string; user_id: string; payload: string | null }>(
+      `SELECT id, user_id, payload FROM user_tokens
         WHERE token_hash = $1 AND purpose = $2::token_purpose
           AND used_at IS NULL AND expires_at > $3`,
       [tokenHash, PROPOSITO[tipo], ahora],
     );
     const fila = r.rows[0];
-    return fila ? { id: fila.id, cuentaId: fila.user_id } : null;
+    return fila ? { id: fila.id, cuentaId: fila.user_id, emailNuevo: fila.payload } : null;
   }
 
   async marcarUsado(id: string): Promise<void> {

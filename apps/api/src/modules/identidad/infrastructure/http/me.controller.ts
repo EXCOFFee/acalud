@@ -1,10 +1,37 @@
-import { Body, Controller, Get, Put, Req, UnauthorizedException, UseGuards, Inject } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpException,
+  Post,
+  Put,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+  Inject,
+} from '@nestjs/common';
 import { AuthGuard } from '../../../../platform/auth/auth.guard';
 import type { RequestAutenticada } from '../../../../platform/auth/autenticado';
 import { ZodValidationPipe } from '../../../../platform/http/zod-validation.pipe';
 import { ActualizarPerfil } from '../../application/actualizar-perfil';
+import { SolicitarCambioEmail } from '../../application/solicitar-cambio-email';
 import { CUENTA_REPOSITORY, type CuentaRepository } from '../../domain/ports/cuenta.repository';
-import { type PerfilInput, perfilSchema } from './esquemas';
+import { ContrasenaIncorrecta, EmailIgualAlActual, EmailYaRegistrado } from '../../domain/errores';
+import { type CambioEmailInput, cambioEmailSchema, type PerfilInput, perfilSchema } from './esquemas';
+
+function mapearError(error: unknown): never {
+  if (error instanceof ContrasenaIncorrecta) {
+    throw new HttpException({ title: 'No autorizado', detail: error.message }, 401);
+  }
+  if (error instanceof EmailYaRegistrado) {
+    throw new HttpException({ title: 'Correo no disponible', detail: error.message }, 422);
+  }
+  if (error instanceof EmailIgualAlActual) {
+    throw new HttpException({ title: 'Correo inválido', detail: error.message }, 422);
+  }
+  throw error;
+}
 
 interface RespuestaPerfil {
   id: string;
@@ -26,6 +53,7 @@ interface RespuestaPerfil {
 export class MeController {
   constructor(
     private readonly actualizarPerfil: ActualizarPerfil,
+    private readonly solicitarCambioEmail: SolicitarCambioEmail,
     @Inject(CUENTA_REPOSITORY) private readonly cuentas: CuentaRepository,
   ) {}
 
@@ -70,6 +98,30 @@ export class MeController {
       materia: perfil.materia ?? null,
       institucion: perfil.institucion ?? null,
       membresias: [],
+    };
+  }
+
+  /** CU-34 (pasos 1-13). No efectiviza el cambio: envía el testigo de verificación al correo nuevo. */
+  @Post('cambio-correo')
+  @HttpCode(202)
+  async cambioCorreo(
+    @Req() req: RequestAutenticada,
+    @Body(new ZodValidationPipe(cambioEmailSchema)) input: CambioEmailInput,
+  ): Promise<{ mensaje: string }> {
+    const cuenta = req.autenticado;
+    if (cuenta === undefined) throw new UnauthorizedException();
+
+    try {
+      await this.solicitarCambioEmail.ejecutar({
+        cuentaId: cuenta.id,
+        nuevoEmail: input.nuevo_email,
+        contrasena: input.contrasena,
+      });
+    } catch (error) {
+      mapearError(error);
+    }
+    return {
+      mensaje: 'Se ha enviado un enlace de verificación a tu nuevo correo. Revisá tu bandeja de entrada.',
     };
   }
 }

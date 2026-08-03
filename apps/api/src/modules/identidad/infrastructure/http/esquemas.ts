@@ -34,6 +34,17 @@ export const restablecerSchema = z.object({
 });
 export type RestablecerInput = z.infer<typeof restablecerSchema>;
 
+export const cambioEmailSchema = z.object({
+  nuevo_email: z.string().email(),
+  contrasena: z.string().min(1),
+});
+export type CambioEmailInput = z.infer<typeof cambioEmailSchema>;
+
+export const confirmarCambioEmailSchema = z.object({
+  token: z.string().min(1),
+});
+export type ConfirmarCambioEmailInput = z.infer<typeof confirmarCambioEmailSchema>;
+
 export const perfilSchema = z.object({
   nombre: z.string().min(1),
   apellido: z.string().min(1),

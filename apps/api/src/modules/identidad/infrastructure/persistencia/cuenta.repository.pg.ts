@@ -80,6 +80,10 @@ export class CuentaRepositoryPg implements CuentaRepository {
     await this.db.query(`UPDATE users SET password_hash = $2 WHERE id = $1`, [id, hashPassword]);
   }
 
+  async actualizarEmail(id: string, nuevoEmail: string): Promise<void> {
+    await this.db.query(`UPDATE users SET email = $2 WHERE id = $1`, [id, nuevoEmail]);
+  }
+
   async registrarUltimoLogin(id: string, ahora: Date): Promise<void> {
     await this.db.query(`UPDATE users SET last_login = $2 WHERE id = $1`, [id, ahora]);
   }

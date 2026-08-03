@@ -3,9 +3,11 @@ import type { Pool } from 'pg';
 import { PG_POOL } from '../../../platform/db/pg.module';
 import { ActualizarPerfil } from '../application/actualizar-perfil';
 import { CerrarSesion } from '../application/cerrar-sesion';
+import { ConfirmarCambioEmail } from '../application/confirmar-cambio-email';
 import { IniciarSesion } from '../application/iniciar-sesion';
 import { RegistrarDocente } from '../application/registrar-docente';
 import { RestablecerContrasena } from '../application/restablecer-contrasena';
+import { SolicitarCambioEmail } from '../application/solicitar-cambio-email';
 import { SolicitarRecuperacion } from '../application/solicitar-recuperacion';
 import { VerificarEmail } from '../application/verificar-email';
 import {
@@ -138,6 +140,23 @@ import { UnidadDeTrabajoPg } from './persistencia/unidad-de-trabajo.pg';
       provide: ActualizarPerfil,
       useFactory: (uow: UnidadDeTrabajo): ActualizarPerfil => new ActualizarPerfil(uow),
       inject: [UNIDAD_DE_TRABAJO],
+    },
+    {
+      provide: SolicitarCambioEmail,
+      useFactory: (
+        uow: UnidadDeTrabajo,
+        cuentas: CuentaRepository,
+        hasher: HasherContrasena,
+        gen: GeneradorTokenOpaco,
+        reloj: Reloj,
+      ): SolicitarCambioEmail => new SolicitarCambioEmail(uow, cuentas, hasher, gen, reloj),
+      inject: [UNIDAD_DE_TRABAJO, CUENTA_REPOSITORY, HASHER, GENERADOR_TOKEN, RELOJ],
+    },
+    {
+      provide: ConfirmarCambioEmail,
+      useFactory: (uow: UnidadDeTrabajo, gen: GeneradorTokenOpaco, reloj: Reloj): ConfirmarCambioEmail =>
+        new ConfirmarCambioEmail(uow, gen, reloj),
+      inject: [UNIDAD_DE_TRABAJO, GENERADOR_TOKEN, RELOJ],
     },
   ],
 })

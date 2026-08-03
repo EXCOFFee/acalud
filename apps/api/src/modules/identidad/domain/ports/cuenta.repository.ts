@@ -30,6 +30,8 @@ export interface CuentaRepository {
   verificar(id: string): Promise<void>;
   /** Reemplaza el hash de contraseña (recuperación, CU-02 RNF-005). */
   actualizarContrasena(id: string, hashPassword: string): Promise<void>;
+  /** Reemplaza el email tras confirmar el testigo de cambio (CU-34 paso 18). */
+  actualizarEmail(id: string, nuevoEmail: string): Promise<void>;
   /** Registra el instante del último acceso (CU-02 RN-003). */
   registrarUltimoLogin(id: string, ahora: Date): Promise<void>;
   /** Actualiza nombre completo y datos pedagógicos del perfil docente. */

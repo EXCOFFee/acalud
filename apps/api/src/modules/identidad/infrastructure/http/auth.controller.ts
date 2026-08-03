@@ -9,6 +9,7 @@ import {
   TokenInvalido,
 } from '../../domain/errores';
 import { CerrarSesion } from '../../application/cerrar-sesion';
+import { ConfirmarCambioEmail } from '../../application/confirmar-cambio-email';
 import { IniciarSesion } from '../../application/iniciar-sesion';
 import { RegistrarDocente } from '../../application/registrar-docente';
 import { RestablecerContrasena } from '../../application/restablecer-contrasena';
@@ -16,6 +17,8 @@ import { SolicitarRecuperacion } from '../../application/solicitar-recuperacion'
 import { VerificarEmail } from '../../application/verificar-email';
 import { COOKIE_SESION, leerCookie } from './cookies';
 import {
+  type ConfirmarCambioEmailInput,
+  confirmarCambioEmailSchema,
   type LoginInput,
   loginSchema,
   type RecuperacionInput,
@@ -62,6 +65,7 @@ export class AuthController {
     private readonly verificar: VerificarEmail,
     private readonly solicitarRecuperacion: SolicitarRecuperacion,
     private readonly restablecer: RestablecerContrasena,
+    private readonly confirmarCambioEmail: ConfirmarCambioEmail,
   ) {}
 
   /** CU-001. Respuesta idéntica exista o no el email (anti-enumeración). */
@@ -119,6 +123,20 @@ export class AuthController {
       mapearError(error);
     }
     return { mensaje: 'Tu contraseña fue actualizada. Ya podés ingresar con la nueva.' };
+  }
+
+  /** CU-34 (pasos 14-25). Confirma el testigo enviado al correo nuevo y efectiviza el cambio. */
+  @Post('cambio-correo/confirmar')
+  @HttpCode(200)
+  async confirmarCambioCorreo(
+    @Body(new ZodValidationPipe(confirmarCambioEmailSchema)) input: ConfirmarCambioEmailInput,
+  ): Promise<{ mensaje: string }> {
+    try {
+      await this.confirmarCambioEmail.ejecutar(input.token);
+    } catch (error) {
+      mapearError(error);
+    }
+    return { mensaje: '¡Correo electrónico actualizado exitosamente!' };
   }
 
   /** CU-002. Sesión dual: token en el cuerpo (Bearer/APK) + cookie httpOnly (web). */

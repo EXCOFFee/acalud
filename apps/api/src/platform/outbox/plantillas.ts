@@ -151,6 +151,42 @@ export function renderizar(tipo: string, payload: Record<string, unknown>): Plan
         ),
       };
     }
+    case 'cambio_email_verificacion': {
+      // CU-34 RN-001/RNF-001: el testigo se transmite exclusivamente al correo nuevo.
+      const token = String(payload['token'] ?? '');
+      const link = `${WEB}/confirmar-correo?token=${encodeURIComponent(token)}`;
+      return {
+        asunto: 'Confirmá tu nuevo correo en Acalud',
+        html: base(
+          `<h1 style="font-size:22px;margin:0 0 12px;">Confirmá tu nuevo correo</h1>
+           <p style="margin:0 0 20px;">Pediste cambiar el correo de tu cuenta de Acalud a esta dirección. El enlace vence en 24 horas y se usa una sola vez.</p>
+           <p style="margin:0 0 20px;">${boton(link, 'Confirmar mi nuevo correo')}</p>
+           <p style="color:#566661;font-size:13px;margin:0;">Si no fuiste vos, ignorá este mail: tu correo actual sigue igual.<br>Enlace directo:<br>${link}</p>`,
+        ),
+      };
+    }
+    case 'cambio_email_confirmado_anterior': {
+      // CU-34 RN-009/paso 21: aviso a título informativo al correo viejo.
+      const emailNuevo = String(payload['email_nuevo'] ?? '');
+      return {
+        asunto: 'Tu correo de Acalud fue cambiado',
+        html: base(
+          `<h1 style="font-size:22px;margin:0 0 12px;">Tu correo fue cambiado</h1>
+           <p style="margin:0 0 20px;">La cuenta de Acalud asociada a este correo ahora usa <strong>${emailNuevo}</strong> para iniciar sesión.</p>
+           <p style="margin:0;">Si no realizaste esta acción, contactá a soporte inmediatamente.</p>`,
+        ),
+      };
+    }
+    case 'cambio_email_confirmado_nuevo':
+      // CU-34 RN-010/paso 22: confirmación de éxito al correo nuevo.
+      return {
+        asunto: '¡Tu correo de Acalud fue confirmado!',
+        html: base(
+          `<h1 style="font-size:22px;margin:0 0 12px;">Correo actualizado ✅</h1>
+           <p style="margin:0 0 20px;">A partir de ahora, usá este correo para iniciar sesión en Acalud.</p>
+           <p style="margin:0;">${boton(`${WEB}/login`, 'Ingresar')}</p>`,
+        ),
+      };
     case 'aviso-bloqueo':
       return {
         asunto: 'Alerta de seguridad en tu cuenta de Acalud',
