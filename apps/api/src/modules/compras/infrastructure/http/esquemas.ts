@@ -35,6 +35,20 @@ export const webhookSchema = z.object({
 });
 export type WebhookInput = z.infer<typeof webhookSchema>;
 
+/** CU-11 A1: código postal argentino, 4 dígitos (ej: 1425). A4: al menos un ítem. */
+export const calcularEnvioSchema = z.object({
+  codigo_postal: z.string().regex(/^\d{4}$/, 'El código postal debe tener 4 dígitos'),
+  items: z
+    .array(
+      z.object({
+        product_id: z.string().uuid(),
+        quantity: z.number().int().min(1),
+      }),
+    )
+    .min(1),
+});
+export type CalcularEnvioInput = z.infer<typeof calcularEnvioSchema>;
+
 export const FiltroHistorialSchema = z.object({
   estado: z.enum(['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'under_review']).optional(),
   orden_por: z.enum(['created_at', 'total_amount']).optional(),

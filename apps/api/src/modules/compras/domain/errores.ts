@@ -80,11 +80,12 @@ export class PedidoNoDespachado extends ErrorDeDominio {
 /**
  * CU-13 A2/A3: el proveedor logístico no respondió o rechazó la consulta, y no hay ningún
  * estado cacheado al que recurrir (RNF-007 agota esa salida antes de llegar acá). → 503.
+ * Reutilizada por CU-11 A2 (falla al cotizar envío): mismo proveedor, misma falla de origen.
  */
 export class ProveedorLogisticoNoDisponible extends ErrorDeDominio {
   readonly clase = 'BUSINESS_RULE' as const;
   readonly retryable = true;
-  constructor() {
-    super('El servicio de seguimiento no está disponible temporalmente');
+  constructor(mensaje = 'El servicio de seguimiento no está disponible temporalmente') {
+    super(mensaje);
   }
 }

@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 import type { Pool } from 'pg';
 import { PG_POOL } from '../../../platform/db/pg.module';
+import { CalcularEnvio } from '../application/calcular-envio';
 import { IniciarCheckout } from '../application/iniciar-checkout';
 import { PonerLinea } from '../application/poner-linea';
 import { ProcesarPago } from '../application/procesar-pago';
 import { QuitarLinea } from '../application/quitar-linea';
 import { VerCarrito } from '../application/ver-carrito';
 import { CARRITO_REPOSITORY, type CarritoRepository } from '../domain/ports/carrito.repository';
+import { ENVIO_REPOSITORY, type EnvioRepository } from '../domain/ports/envio.repository';
 import {
   UNIDAD_DE_TRABAJO_COMPRAS,
   type UnidadDeTrabajoCompras,
@@ -14,8 +16,10 @@ import {
 import { PAYMENT_PROVIDER, type PaymentProvider } from '../domain/ports/payment-provider.port';
 import { CarritoController } from './http/carrito.controller';
 import { CheckoutController } from './http/checkout.controller';
+import { EnvioController } from './http/envio.controller';
 import { crearPaymentProvider } from './payment-provider.factory';
 import { CarritoRepositoryPg } from './persistencia/carrito.repository.pg';
+import { EnvioRepositoryPg } from './persistencia/envio.repository.pg';
 import { UnidadDeTrabajoComprasPg } from './persistencia/unidad-de-trabajo.pg';
 import { VerHistorial } from '../application/ver-historial';
 import { HistorialController } from './http/historial.controller';
@@ -37,7 +41,7 @@ export const TRACKING_REPOSITORY = Symbol('TrackingRepository');
  * de fronteras (ADR-002) prohíbe que otro BC lo importe, y ningún otro BC lo necesita hoy.
  */
 @Module({
-  controllers: [CarritoController, CheckoutController, HistorialController],
+  controllers: [CarritoController, CheckoutController, HistorialController, EnvioController],
   providers: [
     // Singleton: el fake de MP es stateful (guarda el monto por pedido entre crear y consultar).
     { provide: PAYMENT_PROVIDER, useFactory: () => crearPaymentProvider() },
@@ -100,6 +104,17 @@ export const TRACKING_REPOSITORY = Symbol('TrackingRepository');
       useFactory: (repo: TrackingRepository, shipping: ShippingProvider): VerSeguimientoPedido =>
         new VerSeguimientoPedido(repo, shipping),
       inject: [TRACKING_REPOSITORY, SHIPPING_PROVIDER],
+    },
+    {
+      provide: ENVIO_REPOSITORY,
+      useFactory: (pool: Pool): EnvioRepository => new EnvioRepositoryPg(pool),
+      inject: [PG_POOL],
+    },
+    {
+      provide: CalcularEnvio,
+      useFactory: (repo: EnvioRepository, shipping: ShippingProvider): CalcularEnvio =>
+        new CalcularEnvio(repo, shipping),
+      inject: [ENVIO_REPOSITORY, SHIPPING_PROVIDER],
     },
   ],
   exports: [PAYMENT_PROVIDER],
