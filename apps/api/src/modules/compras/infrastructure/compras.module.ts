@@ -21,12 +21,20 @@ import { VerHistorial } from '../application/ver-historial';
 import { HistorialController } from './http/historial.controller';
 import { HistorialRepositoryPg } from './persistencia/historial.repository.pg';
 import { HistorialRepository } from '../domain/ports/historial.repository';
+import { VerSeguimientoPedido } from '../application/ver-seguimiento-pedido';
+import type { TrackingRepository } from '../domain/ports/tracking.repository';
+import { TrackingRepositoryPg } from './persistencia/tracking.repository.pg';
+import { SHIPPING_PROVIDER, type ShippingProvider } from '../domain/ports/shipping-provider.port';
+import { crearShippingProvider } from './shipping-provider.factory';
 
 export const HISTORIAL_REPOSITORY = Symbol('HistorialRepository');
+export const TRACKING_REPOSITORY = Symbol('TrackingRepository');
 
 /**
- * BC3 · Compras. Carrito (CU-010) con cálculo de precios server-side + el puerto de pago
- * (fake en Etapa 1). Los casos de uso son clases framework-agnósticas cableadas por useFactory.
+ * BC3 · Compras. Carrito (CU-010) con cálculo de precios server-side + los puertos de pago y
+ * envío (fakes en Etapa 1). Los casos de uso son clases framework-agnósticas cableadas por
+ * useFactory. `ShippingProvider` vive acá mismo (no en un módulo `logistica` aparte): la regla
+ * de fronteras (ADR-002) prohíbe que otro BC lo importe, y ningún otro BC lo necesita hoy.
  */
 @Module({
   controllers: [CarritoController, CheckoutController, HistorialController],
@@ -79,6 +87,19 @@ export const HISTORIAL_REPOSITORY = Symbol('HistorialRepository');
       provide: VerHistorial,
       useFactory: (repo: HistorialRepository): VerHistorial => new VerHistorial(repo),
       inject: [HISTORIAL_REPOSITORY],
+    },
+    {
+      provide: TRACKING_REPOSITORY,
+      useFactory: (pool: Pool): TrackingRepository => new TrackingRepositoryPg(pool),
+      inject: [PG_POOL],
+    },
+    // Singleton simple: sin estado propio, pero coherente con el resto de los adapters fake.
+    { provide: SHIPPING_PROVIDER, useFactory: () => crearShippingProvider() },
+    {
+      provide: VerSeguimientoPedido,
+      useFactory: (repo: TrackingRepository, shipping: ShippingProvider): VerSeguimientoPedido =>
+        new VerSeguimientoPedido(repo, shipping),
+      inject: [TRACKING_REPOSITORY, SHIPPING_PROVIDER],
     },
   ],
   exports: [PAYMENT_PROVIDER],

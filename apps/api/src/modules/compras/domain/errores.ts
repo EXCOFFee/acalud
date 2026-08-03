@@ -56,3 +56,31 @@ export class OrdenNoEncontrada extends ErrorDeDominio {
     super('No se encontró el pedido o no tenés permiso para verlo');
   }
 }
+
+/** CU-13 A1: la orden no tiene código de tracking asignado todavía. → 409. */
+export class PedidoSinTracking extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('El código de seguimiento aún no está disponible para este pedido');
+  }
+}
+
+/** CU-13 A4 / RN-001: el seguimiento solo está disponible para pedidos "shipped" o "delivered". → 409. */
+export class PedidoNoDespachado extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Este pedido aún no ha sido despachado');
+  }
+}
+
+/**
+ * CU-13 A2/A3: el proveedor logístico no respondió o rechazó la consulta, y no hay ningún
+ * estado cacheado al que recurrir (RNF-007 agota esa salida antes de llegar acá). → 503.
+ */
+export class ProveedorLogisticoNoDisponible extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  readonly retryable = true;
+  constructor() {
+    super('El servicio de seguimiento no está disponible temporalmente');
+  }
+}

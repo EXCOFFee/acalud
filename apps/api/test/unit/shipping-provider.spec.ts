@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { MiCorreoFakeAdapter } from '../../src/modules/logistica/infrastructure/adapters/micorreo-fake.adapter';
-import { TarifaLocalFakeAdapter } from '../../src/modules/logistica/infrastructure/adapters/tarifa-local-fake.adapter';
-import { crearShippingProvider } from '../../src/modules/logistica/infrastructure/shipping-provider.factory';
+import { MiCorreoFakeAdapter } from '../../src/modules/compras/infrastructure/adapters/micorreo-fake.adapter';
+import { TarifaLocalFakeAdapter } from '../../src/modules/compras/infrastructure/adapters/tarifa-local-fake.adapter';
+import { crearShippingProvider } from '../../src/modules/compras/infrastructure/shipping-provider.factory';
 
 describe('ShippingProvider (puerto + fakes, ADR-006)', () => {
   it('MiCorreo fake cotiza determinista con origen "micorreo"', async () => {
@@ -12,14 +12,16 @@ describe('ShippingProvider (puerto + fakes, ADR-006)', () => {
     expect(c1.origen).toBe('micorreo');
     expect(c1.monto).toBeGreaterThan(0);
     expect(c2.monto).toBe(c1.monto); // determinista (CU-011)
-    expect(await p.consultarTracking('CA123AR')).not.toHaveLength(0);
+    const tracking = await p.consultarTracking('CA123AR');
+    expect(tracking.eventos.length).toBeGreaterThan(0);
+    expect(tracking.estadoActual).toBe('in_transit');
   });
 
-  it('Tabla local fake cotiza con origen "tabla_local" y sin tracking', async () => {
+  it('Tabla local fake cotiza con origen "tabla_local" y sin tracking (lanza, CU-13 A3)', async () => {
     const p = new TarifaLocalFakeAdapter();
     const c = await p.cotizar({ peso_gramos: 1000, codigo_postal: '1900', modalidad: 'branch_pickup' });
     expect(c.origen).toBe('local_fallback');
-    expect(await p.consultarTracking('X')).toEqual([]);
+    await expect(p.consultarTracking('X')).rejects.toThrow();
   });
 
   it('la factory selecciona por SHIPPING_ADAPTER', () => {

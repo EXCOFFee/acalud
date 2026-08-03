@@ -8,7 +8,6 @@ import { StorageModule } from './platform/storage/storage.module';
 import { IdentidadModule } from './modules/identidad/infrastructure/identidad.module';
 import { CatalogoModule } from './modules/catalogo/infrastructure/catalogo.module';
 import { ComprasModule } from './modules/compras/infrastructure/compras.module';
-import { LogisticaModule } from './modules/logistica/infrastructure/logistica.module';
 import { ComprobantesModule } from './modules/comprobantes/infrastructure/comprobantes.module';
 import { InstitucionalModule } from './modules/institucional/infrastructure/institucional.module';
 
@@ -28,7 +27,6 @@ import { InstitucionalModule } from './modules/institucional/infrastructure/inst
     IdentidadModule,
     CatalogoModule,
     ComprasModule,
-    LogisticaModule,
     ComprobantesModule,
     InstitucionalModule,
   ],

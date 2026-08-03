@@ -30,11 +30,9 @@ export class HistorialRepositoryPg implements HistorialRepository {
 
     const total_paginas = Math.ceil(total_items / limit);
 
-    // Obtener tracking info si existiera (por ahora el schema dice que CU-13 maneja el log, pero si hay que sacarlo,
-    // en CU-05 docx pide "código de tracking". Como order_tracking_events aún no se integra, devolvemos null por defecto
-    // o buscamos si existe una columna tracking_code. El docx dice que la tabla es orders y events es otra. Dejamos null por ahora.)
     const dataQuery = `
-      SELECT id, order_number as numero, created_at as fecha, total_amount::float8 as total, status as estado
+      SELECT id, order_number as numero, created_at as fecha, total_amount::float8 as total,
+             status as estado, tracking_code
       FROM orders
       ${where}
       ORDER BY ${orderCol} ${orderDir}
@@ -42,7 +40,14 @@ export class HistorialRepositoryPg implements HistorialRepository {
     `;
 
     const dataValues = [...values, limit, offset];
-    const dataResult = await this.db.query<{ id: string; numero: string; fecha: Date; total: number; estado: EstadoPedido }>(dataQuery, dataValues);
+    const dataResult = await this.db.query<{
+      id: string;
+      numero: string;
+      fecha: Date;
+      total: number;
+      estado: EstadoPedido;
+      tracking_code: string | null;
+    }>(dataQuery, dataValues);
 
     const items: OrdenHistorial[] = dataResult.rows.map((row) => ({
       id: row.id,
@@ -50,7 +55,7 @@ export class HistorialRepositoryPg implements HistorialRepository {
       fecha: row.fecha,
       total: row.total,
       estado: row.estado,
-      tracking_code: null, // Stub hasta CU-13
+      tracking_code: row.tracking_code,
     }));
 
     return {
@@ -74,12 +79,14 @@ export class HistorialRepositoryPg implements HistorialRepository {
       shipping_city: string | null;
       shipping_province: string | null;
       shipping_postal_code: string | null;
+      tracking_code: string | null;
       lineas: { juego_id: string; nombre: string; cantidad: number; precio_unitario: number; descuento_pct: number }[];
     }>(
       `
       SELECT o.id, o.order_number as numero, o.created_at as fecha, o.status as estado,
              o.total_amount::float8 as total, o.shipping_cost::float8 as envio_costo,
              o.shipping_street, o.shipping_number, o.shipping_city, o.shipping_province, o.shipping_postal_code,
+             o.tracking_code,
              COALESCE(
                json_agg(
                  json_build_object(
@@ -112,7 +119,7 @@ export class HistorialRepositoryPg implements HistorialRepository {
       subtotal,
       envio_costo: row.envio_costo,
       total: row.total,
-      tracking_code: null, // Stub hasta CU-13
+      tracking_code: row.tracking_code,
       domicilio: {
         calle: row.shipping_street,
         numero: row.shipping_number,
