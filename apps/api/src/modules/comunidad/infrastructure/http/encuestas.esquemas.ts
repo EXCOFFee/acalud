@@ -6,3 +6,9 @@ export const listadoEncuestasQuerySchema = z.object({
   level_id: z.string().uuid().optional(),
 });
 export type ListadoEncuestasQuery = z.infer<typeof listadoEncuestasQuerySchema>;
+
+/** Cuerpo de POST /polls/:id/responses (CU-14 p11). */
+export const votarEncuestaSchema = z.object({
+  opcion_id: z.string().uuid(),
+});
+export type VotarEncuestaBody = z.infer<typeof votarEncuestaSchema>;

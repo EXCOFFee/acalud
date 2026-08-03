@@ -17,8 +17,11 @@ import { VerResultadosEncuesta } from '../application/ver-resultados-encuesta';
 import { ENCUESTAS_REPOSITORY, type EncuestasRepository } from '../domain/ports/encuestas.repository';
 import { EncuestasRepositoryPg } from './persistencia/encuestas.repository.pg';
 import { EncuestasController } from './http/encuestas.controller';
+import { VotarEncuesta } from '../application/votar-encuesta';
+import { VOTOS_REPOSITORY, type VotosRepository } from '../domain/ports/votos.repository';
+import { VotosRepositoryPg } from './persistencia/votos.repository.pg';
 
-/** BC6 · Comunidad (CU-14/15/16/20/21). Hasta ahora: ABM admin (CU-20) y lectura pública (CU-16). */
+/** BC6 · Comunidad (CU-14/15/16/20/21). Hasta ahora: ABM admin (CU-20), lectura pública (CU-16) y voto (CU-14). */
 @Module({
   controllers: [AdminEncuestasController, EncuestasController],
   providers: [
@@ -66,6 +69,17 @@ import { EncuestasController } from './http/encuestas.controller';
       provide: VerResultadosEncuesta,
       useFactory: (repo: EncuestasRepository): VerResultadosEncuesta => new VerResultadosEncuesta(repo),
       inject: [ENCUESTAS_REPOSITORY],
+    },
+    {
+      provide: VOTOS_REPOSITORY,
+      useFactory: (pool: Pool): VotosRepository => new VotosRepositoryPg(pool),
+      inject: [PG_POOL],
+    },
+    {
+      provide: VotarEncuesta,
+      useFactory: (votos: VotosRepository, encuestas: EncuestasRepository): VotarEncuesta =>
+        new VotarEncuesta(votos, encuestas),
+      inject: [VOTOS_REPOSITORY, ENCUESTAS_REPOSITORY],
     },
   ],
 })

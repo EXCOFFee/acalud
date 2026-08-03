@@ -31,3 +31,19 @@ export class EncuestaNoEncontrada extends ErrorDeDominio {
     super('La encuesta que buscás no está disponible');
   }
 }
+
+/** CU-14 A1: el usuario ya participó en esta encuesta (UNIQUE poll_id+user_id). → 409. */
+export class EncuestaYaVotada extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Ya has votado en esta encuesta');
+  }
+}
+
+/** La opción enviada no pertenece a esta encuesta. → 422. */
+export class OpcionInvalida extends ErrorDeDominio {
+  readonly clase = 'VALIDATION' as const;
+  constructor() {
+    super('La opción seleccionada no pertenece a esta encuesta');
+  }
+}
