@@ -46,6 +46,12 @@ import { RegistrarClickEditorial } from '../application/registrar-click-editoria
 import { EDITORIALES_REPOSITORY, type EditorialesRepository } from '../domain/ports/editoriales.repository';
 import { EditorialesRepositoryPg } from './persistencia/editoriales.repository.pg';
 import { EditorialesController } from './http/editoriales.controller';
+import { GuardarFavorito } from '../application/guardar-favorito';
+import { VerMisFavoritos } from '../application/ver-mis-favoritos';
+import { EliminarFavorito } from '../application/eliminar-favorito';
+import { FAVORITOS_REPOSITORY, type FavoritosRepository } from '../domain/ports/favoritos.repository';
+import { FavoritosRepositoryPg } from './persistencia/favoritos.repository.pg';
+import { FavoritosController } from './http/favoritos.controller';
 
 /**
  * BC2 · Catálogo (read-only, CU-006). Cablea el puerto de lectura con su adapter PG; los casos
@@ -59,6 +65,7 @@ import { EditorialesController } from './http/editoriales.controller';
     AdminDemosController,
     AdminRecursosController,
     EditorialesController,
+    FavoritosController,
   ],
   providers: [
     {
@@ -210,6 +217,26 @@ import { EditorialesController } from './http/editoriales.controller';
       provide: RegistrarClickEditorial,
       useFactory: (repo: EditorialesRepository): RegistrarClickEditorial => new RegistrarClickEditorial(repo),
       inject: [EDITORIALES_REPOSITORY],
+    },
+    {
+      provide: FAVORITOS_REPOSITORY,
+      useFactory: (pool: Pool): FavoritosRepository => new FavoritosRepositoryPg(pool),
+      inject: [PG_POOL],
+    },
+    {
+      provide: GuardarFavorito,
+      useFactory: (repo: FavoritosRepository): GuardarFavorito => new GuardarFavorito(repo),
+      inject: [FAVORITOS_REPOSITORY],
+    },
+    {
+      provide: VerMisFavoritos,
+      useFactory: (repo: FavoritosRepository): VerMisFavoritos => new VerMisFavoritos(repo),
+      inject: [FAVORITOS_REPOSITORY],
+    },
+    {
+      provide: EliminarFavorito,
+      useFactory: (repo: FavoritosRepository): EliminarFavorito => new EliminarFavorito(repo),
+      inject: [FAVORITOS_REPOSITORY],
     },
   ],
 })

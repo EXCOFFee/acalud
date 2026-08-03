@@ -87,3 +87,27 @@ export class EditorialNoEncontrada extends ErrorDeDominio {
     super('La editorial que buscás no está disponible');
   }
 }
+
+/** CU-18 A4: el producto/recurso/editorial a guardar no existe. → 404. */
+export class ElementoFavoritoNoEncontrado extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('El elemento que intentás guardar no existe');
+  }
+}
+
+/** CU-18 A2 / RN-001: el usuario ya tiene este elemento en favoritos. → 409. */
+export class FavoritoDuplicado extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Ya tenés este elemento en tus favoritos');
+  }
+}
+
+/** CU-18 A7: el favorito no existe o no pertenece al usuario (recurso ajeno = 404). → 404. */
+export class FavoritoNoEncontrado extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Favorito no encontrado');
+  }
+}
