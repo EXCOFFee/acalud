@@ -11,11 +11,20 @@ export interface FiltroSesiones {
 export interface HistorialSesion {
   id: string;
   fecha: Date;
+  productoId: string;
+  nombreProducto: string;
   grupo: string;
   estudiantes: number;
   duracionMinutos: number;
   satisfaccion: number;
   aprendizajes: string;
+}
+
+/** CU-30 A9: detalle completo de una sesión (incluye lo que el listado no trae). */
+export interface DetalleSesion extends HistorialSesion {
+  dificultades: string | null;
+  reutilizaria: boolean;
+  registradaEn: Date;
 }
 
 export interface ResultadoPaginado<T> {
@@ -83,6 +92,9 @@ export interface SesionesRepository {
    * CU-30: Lista las sesiones de un docente, opcionalmente filtradas por juego.
    */
   listar(docenteId: string, filtro: FiltroSesiones): Promise<ResultadoPaginado<HistorialSesion>>;
+
+  /** CU-30 A9: detalle completo de una sesión propia. null si no existe o es de otro docente. */
+  detalle(usuarioId: string, sesionId: string): Promise<DetalleSesion | null>;
 
   /** CU-31: Reporte agrupado por juego. Directiva IA: GROUP BY en SQL, sin precálculo. */
   reportePorJuego(institucionId: string, filtro: FiltroReporte): Promise<FilaReporteJuego[]>;

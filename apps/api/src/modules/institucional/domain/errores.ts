@@ -118,6 +118,14 @@ export class JuegoNoAsignado extends ErrorDeDominio {
   }
 }
 
+/** CU-30 A9: la sesión pedida no existe o no pertenece al docente autenticado. → 404. */
+export class SesionNoEncontrada extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('La sesión solicitada no existe o no te pertenece');
+  }
+}
+
 /** CU-32 PI-04: el export supera las 5000 filas; hay que acotar los filtros. → 422. */
 export class ExportExcedeLimite extends ErrorDeDominio {
   readonly clase = 'VALIDATION' as const;

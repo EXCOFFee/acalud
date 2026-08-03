@@ -1,6 +1,6 @@
 import type { UnidadDeTrabajoInstitucional } from '../domain/ports/institucion.repository';
-import type { FiltroSesiones, HistorialSesion, ResultadoPaginado } from '../domain/ports/sesiones.repository';
-import { DocenteNoVinculado } from '../domain/errores';
+import type { DetalleSesion, FiltroSesiones, HistorialSesion, ResultadoPaginado } from '../domain/ports/sesiones.repository';
+import { DocenteNoVinculado, SesionNoEncontrada } from '../domain/errores';
 
 export class VerHistorialSesiones {
   constructor(private readonly uow: UnidadDeTrabajoInstitucional) {}
@@ -35,6 +35,15 @@ export class VerHistorialSesiones {
       
       // Llamada al repo (asumiremos que SesionesRepository.listar recibe usuarioId)
       return await repos.sesiones.listar(usuarioId, filtro);
+    });
+  }
+
+  /** CU-30 A9: detalle completo de una sesión propia. */
+  async detalle(usuarioId: string, sesionId: string): Promise<DetalleSesion> {
+    return await this.uow.transaccion(async (repos) => {
+      const detalle = await repos.sesiones.detalle(usuarioId, sesionId);
+      if (detalle === null) throw new SesionNoEncontrada();
+      return detalle;
     });
   }
 }

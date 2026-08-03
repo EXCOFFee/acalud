@@ -1,6 +1,7 @@
 import type { PoolClient } from 'pg';
 import type { ComandoGuardarSesion } from '../../domain/sesion-juego';
 import type {
+  DetalleSesion,
   FilaReporteDocente,
   FilaReporteJuego,
   FiltroReporte,
@@ -57,9 +58,11 @@ export class SesionesRepositoryPg implements SesionesRepository {
     const totalPaginas = Math.ceil(totalItems / limit);
 
     const dataQuery = `
-      SELECT gs.id, gs.session_date, gs.group_name, gs.student_count, gs.duration_minutes, gs.teacher_satisfaction, gs.key_learnings
+      SELECT gs.id, gs.session_date, gs.product_id, p.name AS product_name, gs.group_name,
+             gs.student_count, gs.duration_minutes, gs.teacher_satisfaction, gs.key_learnings
       FROM game_sessions gs
       JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+      JOIN products p ON p.id = gs.product_id
       ${where}
       ORDER BY gs.session_date DESC, gs.created_at DESC
       LIMIT $${values.length + 1} OFFSET $${values.length + 2}
@@ -68,6 +71,8 @@ export class SesionesRepositoryPg implements SesionesRepository {
     const dataResult = await this.client.query<{
       id: string;
       session_date: Date;
+      product_id: string;
+      product_name: string;
       group_name: string;
       student_count: number;
       duration_minutes: number;
@@ -78,6 +83,8 @@ export class SesionesRepositoryPg implements SesionesRepository {
     const items: HistorialSesion[] = dataResult.rows.map(row => ({
       id: row.id,
       fecha: row.session_date,
+      productoId: row.product_id,
+      nombreProducto: row.product_name,
       grupo: row.group_name,
       estudiantes: row.student_count,
       duracionMinutos: row.duration_minutes,
@@ -90,6 +97,50 @@ export class SesionesRepositoryPg implements SesionesRepository {
       totalItems,
       totalPaginas,
       paginaActual: page,
+    };
+  }
+
+  /** CU-30 A9: detalle completo de una sesión propia. */
+  async detalle(usuarioId: string, sesionId: string): Promise<DetalleSesion | null> {
+    const r = await this.client.query<{
+      id: string;
+      session_date: Date;
+      product_id: string;
+      product_name: string;
+      group_name: string;
+      student_count: number;
+      duration_minutes: number;
+      teacher_satisfaction: number;
+      key_learnings: string;
+      difficulties: string | null;
+      would_reuse: boolean;
+      created_at: Date;
+    }>(
+      `SELECT gs.id, gs.session_date, gs.product_id, p.name AS product_name, gs.group_name,
+              gs.student_count, gs.duration_minutes, gs.teacher_satisfaction, gs.key_learnings,
+              gs.difficulties, gs.would_reuse, gs.created_at
+         FROM game_sessions gs
+         JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+         JOIN products p ON p.id = gs.product_id
+        WHERE it.user_id = $1 AND gs.id = $2`,
+      [usuarioId, sesionId],
+    );
+    const fila = r.rows[0];
+    if (!fila) return null; // A9: sesión ajena o inexistente → 404
+
+    return {
+      id: fila.id,
+      fecha: fila.session_date,
+      productoId: fila.product_id,
+      nombreProducto: fila.product_name,
+      grupo: fila.group_name,
+      estudiantes: fila.student_count,
+      duracionMinutos: fila.duration_minutes,
+      satisfaccion: fila.teacher_satisfaction,
+      aprendizajes: fila.key_learnings,
+      dificultades: fila.difficulties,
+      reutilizaria: fila.would_reuse,
+      registradaEn: fila.created_at,
     };
   }
 

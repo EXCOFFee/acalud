@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Req, UseGuards, Query, HttpCode, UnauthorizedException, HttpException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, UseGuards, Query, Param, HttpCode, UnauthorizedException, HttpException } from '@nestjs/common';
 import { AuthGuard } from '../../../../platform/auth/auth.guard';
 import { ZodValidationPipe } from '../../../../platform/http/zod-validation.pipe';
 import { CargarSesionJuego } from '../../application/cargar-sesion-juego';
@@ -6,7 +6,7 @@ import { VerHistorialSesiones } from '../../application/ver-historial-sesiones';
 import { VerMisJuegosAsignados } from '../../application/ver-mis-juegos-asignados';
 import { CargarSesionBody, cargarSesionSchema } from './docentes.esquemas';
 import type { RequestAutenticada } from '../../../../platform/auth/autenticado';
-import { DocenteNoVinculado, JuegoNoAsignado } from '../../domain/errores';
+import { DocenteNoVinculado, JuegoNoAsignado, SesionNoEncontrada } from '../../domain/errores';
 
 function mapearErrorLocal(error: unknown): never {
   if (error instanceof DocenteNoVinculado) {
@@ -14,6 +14,9 @@ function mapearErrorLocal(error: unknown): never {
   }
   if (error instanceof JuegoNoAsignado) {
     throw new HttpException({ title: 'No encontrado', detail: error.message }, 403);
+  }
+  if (error instanceof SesionNoEncontrada) {
+    throw new HttpException({ title: 'No encontrado', detail: error.message }, 404);
   }
   throw error;
 }
@@ -76,8 +79,20 @@ export class DocentesController {
       return await this.verHistorialSesiones.ejecutar(req.autenticado.id, {
         ...(productoId !== undefined && { productoId }),
         pagina,
-        limite 
+        limite
       });
+    } catch (error) {
+      mapearErrorLocal(error);
+    }
+  }
+
+  // CU-30 A9: detalle completo de una sesión propia.
+  @Get('sesiones-juego/:id')
+  @UseGuards(AuthGuard)
+  async verDetalleSesion(@Req() req: RequestAutenticada, @Param('id') sesionId: string) {
+    if (!req.autenticado) throw new UnauthorizedException();
+    try {
+      return await this.verHistorialSesiones.detalle(req.autenticado.id, sesionId);
     } catch (error) {
       mapearErrorLocal(error);
     }

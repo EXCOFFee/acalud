@@ -110,6 +110,9 @@ const listarSesiones = (token: string) =>
 const misAsignaciones = (token: string) =>
   ctx.request.get('/api/v1/docentes/me/asignaciones').set(bearer(token));
 
+const detalleSesion = (token: string, id: string) =>
+  ctx.request.get(`/api/v1/docentes/me/sesiones-juego/${id}`).set(bearer(token));
+
 describe('CU-029 y CU-030 · Sesiones de Juego', () => {
   it('INS-CU029-HAPPY-001: Carga válida sobre un juego del catálogo institucional y su listado', async () => {
     const encargado = await docente('Director Juan');
@@ -156,6 +159,52 @@ describe('CU-029 y CU-030 · Sesiones de Juego', () => {
     expect(lista.body.items).toHaveLength(1);
     expect(lista.body.items[0].estudiantes).toBe(28);
     expect(lista.body.items[0].grupo).toBe('4°B');
+    expect(lista.body.items[0].productoId).toBe(productoId);
+    expect(lista.body.items[0].nombreProducto).toBe('Juego Fracciones');
+
+    // CU-030 A9: detalle completo de esa sesión
+    const sesionId = lista.body.items[0].id as string;
+    const detalle = await detalleSesion(profe.token, sesionId);
+    expect(detalle.status).toBe(200);
+    expect(detalle.body.nombreProducto).toBe('Juego Fracciones');
+    expect(detalle.body.aprendizajes).toBe('Aprendimos a sumar fracciones con distinto denominador.');
+    expect(detalle.body.reutilizaria).toBe(true);
+    expect(detalle.body.dificultades).toBeNull();
+    expect(detalle.body.registradaEn).toBeTruthy();
+  });
+
+  it('INS-CU030-EXC-001: detalle de una sesión ajena o inexistente → 404', async () => {
+    const encargado = await docente('Director Roberto');
+    const institucionId = await institucionDe(encargado.token);
+    const rEncargado = await ctx.pg.query<{ id: string }>(
+      `SELECT id FROM institutional_teachers WHERE user_id = $1`,
+      [encargado.id],
+    );
+    const productoId = await producto('Juego Historia');
+    await inventario(institucionId, productoId, 5, 1);
+    const profeA = await docenteVinculado(institucionId, 'Profe A');
+    const profeB = await docenteVinculado(institucionId, 'Profe B');
+    await asignarLicencia(institucionId, productoId, profeA.teacherId, rEncargado.rows[0]!.id);
+
+    const res = await cargarSesion(profeA.token, {
+      producto_id: productoId,
+      fecha_uso: new Date().toISOString(),
+      grupo: '2°A',
+      cantidad_estudiantes: 15,
+      duracion_minutos: 20,
+      satisfaccion_docente: 3,
+      aprendizajes_clave: 'Línea de tiempo de próceres argentinos del siglo XIX.',
+      reutilizaria: false,
+    });
+    const sesionId = res.body.sessionId as string;
+
+    // profeB intenta ver el detalle de la sesión de profeA → ajena, 404
+    const ajena = await detalleSesion(profeB.token, sesionId);
+    expect(ajena.status).toBe(404);
+
+    // ID inexistente → también 404
+    const inexistente = await detalleSesion(profeA.token, randomUUID());
+    expect(inexistente.status).toBe(404);
   });
 
   it('INS-CU029-EXC-001: Juego no adquirido (o no asignado) por la institución es rechazado', async () => {
