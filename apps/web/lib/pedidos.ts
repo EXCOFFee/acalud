@@ -20,3 +20,26 @@ export function tieneTrackingVisible(estado: EstadoPedido): boolean {
 export function fechaCorta(iso: string): string {
   return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
+
+export function fechaHoraCorta(iso: string): string {
+  return new Date(iso).toLocaleString('es-AR', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** CU-13 RNF-004: color identificativo por estado de tracking. Cubre los valores del adapter
+ *  fake (MiCorreo) y da un fallback razonable para cualquier otro valor futuro. */
+const ESTADO_TRACKING: Record<string, { etiqueta: string; variante: 'default' | 'ok' | 'off' | 'marca' }> = {
+  admitted: { etiqueta: 'Admitido', variante: 'default' },
+  in_transit: { etiqueta: 'En tránsito', variante: 'marca' },
+  out_for_delivery: { etiqueta: 'En reparto', variante: 'marca' },
+  delivered: { etiqueta: 'Entregado', variante: 'ok' },
+  exception: { etiqueta: 'Incidencia', variante: 'off' },
+};
+
+export function etiquetaEstadoTracking(estado: string): { etiqueta: string; variante: 'default' | 'ok' | 'off' | 'marca' } {
+  return ESTADO_TRACKING[estado] ?? { etiqueta: estado, variante: 'default' };
+}

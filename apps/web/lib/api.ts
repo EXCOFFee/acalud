@@ -194,6 +194,22 @@ export interface DetalleOrdenHistorial {
   lineas: LineaOrdenHistorial[];
 }
 
+export interface EventoTracking {
+  estado: string;
+  ubicacion: string | null;
+  descripcion: string;
+  fecha: string | null;
+}
+
+export interface Seguimiento {
+  estado_actual: string;
+  eventos: EventoTracking[];
+  fecha_estimada_entrega: string | null;
+  direccion_entrega: string | null;
+  ultima_actualizacion: string;
+  desde_cache: boolean;
+}
+
 export interface FiltroPedidos {
   estado?: EstadoPedido | undefined;
   orden_por?: 'created_at' | 'total_amount' | undefined;
@@ -279,4 +295,6 @@ export const api = {
     return pedir<ResultadoPaginado<OrdenHistorial>>('GET', `/pedidos${cola}`);
   },
   verPedido: (id: string) => pedir<DetalleOrdenHistorial>('GET', `/pedidos/${id}`),
+  // CU-13: RNF-009, el código de tracking nunca va en la URL — se resuelve server-side por order_id.
+  verSeguimiento: (id: string) => pedir<Seguimiento>('GET', `/pedidos/${id}/tracking`),
 };

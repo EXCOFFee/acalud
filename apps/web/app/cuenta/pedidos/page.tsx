@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  Alerta,
   Boton,
   Dialogo,
   EstadoCarga,
@@ -15,7 +16,7 @@ import {
   type ColumnaTabla,
 } from '@/components/ui';
 import { precioARS, SiteNav } from '@/components/site-nav';
-import { ESTADO_PEDIDO, fechaCorta, tieneTrackingVisible } from '@/lib/pedidos';
+import { ESTADO_PEDIDO, etiquetaEstadoTracking, fechaCorta, fechaHoraCorta, tieneTrackingVisible } from '@/lib/pedidos';
 import {
   api,
   ApiError,
@@ -24,6 +25,7 @@ import {
   type FiltroPedidos,
   type OrdenHistorial,
   type ResultadoPaginado,
+  type Seguimiento,
 } from '@/lib/api';
 
 const TAMANIO_PAGINA = 20; // RNF-004: paginado cuando hay muchas órdenes
@@ -42,6 +44,11 @@ export default function PedidosPage() {
   const [detalleId, setDetalleId] = useState<string | null>(null);
   const [detalle, setDetalle] = useState<DetalleOrdenHistorial | null>(null);
   const [detalleEstado, setDetalleEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
+
+  const [vista, setVista] = useState<'detalle' | 'seguimiento'>('detalle');
+  const [seguimiento, setSeguimiento] = useState<Seguimiento | null>(null);
+  const [seguimientoEstado, setSeguimientoEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
+  const [seguimientoError, setSeguimientoError] = useState<string | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -67,12 +74,35 @@ export default function PedidosPage() {
     setDetalleId(id);
     setDetalle(null);
     setDetalleEstado('cargando');
+    setVista('detalle');
     try {
       const d = await api.verPedido(id);
       setDetalle(d);
       setDetalleEstado('ok');
     } catch {
       setDetalleEstado('error');
+    }
+  }
+
+  // CU-13: seguimiento del pedido, dentro del mismo diálogo (RNF-009: nunca en la URL).
+  async function verSeguimiento(): Promise<void> {
+    if (!detalleId) return;
+    setVista('seguimiento');
+    setSeguimientoEstado('cargando');
+    setSeguimientoError(null);
+    try {
+      const s = await api.verSeguimiento(detalleId);
+      setSeguimiento(s);
+      setSeguimientoEstado('ok');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setSeguimientoError('Este pedido todavía no tiene seguimiento disponible.');
+      } else if (err instanceof ApiError && err.status === 503) {
+        setSeguimientoError('El servicio de seguimiento no está disponible ahora. Probá de nuevo en un rato.');
+      } else {
+        setSeguimientoError('No pudimos cargar el seguimiento de este pedido.');
+      }
+      setSeguimientoEstado('error');
     }
   }
 
@@ -196,60 +226,145 @@ export default function PedidosPage() {
       <Dialogo
         abierto={detalleId !== null}
         onCerrar={() => setDetalleId(null)}
-        titulo={detalle ? `Pedido ${detalle.numero}` : 'Detalle del pedido'}
+        titulo={
+          vista === 'seguimiento'
+            ? `Seguimiento — ${detalle?.numero ?? ''}`
+            : detalle
+              ? `Pedido ${detalle.numero}`
+              : 'Detalle del pedido'
+        }
       >
-        {detalleEstado === 'cargando' ? <EstadoCarga>Cargando el detalle…</EstadoCarga> : null}
-        {detalleEstado === 'error' ? <EstadoError titulo="No pudimos cargar este pedido" /> : null}
-        {detalleEstado === 'ok' && detalle ? (
-          <div>
-            <p style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--tinta-suave)' }}>
-              {fechaCorta(detalle.fecha)}
-              <Insignia variante={ESTADO_PEDIDO[detalle.estado].variante}>
-                {ESTADO_PEDIDO[detalle.estado].etiqueta}
-              </Insignia>
-            </p>
+        {vista === 'detalle' ? (
+          <>
+            {detalleEstado === 'cargando' ? <EstadoCarga>Cargando el detalle…</EstadoCarga> : null}
+            {detalleEstado === 'error' ? <EstadoError titulo="No pudimos cargar este pedido" /> : null}
+            {detalleEstado === 'ok' && detalle ? (
+              <div>
+                <p style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--tinta-suave)' }}>
+                  {fechaCorta(detalle.fecha)}
+                  <Insignia variante={ESTADO_PEDIDO[detalle.estado].variante}>
+                    {ESTADO_PEDIDO[detalle.estado].etiqueta}
+                  </Insignia>
+                </p>
 
-            <ul className="lista-recursos">
-              {detalle.lineas.map((l) => (
-                <li key={l.juego_id}>
-                  <span>
-                    {l.nombre} × {l.cantidad}
-                    {l.descuento_pct > 0 ? ` (-${l.descuento_pct}%)` : ''}
-                  </span>
-                  <span>{precioARS(l.precio_unitario * l.cantidad * (1 - l.descuento_pct / 100))}</span>
-                </li>
-              ))}
-            </ul>
+                <ul className="lista-recursos">
+                  {detalle.lineas.map((l) => (
+                    <li key={l.juego_id}>
+                      <span>
+                        {l.nombre} × {l.cantidad}
+                        {l.descuento_pct > 0 ? ` (-${l.descuento_pct}%)` : ''}
+                      </span>
+                      <span>{precioARS(l.precio_unitario * l.cantidad * (1 - l.descuento_pct / 100))}</span>
+                    </li>
+                  ))}
+                </ul>
 
-            <div style={{ marginTop: '0.9rem' }}>
-              <div className="dato">
-                <span className="dato__k">Subtotal</span>
-                <span className="dato__v">{precioARS(detalle.subtotal)}</span>
-              </div>
-              <div className="dato">
-                <span className="dato__k">Envío</span>
-                <span className="dato__v">{precioARS(detalle.envio_costo)}</span>
-              </div>
-              <div className="dato">
-                <span className="dato__k">Total</span>
-                <span className="dato__v">{precioARS(detalle.total)}</span>
-              </div>
-            </div>
+                <div style={{ marginTop: '0.9rem' }}>
+                  <div className="dato">
+                    <span className="dato__k">Subtotal</span>
+                    <span className="dato__v">{precioARS(detalle.subtotal)}</span>
+                  </div>
+                  <div className="dato">
+                    <span className="dato__k">Envío</span>
+                    <span className="dato__v">{precioARS(detalle.envio_costo)}</span>
+                  </div>
+                  <div className="dato">
+                    <span className="dato__k">Total</span>
+                    <span className="dato__v">{precioARS(detalle.total)}</span>
+                  </div>
+                </div>
 
-            {detalle.domicilio.calle ? (
-              <p style={{ marginTop: '0.9rem', fontSize: '0.9rem', color: 'var(--tinta-suave)' }}>
-                Envío a: {detalle.domicilio.calle} {detalle.domicilio.numero}, {detalle.domicilio.localidad},{' '}
-                {detalle.domicilio.provincia} ({detalle.domicilio.codigo_postal})
-              </p>
+                {detalle.domicilio.calle ? (
+                  <p style={{ marginTop: '0.9rem', fontSize: '0.9rem', color: 'var(--tinta-suave)' }}>
+                    Envío a: {detalle.domicilio.calle} {detalle.domicilio.numero}, {detalle.domicilio.localidad},{' '}
+                    {detalle.domicilio.provincia} ({detalle.domicilio.codigo_postal})
+                  </p>
+                ) : null}
+
+                {tieneTrackingVisible(detalle.estado) && detalle.tracking_code ? (
+                  <div style={{ marginTop: '0.9rem' }}>
+                    <p style={{ fontSize: '0.9rem', margin: '0 0 0.6rem' }}>
+                      Código de seguimiento: <strong>{detalle.tracking_code}</strong>
+                    </p>
+                    <Boton variante="primario" onClick={verSeguimiento}>
+                      📦 Seguir pedido
+                    </Boton>
+                  </div>
+                ) : tieneTrackingVisible(detalle.estado) ? (
+                  <Alerta tipo="aviso">
+                    El código de seguimiento aún no está disponible. Te avisamos por correo cuando esté listo.
+                  </Alerta>
+                ) : (
+                  <Alerta tipo="aviso">Este pedido aún no fue despachado. Te avisamos cuando esté en camino.</Alerta>
+                )}
+              </div>
             ) : null}
+          </>
+        ) : (
+          <div>
+            <button
+              type="button"
+              onClick={() => setVista('detalle')}
+              style={{ background: 'none', border: 'none', color: 'var(--marca)', cursor: 'pointer', padding: 0, marginBottom: '0.9rem' }}
+            >
+              ‹ Volver al detalle
+            </button>
 
-            {tieneTrackingVisible(detalle.estado) && detalle.tracking_code ? (
-              <p style={{ marginTop: '0.6rem', fontSize: '0.9rem' }}>
-                Código de seguimiento: <strong>{detalle.tracking_code}</strong>
-              </p>
+            {seguimientoEstado === 'cargando' ? <EstadoCarga>Consultando el estado del envío…</EstadoCarga> : null}
+            {seguimientoEstado === 'error' ? (
+              <EstadoError titulo="No pudimos cargar el seguimiento">
+                {seguimientoError}
+                <br />
+                <Boton variante="primario" onClick={verSeguimiento} style={{ marginTop: '0.8rem' }}>
+                  Reintentar
+                </Boton>
+              </EstadoError>
+            ) : null}
+            {seguimientoEstado === 'ok' && seguimiento ? (
+              <div>
+                <p style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Insignia variante={etiquetaEstadoTracking(seguimiento.estado_actual).variante}>
+                    {etiquetaEstadoTracking(seguimiento.estado_actual).etiqueta}
+                  </Insignia>
+                  {seguimiento.desde_cache ? (
+                    <span style={{ fontSize: '0.8rem', color: 'var(--tinta-suave)' }}>Último estado conocido</span>
+                  ) : null}
+                </p>
+
+                {seguimiento.fecha_estimada_entrega ? (
+                  <div className="dato">
+                    <span className="dato__k">Entrega estimada</span>
+                    <span className="dato__v">{fechaCorta(seguimiento.fecha_estimada_entrega)}</span>
+                  </div>
+                ) : null}
+                {seguimiento.direccion_entrega ? (
+                  <div className="dato">
+                    <span className="dato__k">Dirección</span>
+                    <span className="dato__v">{seguimiento.direccion_entrega}</span>
+                  </div>
+                ) : null}
+
+                {seguimiento.eventos.length > 0 ? (
+                  <ul className="linea-tiempo">
+                    {seguimiento.eventos.map((e, i) => (
+                      <li key={i}>
+                        {e.fecha ? <div className="linea-tiempo__fecha">{fechaHoraCorta(e.fecha)}</div> : null}
+                        <div className="linea-tiempo__desc">{e.descripcion}</div>
+                        {e.ubicacion ? <div className="linea-tiempo__ubicacion">{e.ubicacion}</div> : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={{ color: 'var(--tinta-suave)' }}>No hay eventos de seguimiento disponibles en este momento.</p>
+                )}
+
+                <Boton variante="fantasma" onClick={verSeguimiento} style={{ marginTop: '1rem' }}>
+                  ↻ Actualizar
+                </Boton>
+              </div>
             ) : null}
           </div>
-        ) : null}
+        )}
       </Dialogo>
     </>
   );
