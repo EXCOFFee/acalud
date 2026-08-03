@@ -335,6 +335,57 @@ export interface LicenciaRevocada {
   cantidad_restante: number;
 }
 
+// CU-28: listado completo de docentes con sus asignaciones (a diferencia de `DocenteInstitucion`,
+// que solo trae lo mínimo para el picker de CU-26).
+export interface AsignacionDocente {
+  producto_id: string;
+  nombre_producto: string;
+  cantidad: number;
+  asignada_en: string;
+  asignada_por: string | null;
+  estado: 'active' | 'revoked';
+}
+
+export interface DocenteAsignado {
+  docente_id: string;
+  nombre: string;
+  email: string;
+  total_licencias: number;
+  ultima_asignacion_en: string | null;
+  asignaciones: AsignacionDocente[];
+}
+
+export interface ResumenDocentesAsignados {
+  total_docentes_con_asignaciones: number;
+  total_licencias_asignadas: number;
+  productos_mas_asignados: { producto_id: string; nombre_producto: string; total: number }[];
+}
+
+export interface ListadoDocentesAsignados {
+  institucion_id: string;
+  resumen: ResumenDocentesAsignados;
+  docentes: DocenteAsignado[];
+}
+
+export interface FiltroDocentesAsignados {
+  producto_id?: string | undefined;
+  buscar?: string | undefined;
+  orden?: 'total_licencias' | 'nombre' | undefined;
+  direccion?: 'asc' | 'desc' | undefined;
+}
+
+export interface DetalleDocenteAsignaciones {
+  docente_id: string;
+  nombre: string;
+  email: string;
+  vinculado_en: string | null;
+  asignaciones: (AsignacionDocente & {
+    revocada_en: string | null;
+    revocada_por: string | null;
+    razon_revocacion: string | null;
+  })[];
+}
+
 export interface FiltroPedidos {
   estado?: EstadoPedido | undefined;
   orden_por?: 'created_at' | 'total_amount' | undefined;
@@ -472,4 +523,18 @@ export const api = {
     institucionId: string,
     d: { docente_id: string; producto_id: string; cantidad_a_revocar: number; observaciones?: string | null },
   ) => pedir<LicenciaRevocada>('POST', `/instituciones/${institucionId}/revocaciones`, d),
+  // CU-28: listado completo (A6 filtro por producto, A7 búsqueda por nombre, A8 orden). No
+  // soporta filtrar por estado de asignación — el backend no expone ese parámetro todavía.
+  verDocentesAsignados: (institucionId: string, filtro?: FiltroDocentesAsignados) => {
+    const qs = new URLSearchParams();
+    if (filtro?.producto_id) qs.set('producto_id', filtro.producto_id);
+    if (filtro?.buscar) qs.set('buscar', filtro.buscar);
+    if (filtro?.orden) qs.set('orden', filtro.orden);
+    if (filtro?.direccion) qs.set('direccion', filtro.direccion);
+    const cola = qs.toString() ? `?${qs.toString()}` : '';
+    return pedir<ListadoDocentesAsignados>('GET', `/instituciones/${institucionId}/docentes/asignaciones${cola}`);
+  },
+  // CU-28 A9: detalle de un docente, incluye asignaciones revocadas (RN-007/RN-008).
+  verDetalleDocenteAsignado: (institucionId: string, docenteId: string) =>
+    pedir<DetalleDocenteAsignaciones>('GET', `/instituciones/${institucionId}/docentes/asignaciones/${docenteId}`),
 };
