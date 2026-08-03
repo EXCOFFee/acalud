@@ -44,6 +44,25 @@ librería de gráficos). El CU pide mucho más.
 - Distribución de satisfacción (1-5) y correlación duración/satisfacción.
 - Export del dashboard a PDF (similar a CU-32).
 
+## D8 — CU-24 Adquirir lote de juegos (B2B)
+
+El backend soporta compra institucional reutilizando los mismos endpoints de carrito/checkout
+personales vía `contexto` (institution_id) — sin motor de precios ni dirección propios para B2B.
+
+**Falta:**
+- Precarga de dirección de envío y datos de facturación institucionales en el checkout (RN-004/
+  A10 del CU) — hoy el encargado tipea la dirección a mano cada vez, igual que en una compra
+  personal. Requiere guardar una dirección institucional (no existe hoy; `RegistrarInstitucion`
+  solo guarda el domicilio legal, no necesariamente el de envío) y precargarla en
+  `POST /checkout`.
+- Historial de compras institucionales distinguible: `GET /pedidos` (CU-05) devuelve tanto
+  órdenes personales como B2B del mismo encargado sin ningún campo `order_type`/`institution_id`
+  en `OrdenHistorial`/`DetalleOrdenHistorial` — no se pueden filtrar ni etiquetar visualmente en
+  `/cuenta/pedidos`. RN-009 pide poder "seguir y consultar" el historial institucional
+  específicamente.
+- Facturación a nombre de la institución (RN-007, `billing_data` en `orders`) — no implementado;
+  las órdenes B2B no llevan ningún dato de facturación distinto al de una compra personal.
+
 ## Notas generales
 
 - Ninguno de estos ítems bloqueaba el resto del plan de frontend — se priorizó cubrir los 34
