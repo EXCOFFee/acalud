@@ -120,6 +120,19 @@ export function renderizar(tipo: string, payload: Record<string, unknown>): Plan
         ),
       };
     }
+    case 'propuesta-recibida': {
+      // CU-15 RN-005: el equipo editorial recibe una notificación de cada propuesta nueva.
+      const docente = String(payload['docente'] ?? '');
+      const titulo = String(payload['titulo'] ?? '');
+      return {
+        asunto: `Nueva propuesta de juego: ${titulo}`,
+        html: base(
+          `<h1 style="font-size:22px;margin:0 0 12px;">Nueva propuesta de co-creación 💡</h1>
+           <p style="margin:0 0 8px;">${docente} envió una propuesta: <strong>${titulo}</strong>.</p>
+           <p style="margin:0;">${boton(`${WEB}/admin/propuestas`, 'Revisar propuesta')}</p>`,
+        ),
+      };
+    }
     case 'aviso-bloqueo':
       return {
         asunto: 'Alerta de seguridad en tu cuenta de Acalud',

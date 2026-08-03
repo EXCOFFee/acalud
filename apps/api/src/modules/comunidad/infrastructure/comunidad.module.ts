@@ -20,10 +20,15 @@ import { EncuestasController } from './http/encuestas.controller';
 import { VotarEncuesta } from '../application/votar-encuesta';
 import { VOTOS_REPOSITORY, type VotosRepository } from '../domain/ports/votos.repository';
 import { VotosRepositoryPg } from './persistencia/votos.repository.pg';
+import { CrearPropuesta } from '../application/crear-propuesta';
+import { VerMisPropuestas } from '../application/ver-mis-propuestas';
+import { UOW_PROPUESTAS, type UnidadDeTrabajoPropuestas } from '../domain/ports/propuestas.uow';
+import { UnidadDeTrabajoPropuestasPg } from './persistencia/unidad-de-trabajo-propuestas.pg';
+import { PropuestasController } from './http/propuestas.controller';
 
-/** BC6 · Comunidad (CU-14/15/16/20/21). Hasta ahora: ABM admin (CU-20), lectura pública (CU-16) y voto (CU-14). */
+/** BC6 · Comunidad (CU-14/15/16/20/21). Hasta ahora: ABM admin (CU-20), lectura pública (CU-16), voto (CU-14) y envío de propuestas (CU-15). */
 @Module({
-  controllers: [AdminEncuestasController, EncuestasController],
+  controllers: [AdminEncuestasController, EncuestasController, PropuestasController],
   providers: [
     {
       provide: UOW_COMUNIDAD_ADMIN,
@@ -80,6 +85,21 @@ import { VotosRepositoryPg } from './persistencia/votos.repository.pg';
       useFactory: (votos: VotosRepository, encuestas: EncuestasRepository): VotarEncuesta =>
         new VotarEncuesta(votos, encuestas),
       inject: [VOTOS_REPOSITORY, ENCUESTAS_REPOSITORY],
+    },
+    {
+      provide: UOW_PROPUESTAS,
+      useFactory: (pool: Pool): UnidadDeTrabajoPropuestas => new UnidadDeTrabajoPropuestasPg(pool),
+      inject: [PG_POOL],
+    },
+    {
+      provide: CrearPropuesta,
+      useFactory: (uow: UnidadDeTrabajoPropuestas): CrearPropuesta => new CrearPropuesta(uow),
+      inject: [UOW_PROPUESTAS],
+    },
+    {
+      provide: VerMisPropuestas,
+      useFactory: (uow: UnidadDeTrabajoPropuestas): VerMisPropuestas => new VerMisPropuestas(uow),
+      inject: [UOW_PROPUESTAS],
     },
   ],
 })

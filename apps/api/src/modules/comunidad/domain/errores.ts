@@ -47,3 +47,23 @@ export class OpcionInvalida extends ErrorDeDominio {
     super('La opción seleccionada no pertenece a esta encuesta');
   }
 }
+
+/** CU-15 p9 / A8: la materia seleccionada (si se indica) no existe en `subjects`. → 422. */
+export class MateriaInvalida extends ErrorDeDominio {
+  readonly clase = 'VALIDATION' as const;
+  constructor() {
+    super('La materia seleccionada no es válida');
+  }
+}
+
+/**
+ * CU-15 A3 / RN-006: mismo usuario + mismo título dentro de las últimas 24 h (D-51: heurística
+ * simple, el CU no precisa algoritmo de similitud ni ventana temporal). → 409.
+ */
+export class PropuestaDuplicada extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Ya enviaste una propuesta similar recientemente. Revisá tus propuestas enviadas');
+  }
+}
+
