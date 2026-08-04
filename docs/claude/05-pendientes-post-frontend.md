@@ -24,17 +24,29 @@ redirect real + una página nueva `/checkout/resultado` con polling (RNF-005/A6)
 persisten `orders.payment_preference_id`/`payment_id_mp` (poscondiciones del CU, nunca
 migrados pese a estar documentados en `docs/02-base-datos`; migración `0018`).
 
-## D6 — CU-31 Reporte de uso institucional / CU-32 Exportar reporte
+## ~~D6 — CU-31 Reporte de uso institucional / CU-32 Exportar reporte~~ (resuelto, commits `47a8b44`/`423e8aa`/`fadaa8e`/`bbfae32`/`3f19b01`)
 
-El backend actual (`ver-reporte-institucional.ts` / `exportar-reporte.ts`) es un `GROUP BY`
-simple con export a CSV. El CU pide bastante más.
+~~El backend actual (`ver-reporte-institucional.ts` / `exportar-reporte.ts`) es un `GROUP BY`
+simple con export a CSV. El CU pide bastante más.~~
 
-**Falta:**
-- Gráficos: sesiones por juego (barras), satisfacción promedio por juego (barras/puntos),
-  evolución temporal de sesiones (líneas).
-- Nube de palabras de aprendizajes clave (frecuencia de términos).
-- Export a PDF (con gráficos) y Excel (multi-hoja: resumen, sesiones, docentes, juegos,
-  aprendizajes) — hoy solo existe CSV tabular.
+~~**Falta:**~~
+~~- Gráficos: sesiones por juego (barras), satisfacción promedio por juego (barras/puntos),
+  evolución temporal de sesiones (líneas).~~
+~~- Nube de palabras de aprendizajes clave (frecuencia de términos).~~
+~~- Export a PDF (con gráficos) y Excel (multi-hoja: resumen, sesiones, docentes, juegos,
+  aprendizajes) — hoy solo existe CSV tabular.~~
+
+Resuelto en 5 unidades chicas (2 backend de agregación, 2 backend de export, 1 frontend). Al
+releer el CU-31 completo apareció un gap que este resumen no mencionaba: los modales de detalle
+de juego/docente (A8/A9) — se incluyeron. `game_sessions.teacher_satisfaction`/`key_learnings`
+ya existían desde CU-29 (migración `0014`), así que no hizo falta ninguna migración nueva, solo
+agregación (`kpisReporte`, `serieTemporalReporte`, `nubeDePalabras` — tokenización propia, sin
+librería de NLP) y dos endpoints de detalle nuevos. Gráficos: SVG/CSS de mano, mismo criterio
+que D7 (sin librería de charts — la única opción con instalaciones serias, `antvis/chart-
+visualization-skills`, llama a una API externa para renderizar, no encaja). Export: `exceljs`
+(Excel real, reemplaza el CSV placeholder) y `pdfkit` (PDF con gráficos dibujados como vectores
+propios, sin Puppeteer/headless-Chrome — riesgo de memoria en el free tier de Render). También
+se agregó `InstitucionRepository.buscarNombre` (no existía ningún lookup de institución por id).
 
 ## D7 — CU-33 Dashboard pedagógico
 
