@@ -15,7 +15,14 @@ import {
 } from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
 import { fechaCorta } from '@/lib/pedidos';
-import { api, ApiError, type EncuestaResumen, type EstadoEncuesta, type ResultadosEncuesta } from '@/lib/api';
+import {
+  api,
+  ApiError,
+  type EncuestaResumen,
+  type EstadoEncuesta,
+  type NivelEducativo,
+  type ResultadosEncuesta,
+} from '@/lib/api';
 
 function BarraOpcion({ opcion, votada }: { opcion: ResultadosEncuesta['opciones'][number]; votada: boolean }) {
   return (
@@ -51,6 +58,8 @@ export default function EncuestasPage() {
   const router = useRouter();
   const { notificar } = useToast();
   const [filtroEstado, setFiltroEstado] = useState<EstadoEncuesta | ''>('');
+  const [filtroNivel, setFiltroNivel] = useState('');
+  const [niveles, setNiveles] = useState<NivelEducativo[]>([]);
   const [encuestas, setEncuestas] = useState<EncuestaResumen[] | null>(null);
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
 
@@ -64,7 +73,7 @@ export default function EncuestasPage() {
   function cargar(): void {
     setEstado('cargando');
     api
-      .listarEncuestas(filtroEstado || undefined)
+      .listarEncuestas(filtroEstado || undefined, filtroNivel || undefined)
       .then((r) => {
         setEncuestas(r);
         setEstado('ok');
@@ -72,7 +81,13 @@ export default function EncuestasPage() {
       .catch(() => setEstado('error'));
   }
 
-  useEffect(cargar, [filtroEstado]);
+  useEffect(cargar, [filtroEstado, filtroNivel]);
+
+  // Bloque E: catálogo de niveles para el filtro — falla silenciosa, si no carga el selector
+  // simplemente queda sin opciones y el resto de la página funciona igual.
+  useEffect(() => {
+    api.listarNiveles().then(setNiveles).catch(() => undefined);
+  }, []);
 
   async function abrirEncuesta(id: string): Promise<void> {
     setPollId(id);
@@ -137,6 +152,19 @@ export default function EncuestasPage() {
             <option value="active">Activas</option>
             <option value="closed">Cerradas</option>
           </Selector>
+          <Selector
+            id="filtro-nivel"
+            etiqueta="Nivel educativo"
+            value={filtroNivel}
+            onChange={(e) => setFiltroNivel(e.target.value)}
+          >
+            <option value="">Todos</option>
+            {niveles.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.nombre}
+              </option>
+            ))}
+          </Selector>
         </div>
 
         {estado === 'cargando' ? <EstadoCarga>Cargando encuestas…</EstadoCarga> : null}
@@ -175,6 +203,13 @@ export default function EncuestasPage() {
                     <Insignia variante={enc.estado === 'active' ? 'ok' : 'off'}>
                       {enc.estado === 'active' ? 'Activa' : 'Cerrada'}
                     </Insignia>{' '}
+                    {enc.nivel_educativo_id ? (
+                      <>
+                        <Insignia variante="neutra">
+                          {niveles.find((n) => n.id === enc.nivel_educativo_id)?.nombre ?? 'Nivel'}
+                        </Insignia>{' '}
+                      </>
+                    ) : null}
                     {enc.total_votos} voto{enc.total_votos === 1 ? '' : 's'} · {fechaCorta(enc.creada_en)}
                   </p>
                 </div>
