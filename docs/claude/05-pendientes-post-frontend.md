@@ -79,24 +79,41 @@ aplica ese filtro en cascada. Export Excel/PDF reutiliza los generadores de D6 (
 dibujo extraídos a `pdf-primitivas.ts`) — mismo modal de exportación en ambas páginas
 (`components/modal-exportar.tsx`, extraído para no duplicarlo).
 
-## D8 — CU-24 Adquirir lote de juegos (B2B)
+## ~~D8 — CU-24 Adquirir lote de juegos (B2B)~~ (resuelto, commits `4b7c1d4`/`cec37d2`/`add7858`/`44c23db`/`9fa4f28`)
 
-El backend soporta compra institucional reutilizando los mismos endpoints de carrito/checkout
-personales vía `contexto` (institution_id) — sin motor de precios ni dirección propios para B2B.
+~~El backend soporta compra institucional reutilizando los mismos endpoints de carrito/checkout
+personales vía `contexto` (institution_id) — sin motor de precios ni dirección propios para B2B.~~
 
-**Falta:**
-- Precarga de dirección de envío y datos de facturación institucionales en el checkout (RN-004/
+~~**Falta:**~~
+~~- Precarga de dirección de envío y datos de facturación institucionales en el checkout (RN-004/
   A10 del CU) — hoy el encargado tipea la dirección a mano cada vez, igual que en una compra
   personal. Requiere guardar una dirección institucional (no existe hoy; `RegistrarInstitucion`
   solo guarda el domicilio legal, no necesariamente el de envío) y precargarla en
-  `POST /checkout`.
-- Historial de compras institucionales distinguible: `GET /pedidos` (CU-05) devuelve tanto
+  `POST /checkout`.~~
+~~- Historial de compras institucionales distinguible: `GET /pedidos` (CU-05) devuelve tanto
   órdenes personales como B2B del mismo encargado sin ningún campo `order_type`/`institution_id`
   en `OrdenHistorial`/`DetalleOrdenHistorial` — no se pueden filtrar ni etiquetar visualmente en
   `/cuenta/pedidos`. RN-009 pide poder "seguir y consultar" el historial institucional
-  específicamente.
-- Facturación a nombre de la institución (RN-007, `billing_data` en `orders`) — no implementado;
-  las órdenes B2B no llevan ningún dato de facturación distinto al de una compra personal.
+  específicamente.~~
+~~- Facturación a nombre de la institución (RN-007, `billing_data` en `orders`) — no implementado;
+  las órdenes B2B no llevan ningún dato de facturación distinto al de una compra personal.~~
+
+Resuelto en 5 unidades chicas (3 backend, 2 frontend). Al leer el CU-24 completo (`.docx`) y
+cruzarlo contra el código real (no el schema aspiracional) aparecieron dos correcciones al
+resumen original: `orders.institution_id`/`order_type` ya existían y ya se llenaban desde el
+checkout — el gap 2 era solo de lectura (`GET /pedidos` no los seleccionaba), no de escritura; y
+`institutions.street/number/city/province/postal_code` son NULLABLE en la migración real (a
+diferencia del esquema aspiracional), así que A10 (institución sin dirección configurada) es
+alcanzable de verdad — resuelto sin construir una pantalla "Editar Institución": el checkout ya
+tenía los 5 campos como inputs libres y `required`, así que si no hay domicilio cargado
+simplemente no se precarga nada y el usuario completa a mano, igual que antes (patrón "redundant
+entry", WCAG 3.3.7). Se agregó `InstitucionRepository.buscarDatosFacturacionEnvio` (expuesto en
+`GET /instituciones/mine`), migración `0019` (`orders.billing_data jsonb`, RN-007, construido
+server-side desde `institutions.legal_name`/`tax_id` — el cliente nunca lo manda), y
+`order_type`/`institution_id`/`billing_data` sumados al read model de `GET /pedidos` (que no
+tenía ningún test de integración; se creó uno nuevo). Frontend: precarga editable en
+`/institucion/checkout` + aviso de a nombre de quién se factura, e insignia/filtro/detalle de
+facturación en `/cuenta/pedidos`.
 
 ## Bloque E — CU-14/16 Encuestas y CU-15 Propuestas
 
