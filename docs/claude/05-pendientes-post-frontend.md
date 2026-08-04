@@ -74,6 +74,9 @@ personales vía `contexto` (institution_id) — sin motor de precios ni direcci�
   ofrecer el filtro por nivel en `/encuestas` y los selectores de materia/nivel opcionales en
   el formulario de `/propuestas` — hoy esos campos directamente no se piden/filtran desde el
   frontend.
+- Mismo gap en `/admin/encuestas` (F5): el form de alta/edición nunca pide
+  `nivel_educativo_id`, siempre manda `null`. Un solo endpoint de catálogo resolvería los tres
+  casos (`/encuestas`, `/propuestas`, `/admin/encuestas`).
 
 ## F2 — CU-19 ABM Productos / CU-22 Descuento mayorista (admin)
 
