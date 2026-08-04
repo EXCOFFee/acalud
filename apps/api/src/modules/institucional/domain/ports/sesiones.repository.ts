@@ -52,6 +52,7 @@ export interface FilaReporteJuego {
   alumnosAlcanzados: number;
   minutosTotales: number;
   ultimaSesion: Date | null;
+  satisfaccionPromedio: number;
 }
 
 /** CU-31: Fila del reporte corte "por docente". */
@@ -62,6 +63,27 @@ export interface FilaReporteDocente {
   juegosDistintos: number;
   alumnosAlcanzados: number;
   minutosTotales: number;
+  satisfaccionPromedio: number;
+}
+
+/** CU-31 RN-005: evolución mensual de sesiones (respeta los mismos filtros que el reporte). */
+export interface FilaSerieTemporal {
+  periodo: string; // 'YYYY-MM'
+  sesiones: number;
+}
+
+/** CU-31 RN-006: término + cuántas veces aparece en los `key_learnings` filtrados. */
+export interface PalabraFrecuente {
+  palabra: string;
+  frecuencia: number;
+}
+
+/** CU-31 RN-004: KPIs agregados del reporte (mismos filtros que el corte por juego/docente). */
+export interface KpisReporte {
+  totalSesiones: number;
+  alumnosAlcanzados: number;
+  satisfaccionPromedio: number;
+  juegosEnUso: number;
 }
 
 // ─── CU-33: Métricas del Dashboard Pedagógico ────────────────────────────────
@@ -101,6 +123,15 @@ export interface SesionesRepository {
 
   /** CU-31: Reporte agrupado por docente. */
   reportePorDocente(institucionId: string, filtro: FiltroReporte): Promise<FilaReporteDocente[]>;
+
+  /** CU-31 RN-005: evolución mensual de sesiones, mismo filtro que el reporte. */
+  serieTemporalReporte(institucionId: string, filtro: FiltroReporte): Promise<FilaSerieTemporal[]>;
+
+  /** CU-31 RN-006: top de términos más frecuentes en `key_learnings`, mismo filtro. */
+  nubeDePalabras(institucionId: string, filtro: FiltroReporte, limite: number): Promise<PalabraFrecuente[]>;
+
+  /** CU-31 RN-004: KPIs agregados del reporte, mismo filtro que el corte por juego/docente. */
+  kpisReporte(institucionId: string, filtro: FiltroReporte): Promise<KpisReporte>;
 
   /** CU-32: Conteo de filas para validar PI-04 (tope de 5000). */
   contarFilasReporte(institucionId: string, corte: 'juego' | 'docente', filtro: FiltroReporte): Promise<number>;

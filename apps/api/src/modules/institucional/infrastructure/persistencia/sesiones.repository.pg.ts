@@ -1,13 +1,17 @@
 import type { PoolClient } from 'pg';
+import { tokenizarAprendizajes } from '../../domain/nube-de-palabras';
 import type { ComandoGuardarSesion } from '../../domain/sesion-juego';
 import type {
   DetalleSesion,
   FilaReporteDocente,
   FilaReporteJuego,
+  FilaSerieTemporal,
   FiltroReporte,
   FiltroSesiones,
   HistorialSesion,
+  KpisReporte,
   MetricasDashboard,
+  PalabraFrecuente,
   ResultadoPaginado,
   SesionesRepository,
 } from '../../domain/ports/sesiones.repository';
@@ -158,13 +162,15 @@ export class SesionesRepositoryPg implements SesionesRepository {
       alumnos_alcanzados: number;
       minutos_totales: number;
       ultima_sesion: Date | null;
+      satisfaccion_promedio: string;
     }>(
       `SELECT p.id AS product_id, p.name,
               COUNT(*)::int AS total_sesiones,
               COUNT(DISTINCT it.user_id)::int AS docentes_distintos,
               COALESCE(SUM(gs.student_count), 0)::int AS alumnos_alcanzados,
               COALESCE(SUM(gs.duration_minutes), 0)::int AS minutos_totales,
-              MAX(gs.session_date) AS ultima_sesion
+              MAX(gs.session_date) AS ultima_sesion,
+              AVG(gs.teacher_satisfaction)::numeric(3,2) AS satisfaccion_promedio
          FROM game_sessions gs
          JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
          JOIN products p ON p.id = gs.product_id
@@ -182,6 +188,7 @@ export class SesionesRepositoryPg implements SesionesRepository {
       alumnosAlcanzados: f.alumnos_alcanzados,
       minutosTotales: f.minutos_totales,
       ultimaSesion: f.ultima_sesion,
+      satisfaccionPromedio: Number(f.satisfaccion_promedio),
     }));
   }
 
@@ -196,12 +203,14 @@ export class SesionesRepositoryPg implements SesionesRepository {
       juegos_distintos: number;
       alumnos_alcanzados: number;
       minutos_totales: number;
+      satisfaccion_promedio: string;
     }>(
       `SELECT it.user_id, u.full_name,
               COUNT(*)::int AS total_sesiones,
               COUNT(DISTINCT gs.product_id)::int AS juegos_distintos,
               COALESCE(SUM(gs.student_count), 0)::int AS alumnos_alcanzados,
-              COALESCE(SUM(gs.duration_minutes), 0)::int AS minutos_totales
+              COALESCE(SUM(gs.duration_minutes), 0)::int AS minutos_totales,
+              AVG(gs.teacher_satisfaction)::numeric(3,2) AS satisfaccion_promedio
          FROM game_sessions gs
          JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
          JOIN users u ON u.id = it.user_id
@@ -218,7 +227,71 @@ export class SesionesRepositoryPg implements SesionesRepository {
       juegosDistintos: f.juegos_distintos,
       alumnosAlcanzados: f.alumnos_alcanzados,
       minutosTotales: f.minutos_totales,
+      satisfaccionPromedio: Number(f.satisfaccion_promedio),
     }));
+  }
+
+  /** CU-31 RN-005: evolución mensual de sesiones, mismo filtro que el reporte. */
+  async serieTemporalReporte(institucionId: string, filtro: FiltroReporte): Promise<FilaSerieTemporal[]> {
+    const { where, params } = this.construirFiltroReporte(institucionId, filtro);
+
+    const r = await this.client.query<{ periodo: string; sesiones: number }>(
+      `SELECT to_char(date_trunc('month', gs.session_date), 'YYYY-MM') AS periodo,
+              COUNT(*)::int AS sesiones
+         FROM game_sessions gs
+         JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+        ${where}
+        GROUP BY date_trunc('month', gs.session_date)
+        ORDER BY date_trunc('month', gs.session_date)`,
+      params,
+    );
+    return r.rows;
+  }
+
+  /** CU-31 RN-006: top de términos más frecuentes en `key_learnings`, mismo filtro. */
+  async nubeDePalabras(
+    institucionId: string,
+    filtro: FiltroReporte,
+    limite: number,
+  ): Promise<PalabraFrecuente[]> {
+    const { where, params } = this.construirFiltroReporte(institucionId, filtro);
+
+    const r = await this.client.query<{ key_learnings: string }>(
+      `SELECT gs.key_learnings
+         FROM game_sessions gs
+         JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+        ${where}`,
+      params,
+    );
+    return tokenizarAprendizajes(r.rows.map((f) => f.key_learnings), limite);
+  }
+
+  /** CU-31 RN-004: KPIs agregados del reporte, mismo filtro que el corte por juego/docente. */
+  async kpisReporte(institucionId: string, filtro: FiltroReporte): Promise<KpisReporte> {
+    const { where, params } = this.construirFiltroReporte(institucionId, filtro);
+
+    const r = await this.client.query<{
+      total_sesiones: number;
+      alumnos_alcanzados: number;
+      satisfaccion_promedio: string | null;
+      juegos_en_uso: number;
+    }>(
+      `SELECT COUNT(*)::int AS total_sesiones,
+              COALESCE(SUM(gs.student_count), 0)::int AS alumnos_alcanzados,
+              AVG(gs.teacher_satisfaction)::numeric(3,2) AS satisfaccion_promedio,
+              COUNT(DISTINCT gs.product_id)::int AS juegos_en_uso
+         FROM game_sessions gs
+         JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+        ${where}`,
+      params,
+    );
+    const f = r.rows[0]!;
+    return {
+      totalSesiones: f.total_sesiones,
+      alumnosAlcanzados: f.alumnos_alcanzados,
+      satisfaccionPromedio: f.satisfaccion_promedio !== null ? Number(f.satisfaccion_promedio) : 0,
+      juegosEnUso: f.juegos_en_uso,
+    };
   }
 
   /** CU-32 PI-04: cuenta rápida para validar tope antes de exportar. */
