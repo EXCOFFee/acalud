@@ -219,6 +219,37 @@ a {
 .campo__input[aria-invalid='true']:focus-visible {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--error) 22%, transparent);
 }
+.campo__envoltorio-contrasena {
+  position: relative;
+}
+.campo__envoltorio-contrasena .campo__input {
+  width: 100%;
+  padding-right: 2.6rem;
+}
+.campo__alternar-contrasena {
+  position: absolute;
+  top: 50%;
+  right: 0.3rem;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: none;
+  background: transparent;
+  color: var(--tinta-suave);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  touch-action: manipulation;
+}
+.campo__alternar-contrasena:hover {
+  color: var(--tinta);
+}
+.campo__alternar-contrasena:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
 .campo__ayuda {
   font-size: 0.8rem;
   color: var(--tinta-suave);
