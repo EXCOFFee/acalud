@@ -12,6 +12,7 @@ import {
   EstadoVacio,
   Insignia,
   Selector,
+  SubirArchivo,
   Tabla,
   useToast,
   type ColumnaTabla,
@@ -257,7 +258,23 @@ export default function AdminRecursosPage() {
               ))}
             </Selector>
           </div>
-          <Campo id="url-recurso" etiqueta="URL" required placeholder="https://…" value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} />
+          {form.tipo === 'pdf' ? (
+            // CU-19 A9/RN-009: para tipo pdf, `url` siempre es un path interno del bucket
+            // 'recursos' (ver descargar-recurso.ts) — no se permite pegar una URL externa acá,
+            // rompería la firma de descarga.
+            <SubirArchivo
+              etiqueta="Archivo PDF"
+              aceptar="application/pdf"
+              tamanioMaximoMB={20}
+              tipoPreview="archivo"
+              permitirUrlManual={false}
+              valor={form.url}
+              onCambiar={(valor) => setForm((f) => ({ ...f, url: valor }))}
+              onSubir={(archivo) => api.subirPdfRecurso(archivo).then((r) => r.url)}
+            />
+          ) : (
+            <Campo id="url-recurso" etiqueta="URL" required placeholder="https://…" value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} />
+          )}
           <div className="campo">
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
               <input type="checkbox" checked={form.licenciado} onChange={(e) => setForm((f) => ({ ...f, licenciado: e.target.checked }))} />

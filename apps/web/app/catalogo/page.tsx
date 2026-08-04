@@ -89,9 +89,15 @@ export default function CatalogoPage() {
           <div className="catalogo-grid">
             {juegos.map((j) => (
               <Link key={j.id} className="juego" href={`/catalogo/juego?id=${j.id}`}>
-                <div className="thumb" aria-hidden="true">
-                  {emojiArea(j.area)}
-                </div>
+                {j.imagen_url ? (
+                  <div className="thumb thumb--imagen">
+                    <img src={j.imagen_url} alt="" />
+                  </div>
+                ) : (
+                  <div className="thumb" aria-hidden="true">
+                    {emojiArea(j.area)}
+                  </div>
+                )}
                 <div className="juego__cuerpo">
                   <span className="juego__nombre">{j.nombre}</span>
                   <span className="juego__meta">

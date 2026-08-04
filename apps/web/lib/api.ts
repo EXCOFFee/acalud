@@ -81,6 +81,34 @@ async function pedir<T>(metodo: string, ruta: string, cuerpo?: unknown): Promise
   return (await res.json()) as T;
 }
 
+/** Como `pedir`, pero para `multipart/form-data` — nunca fijar Content-Type a mano, el
+ * navegador arma el boundary solo cuando el body es un FormData. */
+async function subirMultipart<T>(ruta: string, campo: string, archivo: File): Promise<T> {
+  const headers: Record<string, string> = {};
+  const token = tokenActual();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const cuerpo = new FormData();
+  cuerpo.append(campo, archivo);
+
+  const res = await fetch(`${BASE}/api/v1${ruta}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: cuerpo,
+  });
+  if (!res.ok) {
+    let problema: ProblemDetails = {};
+    try {
+      problema = (await res.json()) as ProblemDetails;
+    } catch {
+      /* respuesta sin cuerpo */
+    }
+    throw new ApiError(res.status, problema);
+  }
+  return (await res.json()) as T;
+}
+
 export interface PerfilPropio {
   nombre: string;
   apellido: string;
@@ -981,6 +1009,10 @@ export const api = {
   },
   // CU-19 A1: detalle completo, para precargar el formulario de edición.
   verProductoAdmin: (id: string) => pedir<ProductoAdminDetalle>('GET', `/admin/products/${id}`),
+  // CU-19 ("Imagen del producto: subida de archivo") — sube antes de guardar el form, igual que
+  // antes se pegaba una URL a mano; el resultado se pone directo en imagen_url.
+  subirImagenProducto: (archivo: File) =>
+    subirMultipart<{ imagen_url: string }>('/admin/products/imagen', 'archivo', archivo),
   crearProductoAdmin: (d: ProductoAdminInput) => pedir<ProductoAdminDetalle>('POST', '/admin/products', d),
   actualizarProductoAdmin: (id: string, d: ProductoAdminInput) =>
     pedir<ProductoAdminDetalle>('PUT', `/admin/products/${id}`, d),
@@ -999,6 +1031,9 @@ export const api = {
     ),
   // CU-19 A9 (admin): ABM de recursos.
   listarRecursosAdmin: () => pedir<RecursoAdmin[]>('GET', '/admin/resources'),
+  // CU-19 A9: solo para recursos tipo pdf — sube al bucket privado, el path resultante se pone
+  // directo en el campo url (que ya se trataba como path interno, ver descargar-recurso.ts).
+  subirPdfRecurso: (archivo: File) => subirMultipart<{ url: string }>('/admin/resources/pdf', 'archivo', archivo),
   crearRecursoAdmin: (d: RecursoAdminInput) => pedir<RecursoAdmin>('POST', '/admin/resources', d),
   actualizarRecursoAdmin: (id: string, d: RecursoAdminInput) =>
     pedir<RecursoAdmin>('PUT', `/admin/resources/${id}`, d),

@@ -6,6 +6,7 @@ export { EstadoCarga, EstadoError, EstadoVacio } from './estado';
 export { Campo, Selector } from './field';
 export { Dialogo } from './modal';
 export { Paginacion } from './pagination';
+export { SubirArchivo } from './subir-archivo';
 export type { DefPestana } from './tabs';
 export { Tabs } from './tabs';
 export type { ColumnaTabla } from './table';

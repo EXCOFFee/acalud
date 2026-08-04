@@ -13,6 +13,7 @@ import {
   Insignia,
   Paginacion,
   Selector,
+  SubirArchivo,
   Tabla,
   useToast,
   type ColumnaTabla,
@@ -466,13 +467,14 @@ export default function AdminProductosPage() {
               />
             ) : null}
 
-            <Campo
-              id="imagen-url"
-              etiqueta="URL de imagen (opcional)"
-              type="url"
-              placeholder="https://…"
-              value={form.imagenUrl}
-              onChange={(e) => setForm((f) => ({ ...f, imagenUrl: e.target.value }))}
+            <SubirArchivo
+              etiqueta="Imagen del producto (opcional)"
+              aceptar="image/png,image/jpeg,image/webp"
+              tamanioMaximoMB={5}
+              tipoPreview="imagen"
+              valor={form.imagenUrl}
+              onCambiar={(valor) => setForm((f) => ({ ...f, imagenUrl: valor }))}
+              onSubir={(archivo) => api.subirImagenProducto(archivo).then((r) => r.imagen_url)}
             />
 
             <div className="campo">

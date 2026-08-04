@@ -165,9 +165,15 @@ export default function FichaJuegoPage() {
 
         {estado === 'ok' && juego ? (
           <article className="ficha">
-            <div className="thumb" aria-hidden="true">
-              {emojiArea(juego.area)}
-            </div>
+            {juego.imagen_url ? (
+              <div className="thumb thumb--imagen">
+                <img src={juego.imagen_url} alt="" />
+              </div>
+            ) : (
+              <div className="thumb" aria-hidden="true">
+                {emojiArea(juego.area)}
+              </div>
+            )}
 
             <div>
               <p className="eyebrow" style={{ margin: 0 }}>
