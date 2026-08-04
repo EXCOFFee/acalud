@@ -99,6 +99,7 @@ export type ReporteQuery = z.infer<typeof reporteQuerySchema>;
  * juego/docente de CU-31 — `corte` no aplica: el export siempre incluye juegos y docentes.
  */
 export const exportarQuerySchema = z.object({
+  formato: z.enum(['excel', 'pdf']).default('excel'),
   desde: z.coerce.date().optional(),
   hasta: z.coerce.date().optional(),
   producto_id: z.string().uuid().optional(),

@@ -409,12 +409,17 @@ export class InstitucionesController {
       throw new HttpException({ title: 'No encontrado', detail: 'Recurso inexistente' }, 404);
     }
     try {
-      const result = await this.exportarReporte.ejecutar(institucionId, req.autenticado.id, {
-        desde: query.desde,
-        hasta: query.hasta,
-        productoId: query.producto_id,
-        docenteId: query.docente_id,
-      });
+      const result = await this.exportarReporte.ejecutar(
+        institucionId,
+        req.autenticado.id,
+        {
+          desde: query.desde,
+          hasta: query.hasta,
+          productoId: query.producto_id,
+          docenteId: query.docente_id,
+        },
+        query.formato,
+      );
 
       res
         .set('Content-Type', result.contentType)

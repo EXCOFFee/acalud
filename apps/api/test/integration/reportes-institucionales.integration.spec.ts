@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import ExcelJS from 'exceljs';
+import pdfParse from 'pdf-parse';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CtxApp, levantarApp } from './helpers/app';
 
@@ -427,5 +428,48 @@ describe('CU-32 · Exportar reporte a Excel', () => {
     const palabras = [];
     for (let i = 2; i <= aprendizajesHoja.rowCount; i++) palabras.push(aprendizajesHoja.getRow(i).getCell(1).value);
     expect(palabras).toContain('coordinacion');
+  });
+});
+
+describe('CU-32 · Exportar reporte a PDF', () => {
+  it('404 si no hay datos (A2), igual que en Excel', async () => {
+    const encargado = await docente('Directora Export PDF Vacío');
+    const institucionId = await institucionDe(encargado.token);
+    expect((await exportarReporte(encargado.token, institucionId, '?formato=pdf')).status).toBe(404);
+  });
+
+  it('genera un PDF válido con el resumen, los KPIs y el pie de página', async () => {
+    const encargado = await docente('Director Export PDF');
+    const institucionId = await institucionDe(encargado.token);
+    const encargadoTeacherId = await encargadoTeacherIdDe(encargado.id);
+
+    const juego = await producto('Juego PDF');
+    await inventario(institucionId, juego, 10);
+    const profe = await docenteVinculado(institucionId, 'Pía Profesora');
+    await asignarLicencia(institucionId, juego, profe.teacherId, encargadoTeacherId);
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    await cargarSesion(profe.token, {
+      producto_id: juego,
+      fecha_uso: hoy,
+      grupo: '4°C',
+      cantidad_estudiantes: 30,
+      duracion_minutos: 45,
+      satisfaccion_docente: 4,
+      aprendizajes_clave: 'Autonomía y responsabilidad en la resolución de tareas.',
+      reutilizaria: true,
+    });
+
+    const r = await exportarReporte(encargado.token, institucionId, '?formato=pdf');
+    expect(r.status).toBe(200);
+    expect(r.headers['content-type']).toBe('application/pdf');
+    expect(r.headers['content-disposition']).toMatch(/^attachment; filename="Reporte_Institucional_.+\.pdf"$/);
+
+    const buffer = r.body as Buffer;
+    expect(buffer.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    const { text } = await pdfParse(buffer);
+    expect(text).toContain('Total de sesiones: 1');
+    expect(text).toContain('Alumnos alcanzados: 30');
+    expect(text).toContain('Reporte generado por Acalud');
   });
 });
