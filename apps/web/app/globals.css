@@ -5,23 +5,28 @@
    ========================================================================== */
 
 :root {
-  --bg: #f3f1ea;
-  --superficie: #fffdf8;
-  --superficie-2: #f7f4ec;
+  --bg: #eef0e5;
+  --superficie: #f9faf4;
+  --superficie-2: #e6e8da;
   --tinta: #22302d;
   --tinta-suave: #566661;
   --marca: #2f5d54;
   --marca-fuerte: #234a43;
   --acento: #c9801d;
   --acento-suave: #f4e7cd;
-  --borde: #e4dfd1;
+  /* Rojo ficha: tercer acento, deliberadamente distinto del rojo de error (más vívido, más
+     anaranjado) — solo para momentos de firma (pista de tablero, pips de dado), nunca semántico. */
+  --ficha: #e34a33;
+  --ficha-suave: #fbe2da;
+  --borde: #dcdfcd;
   --error: #a53a2d;
   --error-bg: #f7e5e1;
   --ok: #2f6d4f;
   --ok-bg: #e3f0e7;
 
-  --font-display: var(--fuente-display, 'Bricolage Grotesque', system-ui, sans-serif);
+  --font-display: var(--fuente-display, 'Fraunces', ui-serif, serif);
   --font-body: var(--fuente-body, 'Public Sans', system-ui, sans-serif);
+  --font-utilitaria: var(--fuente-utilitaria, 'IBM Plex Mono', ui-monospace, monospace);
 
   --r-sm: 9px;
   --r: 14px;
@@ -44,6 +49,8 @@
     --marca-fuerte: #86c6b6;
     --acento: #e8a944;
     --acento-suave: #322818;
+    --ficha: #ff8266;
+    --ficha-suave: #3a2119;
     --borde: #2c3530;
     --error: #e0857a;
     --error-bg: #2e1e1c;
@@ -77,14 +84,31 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* La display (Fraunces) se reserva para el título de cada página (h1) y los momentos de firma
+   (.display) — h2/h3 usan la body en semibold, para que no cada tarjeta/diálogo lea como
+   titular de revista. */
 h1,
+.display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-optical-sizing: auto;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
 h2,
 h3 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 700;
-  line-height: 1.08;
-  letter-spacing: -0.015em;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   margin: 0;
+}
+
+/* Números que se leen como dato, no como prosa: precios, KPIs, puntajes. */
+.dato-num {
+  font-family: var(--font-utilitaria);
+  font-variant-numeric: tabular-nums;
 }
 
 a {
@@ -583,9 +607,9 @@ a {
   padding-top: 0.55rem;
 }
 .juego__precio {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.1rem;
+  font-family: var(--font-utilitaria);
+  font-weight: 600;
+  font-size: 1.05rem;
 }
 
 .chip {
@@ -627,9 +651,9 @@ a {
   font-size: 5rem;
 }
 .ficha__precio {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 2rem;
+  font-family: var(--font-utilitaria);
+  font-weight: 600;
+  font-size: 1.9rem;
   margin: 0.2rem 0;
 }
 .tabla-tramos {
@@ -859,8 +883,8 @@ a {
   color: var(--tinta-suave);
 }
 .estado__icono {
-  font-size: 2.1rem;
-  line-height: 1;
+  display: inline-flex;
+  color: var(--tinta-suave);
   margin-bottom: 0.3rem;
 }
 .estado__titulo {

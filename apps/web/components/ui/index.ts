@@ -1,6 +1,34 @@
 export { Alerta } from './alert';
 export { Insignia } from './badge';
 export { Boton } from './button';
+export {
+  IconoAjustes,
+  IconoAlerta,
+  IconoBombilla,
+  IconoBuscar,
+  IconoBuzonVacio,
+  IconoCandado,
+  IconoCarpeta,
+  IconoCarrito,
+  IconoCerrar,
+  IconoChip,
+  IconoDado,
+  IconoDocumento,
+  IconoEdificio,
+  IconoEscuela,
+  IconoFavorito,
+  IconoGraficoBarras,
+  IconoGraficoLinea,
+  IconoLibro,
+  IconoMapa,
+  IconoMicroscopio,
+  IconoNotas,
+  IconoNumeros,
+  IconoPaquete,
+  IconoUrna,
+  IconoUsuarios,
+  PipsDado,
+} from './icon';
 export { Dato, Tarjeta } from './card';
 export { EstadoCarga, EstadoError, EstadoVacio } from './estado';
 export { Campo, Selector } from './field';
