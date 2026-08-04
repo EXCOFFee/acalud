@@ -1,8 +1,22 @@
 import type { UnidadDeTrabajoInstitucional } from '../domain/ports/institucion.repository';
 
+export interface DatosFacturacionEnvioDto {
+  nombre_legal: string;
+  identificador_tributario: string;
+  domicilio: {
+    calle: string;
+    numero: string;
+    localidad: string;
+    provincia: string;
+    codigo_postal: string;
+  } | null;
+}
+
 export interface MiInstitucion {
   institucion_id: string | null;
   es_encargado: boolean;
+  /** CU-24: null si el usuario no está vinculado a ninguna institución. */
+  datos_facturacion_envio: DatosFacturacionEnvioDto | null;
 }
 
 /**
@@ -21,8 +35,29 @@ export class VerMiInstitucion {
   async ejecutar(usuarioId: string): Promise<MiInstitucion> {
     return this.uow.transaccion(async (repos) => {
       const membresia = await repos.instituciones.buscarPropia(usuarioId);
-      if (membresia === null) return { institucion_id: null, es_encargado: false };
-      return { institucion_id: membresia.institucionId, es_encargado: membresia.esEncargado };
+      if (membresia === null) {
+        return { institucion_id: null, es_encargado: false, datos_facturacion_envio: null };
+      }
+      const datos = await repos.instituciones.buscarDatosFacturacionEnvio(membresia.institucionId);
+      return {
+        institucion_id: membresia.institucionId,
+        es_encargado: membresia.esEncargado,
+        datos_facturacion_envio: datos
+          ? {
+              nombre_legal: datos.nombreLegal,
+              identificador_tributario: datos.identificadorTributario,
+              domicilio: datos.domicilio
+                ? {
+                    calle: datos.domicilio.calle,
+                    numero: datos.domicilio.numero,
+                    localidad: datos.domicilio.localidad,
+                    provincia: datos.domicilio.provincia,
+                    codigo_postal: datos.domicilio.codigoPostal,
+                  }
+                : null,
+            }
+          : null,
+      };
     });
   }
 }

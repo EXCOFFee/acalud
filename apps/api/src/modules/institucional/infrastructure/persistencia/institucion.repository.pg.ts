@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { CuitDuplicado, EmailInstitucionalDuplicado, UsuarioYaVinculado } from '../../domain/errores';
 import type {
   AuditoriaInstitucional,
+  DatosFacturacionEnvio,
   DatosNuevaInstitucion,
   InstitucionRepository,
   MembresiaPropia,
@@ -46,6 +47,41 @@ export class InstitucionRepositoryPg implements InstitucionRepository {
       [institucionId],
     );
     return r.rows[0]?.legal_name ?? null;
+  }
+
+  /** CU-24: domicilio + razón social/CUIT para precargar el checkout institucional. */
+  async buscarDatosFacturacionEnvio(institucionId: string): Promise<DatosFacturacionEnvio | null> {
+    const r = await this.client.query<{
+      legal_name: string;
+      tax_id: string;
+      street: string | null;
+      number: string | null;
+      city: string | null;
+      province: string | null;
+      postal_code: string | null;
+    }>(
+      `SELECT legal_name, tax_id, street, number, city, province, postal_code
+         FROM institutions WHERE id = $1`,
+      [institucionId],
+    );
+    const fila = r.rows[0];
+    if (!fila) return null;
+    return {
+      nombreLegal: fila.legal_name,
+      identificadorTributario: fila.tax_id,
+      // Las 5 columnas viajan juntas: `street` es la única que se chequea porque A10 (institución
+      // sin dirección de envío configurada) es alcanzable de verdad (columnas nullable).
+      domicilio:
+        fila.street !== null
+          ? {
+              calle: fila.street,
+              numero: fila.number ?? '',
+              localidad: fila.city ?? '',
+              provincia: fila.province ?? '',
+              codigoPostal: fila.postal_code ?? '',
+            }
+          : null,
+    };
   }
 
   async buscarNivelPorNombre(nombre: string): Promise<string | null> {

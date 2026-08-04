@@ -31,6 +31,17 @@ export interface MembresiaPropia {
   esEncargado: boolean;
 }
 
+/**
+ * CU-24 (precarga de checkout institucional, A10/RN-002/RNF-004) y RN-007 (facturación a nombre
+ * de la institución). `domicilio` es null si la institución no lo tiene cargado (las 5 columnas
+ * de `institutions` son nullable — A10 es alcanzable de verdad).
+ */
+export interface DatosFacturacionEnvio {
+  nombreLegal: string;
+  identificadorTributario: string;
+  domicilio: DomicilioInstitucion | null;
+}
+
 export interface InstitucionRepository {
   /** CU-23 A1: el usuario no puede estar vinculado a otra institución. */
   estaVinculado(usuarioId: string): Promise<boolean>;
@@ -47,6 +58,8 @@ export interface InstitucionRepository {
   buscarPropia(usuarioId: string): Promise<MembresiaPropia | null>;
   /** CU-32 paso 12: nombre de la institución para el encabezado/nombre del archivo exportado. */
   buscarNombre(institucionId: string): Promise<string | null>;
+  /** CU-24: domicilio + razón social/CUIT para precargar el checkout institucional. */
+  buscarDatosFacturacionEnvio(institucionId: string): Promise<DatosFacturacionEnvio | null>;
 }
 
 /** Auditoría propia del BC (RNF-011). Cada contexto declara la suya: ADR-002. */

@@ -196,7 +196,8 @@ describe('CU-023 · Registrar institución educativa', () => {
 describe('GET /instituciones/mine', () => {
   it('devuelve la institución propia y si el usuario es el encargado', async () => {
     const { token } = await docente();
-    const alta = await registrar(token, cuerpo());
+    const body = cuerpo();
+    const alta = await registrar(token, body);
     const institucionId = alta.body.institucion_id as string;
 
     const res = await ctx.request.get('/api/v1/instituciones/mine').set(bearer(token));
@@ -205,12 +206,30 @@ describe('GET /instituciones/mine', () => {
     expect(res.body.es_encargado).toBe(true);
   });
 
-  it('un docente sin institución recibe institucion_id: null', async () => {
+  // CU-24 (precarga de checkout institucional): sin esto no hay de dónde precargar la dirección
+  // ni los datos de facturación (RN-007) en /institucion/checkout.
+  it('devuelve el domicilio y los datos de facturación de la institución registrada', async () => {
+    const { token } = await docente();
+    const body = cuerpo();
+    await registrar(token, body);
+
+    const res = await ctx.request.get('/api/v1/instituciones/mine').set(bearer(token));
+    expect(res.status).toBe(200);
+    expect(res.body.datos_facturacion_envio.nombre_legal).toBe(body.nombre_legal);
+    // `RegistrarInstitucion` normaliza el CUIT a solo dígitos antes de guardarlo.
+    expect(res.body.datos_facturacion_envio.identificador_tributario).toBe(
+      (body.identificador_tributario as string).replace(/\D/g, ''),
+    );
+    expect(res.body.datos_facturacion_envio.domicilio).toEqual(DOMICILIO);
+  });
+
+  it('un docente sin institución recibe institucion_id: null y sin datos de facturación', async () => {
     const { token } = await docente();
     const res = await ctx.request.get('/api/v1/instituciones/mine').set(bearer(token));
     expect(res.status).toBe(200);
     expect(res.body.institucion_id).toBeNull();
     expect(res.body.es_encargado).toBe(false);
+    expect(res.body.datos_facturacion_envio).toBeNull();
   });
 
   it('un docente vinculado pero sin ser encargado recibe es_encargado=false', async () => {
