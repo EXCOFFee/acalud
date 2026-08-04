@@ -115,20 +115,33 @@ tenía ningún test de integración; se creó uno nuevo). Frontend: precarga edi
 `/institucion/checkout` + aviso de a nombre de quién se factura, e insignia/filtro/detalle de
 facturación en `/cuenta/pedidos`.
 
-## Bloque E — CU-14/16 Encuestas y CU-15 Propuestas
+## ~~Bloque E — CU-14/16 Encuestas y CU-15 Propuestas~~ (resuelto, commits `9730b51`/`ad3792c`/`4eb3a34`/`d90c58f`)
 
-`nivel_educativo_id` (encuestas, `GET /polls?level_id=`) y `materia_id`/`nivel_educativo_id`
+~~`nivel_educativo_id` (encuestas, `GET /polls?level_id=`) y `materia_id`/`nivel_educativo_id`
 (propuestas, `POST /proposals`) son columnas uuid sin ningún endpoint público que devuelva
-`{id, nombre}` de `levels`/`subjects` para armar un selector legible.
+`{id, nombre}` de `levels`/`subjects` para armar un selector legible.~~
 
-**Falta:**
-- Un endpoint público de catálogo (`GET /levels`, `GET /subjects` o similar) para poder
+~~**Falta:**~~
+~~- Un endpoint público de catálogo (`GET /levels`, `GET /subjects` o similar) para poder
   ofrecer el filtro por nivel en `/encuestas` y los selectores de materia/nivel opcionales en
   el formulario de `/propuestas` — hoy esos campos directamente no se piden/filtran desde el
-  frontend.
-- Mismo gap en `/admin/encuestas` (F5): el form de alta/edición nunca pide
+  frontend.~~
+~~- Mismo gap en `/admin/encuestas` (F5): el form de alta/edición nunca pide
   `nivel_educativo_id`, siempre manda `null`. Un solo endpoint de catálogo resolvería los tres
-  casos (`/encuestas`, `/propuestas`, `/admin/encuestas`).
+  casos (`/encuestas`, `/propuestas`, `/admin/encuestas`).~~
+
+Al investigar antes de implementar apareció una corrección importante al resumen original: el
+backend de encuestas y propuestas ya estaba 100% listo (`GET /polls?level_id=` ya filtraba en SQL
+y ya tenía test; `POST/PUT /admin/polls` y `POST /proposals` ya aceptaban y validaban
+`nivel_educativo_id`/`materia_id` contra `levels`/`subjects`) — el gap real era únicamente el
+endpoint de catálogo en sí, que no existía en ningún lado. Resuelto en 4 unidades: `GET /levels`/
+`GET /subjects` (público, sin sesión, nuevo dentro del módulo `comunidad` — no `modules/catalogo`,
+que es de e-commerce), filtro por nivel + insignia en `/encuestas`, selector de nivel en
+`/admin/encuestas` (sin agregar columna "Nivel" a la tabla admin: el `GET /admin/polls` de listado
+no expone ese campo hoy, y agregarlo era ampliar el alcance más allá del gap pedido), y
+selectores opcionales de materia/nivel en `/propuestas`. El selector de nivel de
+`/institucion/registrar` (`NIVELES_EDUCATIVOS`, texto hardcodeado) no sirvió de referencia: manda
+nombre, no uuid.
 
 ## ~~F2 — CU-19 ABM Productos / CU-22 Descuento mayorista (admin)~~ (resuelto, commit `5d64dbe`)
 
