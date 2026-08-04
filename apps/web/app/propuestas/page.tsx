@@ -10,13 +10,14 @@ import {
   EstadoError,
   EstadoVacio,
   Insignia,
+  Selector,
   Tabla,
   useToast,
   type ColumnaTabla,
 } from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
 import { fechaCorta } from '@/lib/pedidos';
-import { api, ApiError, type EstadoPropuesta, type MiPropuesta } from '@/lib/api';
+import { api, ApiError, type EstadoPropuesta, type Materia, type MiPropuesta, type NivelEducativo } from '@/lib/api';
 
 const ESTADO_PROPUESTA: Record<EstadoPropuesta, { etiqueta: string; variante: 'default' | 'ok' | 'off' | 'neutra' }> = {
   pending: { etiqueta: 'Pendiente', variante: 'default' },
@@ -33,7 +34,9 @@ export default function PropuestasPage() {
   const [propuestas, setPropuestas] = useState<MiPropuesta[] | null>(null);
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
 
-  const [form, setForm] = useState({ titulo: '', descripcion: '' });
+  const [materias, setMaterias] = useState<Materia[]>([]);
+  const [niveles, setNiveles] = useState<NivelEducativo[]>([]);
+  const [form, setForm] = useState({ titulo: '', descripcion: '', materiaId: '', nivelId: '' });
   const [formError, setFormError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -53,6 +56,13 @@ export default function PropuestasPage() {
 
   useEffect(cargar, [router]);
 
+  // Bloque E: catálogo de materias/niveles para los selectores opcionales del form — público,
+  // no depende de la sesión. Falla silenciosa: sin catálogo, los selectores quedan sin opciones.
+  useEffect(() => {
+    api.listarMaterias().then(setMaterias).catch(() => undefined);
+    api.listarNiveles().then(setNiveles).catch(() => undefined);
+  }, []);
+
   async function enviar(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
     setFormError(null);
@@ -70,9 +80,14 @@ export default function PropuestasPage() {
 
     setEnviando(true);
     try {
-      await api.enviarPropuesta({ titulo: form.titulo.trim(), descripcion: form.descripcion.trim() });
+      await api.enviarPropuesta({
+        titulo: form.titulo.trim(),
+        descripcion: form.descripcion.trim(),
+        materia_id: form.materiaId || null,
+        nivel_educativo_id: form.nivelId || null,
+      });
       notificar('¡Propuesta enviada! Quedará en revisión.', 'ok');
-      setForm({ titulo: '', descripcion: '' });
+      setForm({ titulo: '', descripcion: '', materiaId: '', nivelId: '' });
       cargar();
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
@@ -133,6 +148,34 @@ export default function PropuestasPage() {
             <span className="campo__ayuda">
               {form.descripcion.trim().length}/{MIN_DESCRIPCION} caracteres mínimo
             </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.9rem' }}>
+            <Selector
+              id="materia"
+              etiqueta="Materia (opcional)"
+              value={form.materiaId}
+              onChange={(e) => setForm((f) => ({ ...f, materiaId: e.target.value }))}
+            >
+              <option value="">Sin especificar</option>
+              {materias.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nombre}
+                </option>
+              ))}
+            </Selector>
+            <Selector
+              id="nivel-educativo"
+              etiqueta="Nivel educativo (opcional)"
+              value={form.nivelId}
+              onChange={(e) => setForm((f) => ({ ...f, nivelId: e.target.value }))}
+            >
+              <option value="">Sin especificar</option>
+              {niveles.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.nombre}
+                </option>
+              ))}
+            </Selector>
           </div>
           <Boton variante="primario" type="submit" cargando={enviando}>
             Enviar propuesta

@@ -709,8 +709,7 @@ export interface ResultadosEncuesta {
 }
 
 // CU-15: propuestas de juego — envío (requiere sesión) y "mis propuestas". `materia_id`/
-// `nivel_educativo_id` son opcionales y no se piden en el form (mismo motivo: sin catálogo
-// público para resolver nombres a partir del uuid).
+// `nivel_educativo_id` son opcionales.
 export type EstadoPropuesta = 'pending' | 'reviewed' | 'approved' | 'rejected';
 
 export interface MiPropuesta {
@@ -1166,8 +1165,12 @@ export const api = {
     pedir<ResultadosEncuesta>('POST', `/polls/${pollId}/responses`, { opcion_id: opcionId }),
   // CU-15: "mis propuestas" (requiere sesión, solo las propias).
   misPropuestas: () => pedir<MiPropuesta[]>('GET', '/proposals'),
-  enviarPropuesta: (d: { titulo: string; descripcion: string }) =>
-    pedir<PropuestaCreada>('POST', '/proposals', d),
+  enviarPropuesta: (d: {
+    titulo: string;
+    descripcion: string;
+    materia_id?: string | null;
+    nivel_educativo_id?: string | null;
+  }) => pedir<PropuestaCreada>('POST', '/proposals', d),
   // CU-19 A7 (admin): ABM de categorías.
   listarCategoriasAdmin: () => pedir<CategoriaAdmin[]>('GET', '/admin/categories'),
   crearCategoriaAdmin: (nombre: string) => pedir<CategoriaAdmin>('POST', '/admin/categories', { nombre }),
