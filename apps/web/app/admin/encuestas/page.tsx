@@ -11,13 +11,14 @@ import {
   EstadoError,
   EstadoVacio,
   Insignia,
+  Selector,
   Tabla,
   useToast,
   type ColumnaTabla,
 } from '@/components/ui';
 import { fechaCorta } from '@/lib/pedidos';
 import { SiteNav } from '@/components/site-nav';
-import { api, ApiError, type EncuestaAdminResumen } from '@/lib/api';
+import { api, ApiError, type EncuestaAdminResumen, type NivelEducativo } from '@/lib/api';
 
 const ESTADO: Record<string, { etiqueta: string; variante: 'default' | 'ok' | 'off' | 'neutra' }> = {
   draft: { etiqueta: 'Borrador', variante: 'default' },
@@ -35,8 +36,11 @@ export default function AdminEncuestasPage() {
   const [encuestas, setEncuestas] = useState<EncuestaAdminResumen[] | null>(null);
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
 
+  const [niveles, setNiveles] = useState<NivelEducativo[]>([]);
+
   const [edicion, setEdicion] = useState<EncuestaAdminResumen | 'nueva' | null>(null);
   const [pregunta, setPregunta] = useState('');
+  const [nivelEducativoId, setNivelEducativoId] = useState('');
   const [opciones, setOpciones] = useState<string[]>(['', '']);
   const [formEstado, setFormEstado] = useState<'cargando' | 'ok'>('ok');
   const [formError, setFormError] = useState<string | null>(null);
@@ -65,7 +69,10 @@ export default function AdminEncuestasPage() {
       .me()
       .then((p) => {
         setEsAdmin(p.es_admin);
-        if (p.es_admin) cargar();
+        if (p.es_admin) {
+          cargar();
+          api.listarNiveles().then(setNiveles).catch(() => undefined);
+        }
       })
       .catch((err: unknown) => {
         if (err instanceof ApiError && err.status === 401) router.replace('/login?volver=/admin/encuestas');
@@ -76,6 +83,7 @@ export default function AdminEncuestasPage() {
   function abrirNueva(): void {
     setEdicion('nueva');
     setPregunta('');
+    setNivelEducativoId('');
     setOpciones(['', '']);
     setFormError(null);
     setFormEstado('ok');
@@ -88,6 +96,7 @@ export default function AdminEncuestasPage() {
     try {
       const d = await api.verEncuestaAdmin(row.id);
       setPregunta(d.pregunta);
+      setNivelEducativoId(d.nivel_educativo_id ?? '');
       setOpciones(d.opciones.map((o) => o.texto));
       setFormEstado('ok');
     } catch {
@@ -129,12 +138,16 @@ export default function AdminEncuestasPage() {
     setGuardando(true);
     try {
       if (edicion === 'nueva') {
-        await api.crearEncuestaAdmin({ pregunta: pregunta.trim(), nivel_educativo_id: null, opciones: limpias });
+        await api.crearEncuestaAdmin({
+          pregunta: pregunta.trim(),
+          nivel_educativo_id: nivelEducativoId || null,
+          opciones: limpias,
+        });
         notificar('Encuesta creada como borrador.', 'ok');
       } else if (edicion) {
         await api.actualizarEncuestaAdmin(edicion.id, {
           pregunta: pregunta.trim(),
-          nivel_educativo_id: null,
+          nivel_educativo_id: nivelEducativoId || null,
           opciones: limpias,
         });
         notificar('Encuesta actualizada.', 'ok');
@@ -278,6 +291,19 @@ export default function AdminEncuestasPage() {
           <form onSubmit={guardar} noValidate>
             {formError ? <Alerta tipo="error">{formError}</Alerta> : null}
             <Campo id="pregunta" etiqueta="Pregunta" required value={pregunta} onChange={(e) => setPregunta(e.target.value)} />
+            <Selector
+              id="nivel-educativo"
+              etiqueta="Nivel educativo (opcional)"
+              value={nivelEducativoId}
+              onChange={(e) => setNivelEducativoId(e.target.value)}
+            >
+              <option value="">Todos los niveles</option>
+              {niveles.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.nombre}
+                </option>
+              ))}
+            </Selector>
 
             <fieldset style={{ border: 'none', padding: 0, margin: '0.6rem 0' }}>
               <legend className="campo__label" style={{ marginBottom: '0.4rem' }}>

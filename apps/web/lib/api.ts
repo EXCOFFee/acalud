@@ -835,9 +835,7 @@ export interface RecursoAdminInput {
   producto_id: string | null;
 }
 
-// CU-20 (F5, admin): ABM de encuestas. `nivel_educativo_id` no se pide en el form — mismo gap
-// que Bloque E (sin catálogo público de niveles para resolver nombres, ver
-// docs/claude/05-pendientes-post-frontend.md), siempre se manda null.
+// CU-20 (F5, admin): ABM de encuestas.
 export type EstadoEncuestaAdmin = 'draft' | 'active' | 'closed';
 
 export interface EncuestaAdminResumen {
