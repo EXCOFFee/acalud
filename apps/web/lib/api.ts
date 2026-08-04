@@ -661,6 +661,27 @@ export interface DemoAdminInput {
   url_unity_webgl: string | null;
 }
 
+// CU-19 A9 (F4, admin): ABM de recursos. A diferencia de productos, el listado YA trae todos
+// los campos (no hace falta un GET de detalle aparte) y la baja es física, no lógica.
+export type TipoRecurso = 'pdf' | 'link';
+
+export interface RecursoAdmin {
+  id: string;
+  titulo: string;
+  tipo: TipoRecurso;
+  url: string;
+  licenciado: boolean;
+  producto_id: string | null;
+}
+
+export interface RecursoAdminInput {
+  titulo: string;
+  tipo: TipoRecurso;
+  url: string;
+  licenciado: boolean;
+  producto_id: string | null;
+}
+
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
@@ -912,4 +933,10 @@ export const api = {
         url_unity_webgl: d.url_unity_webgl,
       },
     ),
+  // CU-19 A9 (admin): ABM de recursos.
+  listarRecursosAdmin: () => pedir<RecursoAdmin[]>('GET', '/admin/resources'),
+  crearRecursoAdmin: (d: RecursoAdminInput) => pedir<RecursoAdmin>('POST', '/admin/resources', d),
+  actualizarRecursoAdmin: (id: string, d: RecursoAdminInput) =>
+    pedir<RecursoAdmin>('PUT', `/admin/resources/${id}`, d),
+  eliminarRecursoAdmin: (id: string) => pedir<void>('DELETE', `/admin/resources/${id}`),
 };
