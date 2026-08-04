@@ -9,6 +9,7 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoUrna,
   Insignia,
   Selector,
   useToast,
@@ -177,7 +178,7 @@ export default function EncuestasPage() {
         ) : null}
 
         {estado === 'ok' && encuestas && encuestas.length === 0 ? (
-          <EstadoVacio icono="🗳️" titulo="No hay encuestas para mostrar">
+          <EstadoVacio icono={<IconoUrna size={40} />} titulo="No hay encuestas para mostrar">
             Probá cambiar el filtro de estado.
           </EstadoVacio>
         ) : null}

@@ -10,6 +10,7 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoCarpeta,
   Tabla,
   useToast,
   type ColumnaTabla,
@@ -175,7 +176,7 @@ export default function AdminCategoriasPage() {
             ) : null}
 
             {estado === 'ok' && categorias && categorias.length === 0 ? (
-              <EstadoVacio icono="🗂️" titulo="Todavía no hay categorías">
+              <EstadoVacio icono={<IconoCarpeta size={40} />} titulo="Todavía no hay categorías">
                 Creá la primera con el botón de arriba.
               </EstadoVacio>
             ) : null}

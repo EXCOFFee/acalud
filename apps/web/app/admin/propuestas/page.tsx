@@ -10,6 +10,7 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoBombilla,
   Insignia,
   Selector,
   Tabla,
@@ -216,7 +217,7 @@ export default function AdminPropuestasPage() {
             ) : null}
 
             {estado === 'ok' && propuestas && propuestas.length === 0 ? (
-              <EstadoVacio icono="💡" titulo="No hay propuestas para mostrar">
+              <EstadoVacio icono={<IconoBombilla size={40} />} titulo="No hay propuestas para mostrar">
                 Probá cambiar los filtros.
               </EstadoVacio>
             ) : null}

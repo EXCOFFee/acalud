@@ -3,7 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Alerta, EstadoCarga } from '@/components/ui';
+import {
+  Alerta,
+  EstadoCarga,
+  IconoBombilla,
+  IconoCarpeta,
+  IconoDado,
+  IconoDocumento,
+  IconoUrna,
+} from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
 import { api, ApiError } from '@/lib/api';
 
@@ -47,19 +55,19 @@ export default function AdminPage() {
         {estado === 'ok' && esAdmin ? (
           <div className="tarjeta" style={{ padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
             <Link className="boton boton--fantasma" href="/admin/categorias">
-              🗂️ Categorías del catálogo
+              <IconoCarpeta size={18} /> Categorías del catálogo
             </Link>
             <Link className="boton boton--fantasma" href="/admin/productos">
-              🎲 Productos
+              <IconoDado size={18} /> Productos
             </Link>
             <Link className="boton boton--fantasma" href="/admin/recursos">
-              📄 Recursos
+              <IconoDocumento size={18} /> Recursos
             </Link>
             <Link className="boton boton--fantasma" href="/admin/encuestas">
-              🗳️ Encuestas
+              <IconoUrna size={18} /> Encuestas
             </Link>
             <Link className="boton boton--fantasma" href="/admin/propuestas">
-              💡 Propuestas de juegos
+              <IconoBombilla size={18} /> Propuestas de juegos
             </Link>
           </div>
         ) : null}

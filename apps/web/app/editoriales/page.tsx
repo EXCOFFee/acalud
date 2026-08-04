@@ -1,7 +1,7 @@
 'use client';
 
 import { type FormEvent, useEffect, useState } from 'react';
-import { Alerta, Boton, Dialogo, EstadoCarga, EstadoError, EstadoVacio } from '@/components/ui';
+import { Alerta, Boton, Dialogo, EstadoCarga, EstadoError, EstadoVacio, IconoEdificio } from '@/components/ui';
 import { BotonFavorito } from '@/components/favorito-boton';
 import { SiteNav } from '@/components/site-nav';
 import { api, type EditorialDetalle, type EditorialResumen, type FavoritoResumen } from '@/lib/api';
@@ -130,7 +130,7 @@ export default function EditorialesPage() {
           </EstadoError>
         ) : null}
         {estado === 'ok' && editoriales.length === 0 ? (
-          <EstadoVacio icono="🏢" titulo="Pronto tendremos nuevas editoriales aliadas">
+          <EstadoVacio icono={<IconoEdificio size={40} />} titulo="Pronto tendremos nuevas editoriales aliadas">
             ¡Vuelve a visitarnos!
           </EstadoVacio>
         ) : null}
@@ -143,7 +143,7 @@ export default function EditorialesPage() {
                   {e.logo_url ? (
                     <img src={e.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '1rem' }} />
                   ) : (
-                    '🏢'
+                    <IconoEdificio size={40} />
                   )}
                 </div>
                 <div className="juego__cuerpo">

@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Boton } from './button';
+import { IconoDocumento } from './icon';
 
 interface SubirArchivoProps {
   etiqueta: string;
@@ -134,7 +135,9 @@ export function SubirArchivo({
                 <span>Cambiar imagen (click o arrastrá otra acá)</span>
               </span>
             ) : valor ? (
-              <span>📄 Archivo cargado — click o arrastrá otro para reemplazarlo</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                <IconoDocumento size={18} /> Archivo cargado — click o arrastrá otro para reemplazarlo
+              </span>
             ) : (
               <span>Arrastrá un archivo acá, o hacé click para elegirlo</span>
             )}

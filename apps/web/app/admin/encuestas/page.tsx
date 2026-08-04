@@ -10,6 +10,7 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoUrna,
   Insignia,
   Selector,
   Tabla,
@@ -269,7 +270,7 @@ export default function AdminEncuestasPage() {
             ) : null}
 
             {estado === 'ok' && encuestas && encuestas.length === 0 ? (
-              <EstadoVacio icono="🗳️" titulo="Todavía no hay encuestas">
+              <EstadoVacio icono={<IconoUrna size={40} />} titulo="Todavía no hay encuestas">
                 Creá la primera con el botón de arriba.
               </EstadoVacio>
             ) : null}

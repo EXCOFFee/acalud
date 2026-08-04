@@ -9,6 +9,7 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoBombilla,
   Insignia,
   Selector,
   Tabla,
@@ -193,7 +194,7 @@ export default function PropuestasPage() {
           </EstadoError>
         ) : null}
         {estado === 'ok' && propuestas && propuestas.length === 0 ? (
-          <EstadoVacio icono="💡" titulo="Todavía no enviaste ninguna propuesta">
+          <EstadoVacio icono={<IconoBombilla size={40} />} titulo="Todavía no enviaste ninguna propuesta">
             Usá el formulario de arriba para proponer un juego.
           </EstadoVacio>
         ) : null}
