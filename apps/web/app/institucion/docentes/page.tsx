@@ -10,6 +10,7 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoUsuarios,
   Insignia,
   Selector,
   Tabla,
@@ -250,7 +251,7 @@ export default function DocentesAsignadosPage() {
         ) : null}
 
         {estado === 'ok' && listado && listado.docentes.length === 0 && !filtro.producto_id && !filtro.buscar ? (
-          <EstadoVacio icono="👩‍🏫" titulo="Tu institución aún no tiene docentes vinculados">
+          <EstadoVacio icono={<IconoUsuarios size={40} />} titulo="Tu institución aún no tiene docentes vinculados">
             Invitá docentes a sumarse para poder asignarles licencias de tus juegos.
           </EstadoVacio>
         ) : null}
@@ -269,7 +270,7 @@ export default function DocentesAsignadosPage() {
                 <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>
                   Docentes con asignaciones
                 </p>
-                <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
+                <p style={{ margin: 0, fontFamily: 'var(--font-utilitaria)', fontWeight: 600, fontSize: '1.5rem' }}>
                   {listado.resumen.total_docentes_con_asignaciones}
                 </p>
               </div>
@@ -277,7 +278,7 @@ export default function DocentesAsignadosPage() {
                 <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>
                   Licencias asignadas
                 </p>
-                <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
+                <p style={{ margin: 0, fontFamily: 'var(--font-utilitaria)', fontWeight: 600, fontSize: '1.5rem' }}>
                   {listado.resumen.total_licencias_asignadas}
                 </p>
               </div>

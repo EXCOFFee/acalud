@@ -10,6 +10,7 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoPaquete,
   Insignia,
   Selector,
   Tabla,
@@ -274,7 +275,7 @@ export default function InventarioInstitucionalPage() {
 
         {estado === 'ok' && inventario && inventario.items.length === 0 ? (
           <EstadoVacio
-            icono="📦"
+            icono={<IconoPaquete size={40} />}
             titulo="Tu institución aún no adquirió juegos"
             accion={
               <Boton variante="primario" href="/institucion/carrito">
@@ -304,7 +305,7 @@ export default function InventarioInstitucionalPage() {
               ].map(([etiqueta, valor]) => (
                 <div key={etiqueta} className="tarjeta" style={{ padding: '1rem' }}>
                   <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>{etiqueta}</p>
-                  <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
+                  <p style={{ margin: 0, fontFamily: 'var(--font-utilitaria)', fontWeight: 600, fontSize: '1.5rem' }}>
                     {valor}
                   </p>
                 </div>

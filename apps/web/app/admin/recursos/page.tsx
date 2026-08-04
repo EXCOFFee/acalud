@@ -10,6 +10,8 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoCandado,
+  IconoDocumento,
   Insignia,
   Selector,
   SubirArchivo,
@@ -174,7 +176,17 @@ export default function AdminRecursosPage() {
     {
       clave: 'licenciado',
       encabezado: 'Acceso',
-      render: (r) => <Insignia variante={r.licenciado ? 'off' : 'ok'}>{r.licenciado ? '🔒 Con compra' : 'Libre'}</Insignia>,
+      render: (r) => (
+        <Insignia variante={r.licenciado ? 'off' : 'ok'}>
+          {r.licenciado ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+              <IconoCandado size={12} /> Con compra
+            </span>
+          ) : (
+            'Libre'
+          )}
+        </Insignia>
+      ),
     },
     { clave: 'producto', encabezado: 'Producto', render: (r) => nombreProducto(r.producto_id) },
     {
@@ -224,7 +236,7 @@ export default function AdminRecursosPage() {
             ) : null}
 
             {estado === 'ok' && recursos && recursos.length === 0 ? (
-              <EstadoVacio icono="📄" titulo="Todavía no hay recursos">
+              <EstadoVacio icono={<IconoDocumento size={40} />} titulo="Todavía no hay recursos">
                 Creá el primero con el botón de arriba.
               </EstadoVacio>
             ) : null}

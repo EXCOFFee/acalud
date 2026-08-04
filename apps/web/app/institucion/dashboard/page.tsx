@@ -2,7 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Alerta, Boton, Campo, EstadoCarga, EstadoError, EstadoVacio, Selector, useToast } from '@/components/ui';
+import {
+  Alerta,
+  Boton,
+  Campo,
+  EstadoCarga,
+  EstadoError,
+  EstadoVacio,
+  IconoGraficoLinea,
+  PipsDado,
+  Selector,
+  useToast,
+} from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
 import { BarraHorizontal, GraficoEvolucion, NubeDePalabras } from '@/components/graficos';
 import { ModalExportar } from '@/components/modal-exportar';
@@ -214,7 +225,7 @@ export default function DashboardPedagogicoPage() {
 
             {estado === 'ok' && dashboard && sinDatos ? (
               <EstadoVacio
-                icono="📈"
+                icono={<IconoGraficoLinea size={40} />}
                 titulo="Aún no hay datos pedagógicos disponibles"
                 accion={
                   <Boton variante="primario" href="/mis-juegos">
@@ -238,7 +249,7 @@ export default function DashboardPedagogicoPage() {
                 >
                   <div className="tarjeta" style={{ padding: '1rem' }}>
                     <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>Sesiones</p>
-                    <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
+                    <p style={{ margin: 0, fontFamily: 'var(--font-utilitaria)', fontWeight: 600, fontSize: '1.5rem' }}>
                       {dashboard.kpis.sesiones.valor}
                     </p>
                     <Variacion kpi={dashboard.kpis.sesiones} />
@@ -247,7 +258,7 @@ export default function DashboardPedagogicoPage() {
                     <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>
                       Docentes activos
                     </p>
-                    <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
+                    <p style={{ margin: 0, fontFamily: 'var(--font-utilitaria)', fontWeight: 600, fontSize: '1.5rem' }}>
                       {dashboard.kpis.docentes_activos.valor}
                     </p>
                     <Variacion kpi={dashboard.kpis.docentes_activos} />
@@ -256,7 +267,7 @@ export default function DashboardPedagogicoPage() {
                     <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>
                       Alumnos alcanzados
                     </p>
-                    <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
+                    <p style={{ margin: 0, fontFamily: 'var(--font-utilitaria)', fontWeight: 600, fontSize: '1.5rem' }}>
                       {dashboard.kpis.alumnos_alcanzados.valor}
                     </p>
                     <Variacion kpi={dashboard.kpis.alumnos_alcanzados} />
@@ -265,7 +276,7 @@ export default function DashboardPedagogicoPage() {
                     <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>
                       Minutos de juego
                     </p>
-                    <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
+                    <p style={{ margin: 0, fontFamily: 'var(--font-utilitaria)', fontWeight: 600, fontSize: '1.5rem' }}>
                       {dashboard.kpis.minutos_de_juego.valor}
                     </p>
                     <Variacion kpi={dashboard.kpis.minutos_de_juego} />
@@ -274,8 +285,19 @@ export default function DashboardPedagogicoPage() {
                     <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>
                       Satisfacción promedio
                     </p>
-                    <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
-                      {dashboard.kpis.satisfaccion_promedio.valor} <span aria-hidden="true">★</span>
+                    <p
+                      style={{
+                        margin: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontFamily: 'var(--font-utilitaria)',
+                        fontWeight: 600,
+                        fontSize: '1.5rem',
+                      }}
+                    >
+                      {dashboard.kpis.satisfaccion_promedio.valor}
+                      <PipsDado valor={Math.round(dashboard.kpis.satisfaccion_promedio.valor)} size={20} />
                     </p>
                     <Variacion kpi={dashboard.kpis.satisfaccion_promedio} />
                   </div>
@@ -283,7 +305,7 @@ export default function DashboardPedagogicoPage() {
                     <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>
                       Tasa de reutilización
                     </p>
-                    <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
+                    <p style={{ margin: 0, fontFamily: 'var(--font-utilitaria)', fontWeight: 600, fontSize: '1.5rem' }}>
                       {dashboard.kpis.tasa_reutilizacion.valor}%
                     </p>
                     <Variacion kpi={dashboard.kpis.tasa_reutilizacion} />
@@ -394,7 +416,7 @@ export default function DashboardPedagogicoPage() {
                       {dashboard.distribucion_satisfaccion.map((d) => (
                         <BarraHorizontal
                           key={d.estrellas}
-                          etiqueta={`${d.estrellas} ★`}
+                          etiqueta={`${d.estrellas}/5`}
                           valor={d.cantidad}
                           maximo={maxSatisfaccion}
                         />

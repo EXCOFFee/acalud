@@ -3,7 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Boton, EstadoCarga, EstadoError, EstadoVacio } from '@/components/ui';
+import {
+  Boton,
+  EstadoCarga,
+  EstadoError,
+  EstadoVacio,
+  IconoCarrito,
+  IconoEscuela,
+  IconoGraficoBarras,
+  IconoGraficoLinea,
+  IconoPaquete,
+  IconoUsuarios,
+} from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
 import { api, ApiError, type MiInstitucion } from '@/lib/api';
 
@@ -42,7 +53,7 @@ export default function InstitucionPage() {
 
         {estado === 'ok' && mia?.institucion_id === null ? (
           <EstadoVacio
-            icono="🏫"
+            icono={<IconoEscuela size={40} />}
             titulo="Todavía no estás vinculado a ninguna institución"
             accion={
               <Boton variante="primario" href="/institucion/registrar">
@@ -63,26 +74,26 @@ export default function InstitucionPage() {
                 : 'Formás parte de tu institución.'}
             </p>
             <Link className="boton boton--fantasma" href="/institucion/inventario">
-              📦 Ver inventario institucional
+              <IconoPaquete size={18} /> Ver inventario institucional
             </Link>
             {mia?.es_encargado ? (
               <Link className="boton boton--fantasma" href="/institucion/carrito" style={{ marginLeft: '0.6rem' }}>
-                🛒 Comprar en lote
+                <IconoCarrito size={18} /> Comprar en lote
               </Link>
             ) : null}
             {mia?.es_encargado ? (
               <Link className="boton boton--fantasma" href="/institucion/docentes" style={{ marginLeft: '0.6rem' }}>
-                👩‍🏫 Ver docentes asignados
+                <IconoUsuarios size={18} /> Ver docentes asignados
               </Link>
             ) : null}
             {mia?.es_encargado ? (
               <Link className="boton boton--fantasma" href="/institucion/reportes" style={{ marginLeft: '0.6rem' }}>
-                📊 Reporte de uso
+                <IconoGraficoBarras size={18} /> Reporte de uso
               </Link>
             ) : null}
             {mia?.es_encargado ? (
               <Link className="boton boton--fantasma" href="/institucion/dashboard" style={{ marginLeft: '0.6rem' }}>
-                📈 Dashboard pedagógico
+                <IconoGraficoLinea size={18} /> Dashboard pedagógico
               </Link>
             ) : null}
           </div>

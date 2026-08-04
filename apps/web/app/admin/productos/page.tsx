@@ -10,6 +10,7 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoDado,
   Insignia,
   Paginacion,
   Selector,
@@ -390,7 +391,7 @@ export default function AdminProductosPage() {
             ) : null}
 
             {estado === 'ok' && resultado && resultado.datos.length === 0 ? (
-              <EstadoVacio icono="🎲" titulo="No hay productos para mostrar">
+              <EstadoVacio icono={<IconoDado size={40} />} titulo="No hay productos para mostrar">
                 {q ? 'Probá con otra búsqueda.' : 'Creá el primero con el botón de arriba.'}
               </EstadoVacio>
             ) : null}

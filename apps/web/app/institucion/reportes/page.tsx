@@ -11,6 +11,8 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoGraficoBarras,
+  PipsDado,
   Selector,
   Tabla,
   useToast,
@@ -311,7 +313,7 @@ export default function ReporteInstitucionalPage() {
 
             {estado === 'ok' && reporte && reporte.datos.length === 0 && !hayFiltrosActivos ? (
               <EstadoVacio
-                icono="📊"
+                icono={<IconoGraficoBarras size={40} />}
                 titulo="Aún no hay sesiones registradas para tu institución"
                 accion={
                   <Boton variante="primario" href="/mis-juegos">
@@ -339,7 +341,7 @@ export default function ReporteInstitucionalPage() {
                 >
                   <div className="tarjeta" style={{ padding: '1rem' }}>
                     <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>Sesiones</p>
-                    <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
+                    <p style={{ margin: 0, fontFamily: 'var(--font-utilitaria)', fontWeight: 600, fontSize: '1.5rem' }}>
                       {reporte.kpis.total_sesiones}
                     </p>
                   </div>
@@ -347,7 +349,7 @@ export default function ReporteInstitucionalPage() {
                     <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>
                       Alumnos alcanzados
                     </p>
-                    <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
+                    <p style={{ margin: 0, fontFamily: 'var(--font-utilitaria)', fontWeight: 600, fontSize: '1.5rem' }}>
                       {reporte.kpis.alumnos_alcanzados}
                     </p>
                   </div>
@@ -355,15 +357,26 @@ export default function ReporteInstitucionalPage() {
                     <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>
                       Satisfacción promedio
                     </p>
-                    <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
-                      {reporte.kpis.satisfaccion_promedio} <span aria-hidden="true">★</span>
+                    <p
+                      style={{
+                        margin: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontFamily: 'var(--font-utilitaria)',
+                        fontWeight: 600,
+                        fontSize: '1.5rem',
+                      }}
+                    >
+                      {reporte.kpis.satisfaccion_promedio}
+                      <PipsDado valor={Math.round(reporte.kpis.satisfaccion_promedio)} size={20} />
                     </p>
                   </div>
                   <div className="tarjeta" style={{ padding: '1rem' }}>
                     <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', color: 'var(--tinta-suave)' }}>
                       Juegos en uso
                     </p>
-                    <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.6rem' }}>
+                    <p style={{ margin: 0, fontFamily: 'var(--font-utilitaria)', fontWeight: 600, fontSize: '1.5rem' }}>
                       {reporte.kpis.juegos_en_uso}
                     </p>
                   </div>
@@ -479,7 +492,7 @@ export default function ReporteInstitucionalPage() {
               {detalleJuego.distribucion_satisfaccion.map((d) => (
                 <BarraHorizontal
                   key={d.estrellas}
-                  etiqueta={`${d.estrellas} ★`}
+                  etiqueta={`${d.estrellas}/5`}
                   valor={d.cantidad}
                   maximo={Math.max(1, ...detalleJuego.distribucion_satisfaccion.map((x) => x.cantidad))}
                 />
