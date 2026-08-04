@@ -29,6 +29,13 @@ import { ListarPropuestasAdmin } from '../application/listar-propuestas-admin';
 import { VerDetallePropuestaAdmin } from '../application/ver-detalle-propuesta-admin';
 import { ActualizarEstadoPropuesta } from '../application/actualizar-estado-propuesta';
 import { AdminPropuestasController } from './http/admin-propuestas.controller';
+import { VerCatalogoPedagogico } from '../application/ver-catalogo-pedagogico';
+import {
+  CATALOGO_PEDAGOGICO_REPOSITORY,
+  type CatalogoPedagogicoRepository,
+} from '../domain/ports/catalogo-pedagogico.repository';
+import { CatalogoPedagogicoRepositoryPg } from './persistencia/catalogo-pedagogico.repository.pg';
+import { CatalogoPedagogicoController } from './http/catalogo-pedagogico.controller';
 
 /** BC6 · Comunidad (CU-14/15/16/20/21) — completo. */
 @Module({
@@ -37,6 +44,7 @@ import { AdminPropuestasController } from './http/admin-propuestas.controller';
     EncuestasController,
     PropuestasController,
     AdminPropuestasController,
+    CatalogoPedagogicoController,
   ],
   providers: [
     {
@@ -124,6 +132,16 @@ import { AdminPropuestasController } from './http/admin-propuestas.controller';
       provide: ActualizarEstadoPropuesta,
       useFactory: (uow: UnidadDeTrabajoPropuestas): ActualizarEstadoPropuesta => new ActualizarEstadoPropuesta(uow),
       inject: [UOW_PROPUESTAS],
+    },
+    {
+      provide: CATALOGO_PEDAGOGICO_REPOSITORY,
+      useFactory: (pool: Pool): CatalogoPedagogicoRepository => new CatalogoPedagogicoRepositoryPg(pool),
+      inject: [PG_POOL],
+    },
+    {
+      provide: VerCatalogoPedagogico,
+      useFactory: (repo: CatalogoPedagogicoRepository): VerCatalogoPedagogico => new VerCatalogoPedagogico(repo),
+      inject: [CATALOGO_PEDAGOGICO_REPOSITORY],
     },
   ],
 })

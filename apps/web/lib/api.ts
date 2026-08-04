@@ -666,9 +666,20 @@ function armarQueryDashboard(filtro: FiltroDashboard | undefined): string {
   return qs.toString();
 }
 
+// Bloque E: catálogo público de niveles/materias — resuelve `nivel_educativo_id`/`materia_id` a
+// un nombre legible para los selectores de /encuestas, /propuestas y /admin/encuestas.
+export interface NivelEducativo {
+  id: string;
+  nombre: string;
+}
+
+export interface Materia {
+  id: string;
+  nombre: string;
+}
+
 // CU-14/CU-16: encuestas comunitarias — listado público, resultados (con o sin sesión) y voto
-// (requiere sesión). `nivel_educativo_id` no tiene endpoint público que resuelva su nombre, así
-// que no se usa como filtro en el frontend (ver docs/claude/05-pendientes-post-frontend.md).
+// (requiere sesión).
 export type EstadoEncuesta = 'active' | 'closed';
 
 export interface EncuestaResumen {
@@ -1139,9 +1150,17 @@ export const api = {
     a.remove();
     URL.revokeObjectURL(url);
   },
-  // CU-16: listado público de encuestas (sin sesión).
-  listarEncuestas: (status?: EstadoEncuesta) =>
-    pedir<EncuestaResumen[]>('GET', `/polls${status ? `?status=${status}` : ''}`),
+  // Bloque E: catálogo público de niveles/materias (sin sesión).
+  listarNiveles: () => pedir<NivelEducativo[]>('GET', '/levels'),
+  listarMaterias: () => pedir<Materia[]>('GET', '/subjects'),
+  // CU-16: listado público de encuestas (sin sesión). Bloque E: filtro opcional por nivel.
+  listarEncuestas: (status?: EstadoEncuesta, levelId?: string) => {
+    const qs = new URLSearchParams();
+    if (status) qs.set('status', status);
+    if (levelId) qs.set('level_id', levelId);
+    const cola = qs.toString() ? `?${qs.toString()}` : '';
+    return pedir<EncuestaResumen[]>('GET', `/polls${cola}`);
+  },
   // CU-16: resultados de una encuesta puntual — funciona logueado o anónimo (OpcionalAuthGuard).
   verResultadosEncuesta: (pollId: string) => pedir<ResultadosEncuesta>('GET', `/polls/${pollId}/results`),
   // CU-14: votar, requiere sesión. Devuelve los resultados actualizados (mismo shape que arriba).
