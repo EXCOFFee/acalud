@@ -5,15 +5,24 @@ resolver ahora para no frenar el avance por los 34 CU, pero que quedan anotados 
 retomar una vez que todo el frontend esté terminado. No borrar entradas al completarlas:
 tacharlas y dejar el commit que las resolvió, para que quede historial.
 
-## B3 — CU-12 Checkout con redirect real a Mercado Pago
+## ~~B3 — CU-12 Checkout con redirect real a Mercado Pago~~ (resuelto, commits `a1feb71`/`08ccb00`)
 
-`MercadoPagoFakeAdapter.crearPreferencia` devuelve `init_point:
+~~`MercadoPagoFakeAdapter.crearPreferencia` devuelve `init_point:
 https://fake.mercadopago.local/checkout/<pedido_id>` — un dominio que no existe. No hay
-integración real todavía (diferido a "Etapa 3" desde antes de esta sesión, ver ADR-006).
+integración real todavía (diferido a "Etapa 3" desde antes de esta sesión, ver ADR-006).~~
 
-**Falta:** adapter real de Mercado Pago — Checkout Pro (crear preferencia real) + webhook
+~~**Falta:** adapter real de Mercado Pago — Checkout Pro (crear preferencia real) + webhook
 firmado (reemplaza `POST /webhooks/mercadopago` fake). Es trabajo de backend, no una unidad
-chica de frontend.
+chica de frontend.~~
+
+Resuelto: `MercadoPagoAdapter` real (Checkout Pro vía `fetch`, sin SDK) + webhook con
+verificación de firma HMAC-SHA256 real (`platform/security/mp-webhook-signature.ts`). La nota
+"es trabajo de backend, no una unidad chica de frontend" resultó **incorrecta** al implementarlo:
+el checkout de `/checkout` y `/institucion/checkout` tenía botones fake ("Pagar
+aprobado"/"Simular rechazo") que nunca usaban el `init_point` — hubo que reemplazarlos por el
+redirect real + una página nueva `/checkout/resultado` con polling (RNF-005/A6). También se
+persisten `orders.payment_preference_id`/`payment_id_mp` (poscondiciones del CU, nunca
+migrados pese a estar documentados en `docs/02-base-datos`; migración `0018`).
 
 ## D6 — CU-31 Reporte de uso institucional / CU-32 Exportar reporte
 
