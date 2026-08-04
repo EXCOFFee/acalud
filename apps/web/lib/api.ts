@@ -586,6 +586,56 @@ export interface CategoriaAdmin {
   nombre: string;
 }
 
+// CU-19/CU-22 (F2, admin): ABM de productos, incluye los 2 campos de descuento mayorista en el
+// mismo formulario (no hay un recurso de "tramos" separado, a diferencia del ecommerce personal).
+export interface ProductoAdminResumen {
+  id: string;
+  titulo: string;
+  precio: number;
+  stock: number;
+  activo: boolean;
+  tiene_demo: boolean;
+  umbral_mayorista: number | null;
+  descuento_mayorista_porcentaje: number | null;
+  // CU-22 A11: advertencia no bloqueante antes de guardar cambios de descuento mayorista.
+  tiene_ordenes: boolean;
+}
+
+export interface ProductoAdminDetalle {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  precio: number;
+  stock: number;
+  marca_propia: boolean;
+  url_externa: string | null;
+  categoria_id: string | null;
+  umbral_mayorista: number | null;
+  descuento_mayorista_porcentaje: number | null;
+  imagen_url: string | null;
+  activo: boolean;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface ProductoAdminInput {
+  titulo: string;
+  descripcion: string;
+  precio: number;
+  stock: number;
+  marca_propia: boolean;
+  url_externa: string | null;
+  categoria_id: string | null;
+  umbral_mayorista: number | null;
+  descuento_mayorista_porcentaje: number | null;
+  imagen_url: string | null;
+}
+
+export interface PaginaProductosAdmin {
+  datos: ProductoAdminResumen[];
+  paginacion: { pagina: number; tamanio: number; total: number };
+}
+
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
@@ -810,4 +860,20 @@ export const api = {
   actualizarCategoriaAdmin: (id: string, nombre: string) =>
     pedir<CategoriaAdmin>('PUT', `/admin/categories/${id}`, { nombre }),
   eliminarCategoriaAdmin: (id: string) => pedir<void>('DELETE', `/admin/categories/${id}`),
+  // CU-19/CU-22 (admin): ABM de productos.
+  listarProductosAdmin: (params?: { q?: string | undefined; pagina?: number | undefined; tamanio?: number | undefined }) => {
+    const qs = new URLSearchParams();
+    if (params?.q) qs.set('q', params.q);
+    if (params?.pagina) qs.set('pagina', String(params.pagina));
+    if (params?.tamanio) qs.set('tamanio', String(params.tamanio));
+    const cola = qs.toString() ? `?${qs.toString()}` : '';
+    return pedir<PaginaProductosAdmin>('GET', `/admin/products${cola}`);
+  },
+  // CU-19 A1: detalle completo, para precargar el formulario de edición.
+  verProductoAdmin: (id: string) => pedir<ProductoAdminDetalle>('GET', `/admin/products/${id}`),
+  crearProductoAdmin: (d: ProductoAdminInput) => pedir<ProductoAdminDetalle>('POST', '/admin/products', d),
+  actualizarProductoAdmin: (id: string, d: ProductoAdminInput) =>
+    pedir<ProductoAdminDetalle>('PUT', `/admin/products/${id}`, d),
+  // CU-19 A2: baja lógica (RNF-008) — nunca borra la fila.
+  desactivarProductoAdmin: (id: string) => pedir<ProductoAdminDetalle>('DELETE', `/admin/products/${id}`),
 };

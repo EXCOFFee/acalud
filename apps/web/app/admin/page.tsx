@@ -49,6 +49,9 @@ export default function AdminPage() {
             <Link className="boton boton--fantasma" href="/admin/categorias">
               🗂️ Categorías del catálogo
             </Link>
+            <Link className="boton boton--fantasma" href="/admin/productos">
+              🎲 Productos
+            </Link>
           </div>
         ) : null}
       </main>
