@@ -48,22 +48,36 @@ visualization-skills`, llama a una API externa para renderizar, no encaja). Expo
 propios, sin Puppeteer/headless-Chrome — riesgo de memoria en el free tier de Render). También
 se agregó `InstitucionRepository.buscarNombre` (no existía ningún lookup de institución por id).
 
-## D7 — CU-33 Dashboard pedagógico
+## ~~D7 — CU-33 Dashboard pedagógico~~ (resuelto, commits `d619e50`/`b361390`/`545e0c5`)
 
-El backend actual (`ver-dashboard-pedagogico.ts`) da 4 KPIs con variación % vs período
+~~El backend actual (`ver-dashboard-pedagogico.ts`) da 4 KPIs con variación % vs período
 anterior, `serie_semanal`, `top_juegos` y `top_docentes` (top 5 cada uno), filtrado solo por
 rango de fechas. El frontend de D7 los muestra con tarjetas + barras simples en CSS (sin
-librería de gráficos). El CU pide mucho más.
+librería de gráficos). El CU pide mucho más.~~
 
-**Falta:**
-- Filtros adicionales: por juego, por docente, por nivel educativo (hoy `dashboardQuerySchema`
-  solo acepta `desde`/`hasta`) — necesita ampliar `MetricasDashboard`/el repositorio.
-- Interactividad: hover con detalle, click en una barra para filtrar en cascada, zoom en el
-  gráfico de evolución temporal.
-- Mapa de calor de uso por día de la semana / hora (no se registra hora de sesión hoy).
-- Nube de palabras de aprendizajes clave.
-- Distribución de satisfacción (1-5) y correlación duración/satisfacción.
-- Export del dashboard a PDF (similar a CU-32).
+~~**Falta:**~~
+~~- Filtros adicionales: por juego, por docente, por nivel educativo (hoy `dashboardQuerySchema`
+  solo acepta `desde`/`hasta`) — necesita ampliar `MetricasDashboard`/el repositorio.~~
+~~- Interactividad: hover con detalle, click en una barra para filtrar en cascada, zoom en el
+  gráfico de evolución temporal.~~
+~~- Mapa de calor de uso por día de la semana / hora (no se registra hora de sesión hoy).~~
+~~- Nube de palabras de aprendizajes clave.~~
+~~- Distribución de satisfacción (1-5) y correlación duración/satisfacción.~~
+~~- Export del dashboard a PDF (similar a CU-32).~~
+
+Resuelto reutilizando gran parte de D6 (CU-31/32): `topJuegos`/`topDocentes` pasan a ser
+`FilaReporteJuego[]`/`FilaReporteDocente[]` completos (con `tasaReutilizacion`, nueva, que
+también benefició a CU-31) en vez de mantener dos queries paralelas casi iguales; nube de
+palabras, evolución mensual y distribución de satisfacción reusan directo los métodos de D6.
+Filtro por juego/docente agregado (nivel educativo queda afuera, no existe esa columna — mismo
+gap que Bloque E). Recortes de alcance ya confirmados con el usuario: sin zoom por arrastre (JS
+a mano sin librería de charts, poco valor); mapa de calor por hora reemplazado por "sesiones por
+día de la semana" (`EXTRACT(ISODOW)` — la hora no se registra, `session_date` es `DATE`, no se
+puede sin migrar CU-29); correlación duración/satisfacción afuera (ni aparece en las 9 secciones
+visibles A-I del CU). Click-para-filtrar (A6) sí se implementó: tocar una barra de juego/docente
+aplica ese filtro en cascada. Export Excel/PDF reutiliza los generadores de D6 (helpers de
+dibujo extraídos a `pdf-primitivas.ts`) — mismo modal de exportación en ambas páginas
+(`components/modal-exportar.tsx`, extraído para no duplicarlo).
 
 ## D8 — CU-24 Adquirir lote de juegos (B2B)
 
