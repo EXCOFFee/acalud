@@ -75,6 +75,21 @@ personales vía `contexto` (institution_id) — sin motor de precios ni direcci�
   el formulario de `/propuestas` — hoy esos campos directamente no se piden/filtran desde el
   frontend.
 
+## F2 — CU-19 ABM Productos / CU-22 Descuento mayorista (admin)
+
+`ProductosAdminRepositoryPg.listar()` trae un comentario que dice "el admin necesita ver los
+inactivos para poder reactivarlos vía edición" — pero `actualizar()` (el `UPDATE` que corre al
+guardar el form de edición) nunca toca la columna `is_active`. Es decir: el comentario describe
+un comportamiento que el código no implementa. Confirmado leyendo ambos directamente antes de
+construir el frontend de F2.
+
+**Falta:**
+- Forma de reactivar un producto desactivado — hoy `DELETE /admin/products/:id` (baja lógica)
+  no tiene contraparte. El frontend de F2 no ofrece un botón "reactivar" porque no hay ningún
+  endpoint que lo haga (ni siquiera `PUT` toca `is_active`). Requiere decidir el contrato: ¿un
+  campo `activo` en el body de `PUT`, o un endpoint dedicado `POST .../reactivar`?
+- Corregir o borrar el comentario desactualizado en `productos-admin.repository.pg.ts`.
+
 ## Notas generales
 
 - Ninguno de estos ítems bloqueaba el resto del plan de frontend — se priorizó cubrir los 34
