@@ -478,9 +478,8 @@ export interface FiltroMisSesiones {
   limite?: number | undefined;
 }
 
-// CU-31/CU-32: reporte institucional agregado (por juego o por docente) + export a CSV. El
-// backend real es un GROUP BY simple, sin gráficos/nube de palabras/PDF/Excel — eso quedó
-// pendiente para cuando se aprueben esas dependencias (ver ADR-006-style comment en el código).
+// CU-31/CU-32: reporte institucional agregado (por juego o por docente), con KPIs, evolución
+// temporal y nube de palabras — y export real a Excel/PDF.
 export interface FiltroReporte {
   corte: 'juego' | 'docente';
   desde?: string | undefined;
@@ -497,6 +496,7 @@ export interface FilaReporteJuego {
   alumnos_alcanzados: number;
   minutos_totales: number;
   ultima_sesion: string | null;
+  satisfaccion_promedio: number;
 }
 
 export interface FilaReporteDocente {
@@ -506,6 +506,24 @@ export interface FilaReporteDocente {
   juegos_distintos: number;
   alumnos_alcanzados: number;
   minutos_totales: number;
+  satisfaccion_promedio: number;
+}
+
+export interface KpisReporte {
+  total_sesiones: number;
+  alumnos_alcanzados: number;
+  satisfaccion_promedio: number;
+  juegos_en_uso: number;
+}
+
+export interface FilaSerieTemporalReporte {
+  periodo: string;
+  sesiones: number;
+}
+
+export interface PalabraFrecuente {
+  palabra: string;
+  frecuencia: number;
 }
 
 export interface ReporteInstitucional {
@@ -513,6 +531,61 @@ export interface ReporteInstitucional {
   corte: 'juego' | 'docente';
   filtros: { desde?: string; hasta?: string; producto_id?: string; docente_id?: string };
   datos: FilaReporteJuego[] | FilaReporteDocente[];
+  kpis: KpisReporte;
+  serie_temporal: FilaSerieTemporalReporte[];
+  nube_palabras: PalabraFrecuente[];
+}
+
+export interface ItemDistribucionSatisfaccion {
+  estrellas: number;
+  cantidad: number;
+}
+
+export interface ItemDistribucionJuego {
+  producto_id: string;
+  nombre_producto: string;
+  sesiones: number;
+}
+
+export interface SesionDelJuego {
+  fecha: string;
+  docente_id: string;
+  nombre_docente: string;
+  grupo: string;
+  estudiantes: number;
+  duracion_minutos: number;
+  satisfaccion: number;
+}
+
+export interface SesionDelDocente {
+  fecha: string;
+  producto_id: string;
+  nombre_producto: string;
+  grupo: string;
+  estudiantes: number;
+  duracion_minutos: number;
+  satisfaccion: number;
+}
+
+export interface DetalleReporteJuego {
+  producto_id: string;
+  nombre_producto: string;
+  total_sesiones: number;
+  alumnos_alcanzados: number;
+  satisfaccion_promedio: number;
+  distribucion_satisfaccion: ItemDistribucionSatisfaccion[];
+  sesiones: SesionDelJuego[];
+  nube_palabras: PalabraFrecuente[];
+}
+
+export interface DetalleReporteDocente {
+  docente_id: string;
+  nombre_docente: string;
+  email: string;
+  total_sesiones: number;
+  alumnos_alcanzados: number;
+  distribucion_juegos: ItemDistribucionJuego[];
+  sesiones: SesionDelDocente[];
 }
 
 // CU-33: dashboard pedagógico — 4 KPIs con variación % vs período anterior, serie semanal y
@@ -937,15 +1010,27 @@ export const api = {
   // CU-31: reporte agregado por juego o por docente.
   verReporte: (institucionId: string, filtro: FiltroReporte) =>
     pedir<ReporteInstitucional>('GET', `/instituciones/${institucionId}/reportes/uso?${armarQueryReporte(filtro)}`),
-  // CU-32: descarga el CSV directamente — no pasa por `pedir` porque la respuesta es un
+  // CU-31 A8: detalle de un juego (distribución de satisfacción, sesiones, nube de palabras propia).
+  verDetalleReporteJuego: (institucionId: string, productoId: string, filtro: FiltroReporte) =>
+    pedir<DetalleReporteJuego>(
+      'GET',
+      `/instituciones/${institucionId}/reportes/uso/producto/${productoId}?${armarQueryReporte(filtro)}`,
+    ),
+  // CU-31 A9: detalle de un docente (distribución de juegos usados, sesiones).
+  verDetalleReporteDocente: (institucionId: string, docenteId: string, filtro: FiltroReporte) =>
+    pedir<DetalleReporteDocente>(
+      'GET',
+      `/instituciones/${institucionId}/reportes/uso/docente/${docenteId}?${armarQueryReporte(filtro)}`,
+    ),
+  // CU-32: descarga el Excel/PDF directamente — no pasa por `pedir` porque la respuesta es un
   // archivo, no JSON. Reutiliza la misma lógica de auth (cookie web / Bearer APK).
-  exportarReporte: async (institucionId: string, filtro: FiltroReporte): Promise<void> => {
+  exportarReporte: async (institucionId: string, filtro: FiltroReporte, formato: 'excel' | 'pdf'): Promise<void> => {
     const headers: Record<string, string> = {};
     const token = tokenActual();
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
     const res = await fetch(
-      `${BASE}/api/v1/instituciones/${institucionId}/reportes/uso/exportar?${armarQueryReporte(filtro)}`,
+      `${BASE}/api/v1/instituciones/${institucionId}/reportes/uso/exportar?${armarQueryReporte(filtro)}&formato=${formato}`,
       { method: 'GET', credentials: 'include', headers },
     );
     if (!res.ok) {
@@ -958,7 +1043,8 @@ export const api = {
       throw new ApiError(res.status, problema);
     }
     const disposicion = res.headers.get('Content-Disposition') ?? '';
-    const nombreArchivo = /filename="([^"]+)"/.exec(disposicion)?.[1] ?? 'reporte.csv';
+    const nombreArchivo =
+      /filename="([^"]+)"/.exec(disposicion)?.[1] ?? `reporte.${formato === 'pdf' ? 'pdf' : 'xlsx'}`;
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
