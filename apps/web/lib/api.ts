@@ -1177,6 +1177,8 @@ export const api = {
     pedir<ProductoAdminDetalle>('PUT', `/admin/products/${id}`, d),
   // CU-19 A2: baja lógica (RNF-008) — nunca borra la fila.
   desactivarProductoAdmin: (id: string) => pedir<ProductoAdminDetalle>('DELETE', `/admin/products/${id}`),
+  // F2: inverso de la baja lógica.
+  reactivarProductoAdmin: (id: string) => pedir<ProductoAdminDetalle>('POST', `/admin/products/${id}/reactivar`),
   // CU-19 A8 (admin): demo por producto — GET para precargar el form, PUT hace upsert.
   verDemoAdmin: (productoId: string) => pedir<DemoAdminDetalle>('GET', `/admin/products/${productoId}/demo`),
   asignarDemoAdmin: (productoId: string, d: DemoAdminInput) =>

@@ -6,7 +6,7 @@ export class AuditoriaCatalogoPg implements AuditoriaCatalogo {
   constructor(private readonly client: PoolClient) {}
 
   async registrar(evento: {
-    tipo: 'create' | 'update' | 'delete';
+    tipo: 'create' | 'update' | 'delete' | 'reactivate';
     sujetoTipo: 'product' | 'category' | 'demo' | 'resource';
     sujetoId: string;
     actorId: string;

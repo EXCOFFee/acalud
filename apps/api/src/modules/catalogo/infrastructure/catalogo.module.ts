@@ -22,6 +22,7 @@ import { ActualizarProducto } from '../application/actualizar-producto';
 import { CrearProducto } from '../application/crear-producto';
 import { DesactivarProducto } from '../application/desactivar-producto';
 import { ListarProductosAdmin } from '../application/listar-productos-admin';
+import { ReactivarProducto } from '../application/reactivar-producto';
 import {
   UOW_CATALOGO_ADMIN,
   type UnidadDeTrabajoCatalogoAdmin,
@@ -155,6 +156,11 @@ import { FavoritosController } from './http/favoritos.controller';
     {
       provide: DesactivarProducto,
       useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): DesactivarProducto => new DesactivarProducto(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: ReactivarProducto,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): ReactivarProducto => new ReactivarProducto(uow),
       inject: [UOW_CATALOGO_ADMIN],
     },
     {

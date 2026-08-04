@@ -23,6 +23,7 @@ import { ActualizarProducto } from '../../application/actualizar-producto';
 import { CrearProducto } from '../../application/crear-producto';
 import { DesactivarProducto } from '../../application/desactivar-producto';
 import { ListarProductosAdmin } from '../../application/listar-productos-admin';
+import { ReactivarProducto } from '../../application/reactivar-producto';
 import { SubirImagenProducto } from '../../application/subir-imagen-producto';
 import { ArchivoInvalido, CategoriaInvalida, ProductoAdminNoEncontrado } from '../../domain/errores';
 import type { ProductoAdmin } from '../../domain/producto-admin';
@@ -88,6 +89,7 @@ export class AdminCatalogoController {
     private readonly crearProducto: CrearProducto,
     private readonly actualizarProducto: ActualizarProducto,
     private readonly desactivarProducto: DesactivarProducto,
+    private readonly reactivarProducto: ReactivarProducto,
     private readonly subirImagenProducto: SubirImagenProducto,
   ) {}
 
@@ -176,6 +178,19 @@ export class AdminCatalogoController {
     try {
       if (!UUID_RE.test(productId)) throw new ProductoAdminNoEncontrado();
       const producto = await this.desactivarProducto.ejecutar(productId, req.autenticado!.id);
+      return aRespuesta(producto);
+    } catch (error) {
+      mapearError(error);
+    }
+  }
+
+  // F2: inverso de `desactivar` — endpoint dedicado, no un campo en el body de PUT (que exige
+  // el formulario completo vía `productoAdminSchema`).
+  @Post(':product_id/reactivar')
+  async reactivar(@Param('product_id') productId: string, @Req() req: RequestAutenticada) {
+    try {
+      if (!UUID_RE.test(productId)) throw new ProductoAdminNoEncontrado();
+      const producto = await this.reactivarProducto.ejecutar(productId, req.autenticado!.id);
       return aRespuesta(producto);
     } catch (error) {
       mapearError(error);

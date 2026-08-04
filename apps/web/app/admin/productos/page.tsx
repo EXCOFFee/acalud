@@ -75,6 +75,7 @@ export default function AdminProductosPage() {
 
   const [aDesactivar, setADesactivar] = useState<ProductoAdminResumen | null>(null);
   const [desactivando, setDesactivando] = useState(false);
+  const [reactivandoId, setReactivandoId] = useState<string | null>(null);
 
   // CU-19 A8 (F3): configurar la demo del producto — un producto, a lo sumo una demo.
   const [demoProducto, setDemoProducto] = useState<ProductoAdminResumen | null>(null);
@@ -233,6 +234,25 @@ export default function AdminProductosPage() {
     }
   }
 
+  // F2: inverso de "Desactivar" — no es destructiva ni oculta nada, así que va directo, sin diálogo
+  // de confirmación (a diferencia de confirmarDesactivar).
+  async function reactivar(row: ProductoAdminResumen): Promise<void> {
+    setReactivandoId(row.id);
+    try {
+      await api.reactivarProductoAdmin(row.id);
+      notificar('Producto reactivado.', 'ok');
+      cargar();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.replace('/login?volver=/admin/productos');
+        return;
+      }
+      notificar('No pudimos reactivar el producto.', 'error');
+    } finally {
+      setReactivandoId(null);
+    }
+  }
+
   async function abrirDemo(row: ProductoAdminResumen): Promise<void> {
     setDemoProducto(row);
     setDemoError(null);
@@ -319,7 +339,11 @@ export default function AdminProductosPage() {
             <Boton variante="peligro" onClick={() => setADesactivar(p)}>
               Desactivar
             </Boton>
-          ) : null}
+          ) : (
+            <Boton variante="primario" cargando={reactivandoId === p.id} onClick={() => reactivar(p)}>
+              Reactivar
+            </Boton>
+          )}
         </span>
       ),
     },

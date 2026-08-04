@@ -364,6 +364,59 @@ describe('CU-19 · ABM de Productos (admin)', () => {
     });
   });
 
+  describe('Reactivación de producto (F2, inverso de la baja lógica)', () => {
+    it('reactiva un producto desactivado, audita y vuelve a listarse en el catálogo público', async () => {
+      const alta = await ctx.request
+        .post('/api/v1/admin/products')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send(productoValido);
+      const id = alta.body.id as string;
+
+      await ctx.request.delete(`/api/v1/admin/products/${id}`).set('Cookie', `acalud_sesion=${adminToken}`);
+      const previo = await ctx.request.get('/api/v1/catalogo/juegos');
+      expect(previo.body.datos.map((j: { id: string }) => j.id)).not.toContain(id);
+
+      const res = await ctx.request
+        .post(`/api/v1/admin/products/${id}/reactivar`)
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      expect(res.status).toBe(201);
+      expect(res.body.activo).toBe(true);
+
+      const fila = await ctx.pg.query('SELECT is_active FROM products WHERE id = $1', [id]);
+      expect(fila.rows[0].is_active).toBe(true);
+
+      const auditoria = await ctx.pg.query(
+        `SELECT * FROM audit_log WHERE entity_type = 'product' AND entity_id = $1 AND action = 'reactivate'`,
+        [id],
+      );
+      expect(auditoria.rows).toHaveLength(1);
+
+      const publico = await ctx.request.get('/api/v1/catalogo/juegos');
+      expect(publico.body.datos.map((j: { id: string }) => j.id)).toContain(id);
+    });
+
+    it('reactivar un producto ya activo es idempotente', async () => {
+      const alta = await ctx.request
+        .post('/api/v1/admin/products')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send(productoValido);
+      const id = alta.body.id as string;
+
+      const res = await ctx.request
+        .post(`/api/v1/admin/products/${id}/reactivar`)
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      expect(res.status).toBe(201);
+      expect(res.body.activo).toBe(true);
+    });
+
+    it('reactivar un producto inexistente responde 404', async () => {
+      const res = await ctx.request
+        .post('/api/v1/admin/products/dddddddd-dddd-4ddd-8ddd-dddddddddddd/reactivar')
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      expect(res.status).toBe(404);
+    });
+  });
+
   describe('Listado admin (p4)', () => {
     it('incluye productos inactivos, a diferencia del catálogo público', async () => {
       const alta = await ctx.request

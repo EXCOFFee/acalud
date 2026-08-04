@@ -38,5 +38,7 @@ export interface ProductosAdminRepository {
   actualizar(id: string, datos: DatosProducto): Promise<ProductoAdmin | null>;
   /** Baja lógica (RNF-008): pone `is_active = false`. null si el `id` no existe (A2). */
   desactivar(id: string): Promise<ProductoAdmin | null>;
+  /** F2: inverso de `desactivar`, pone `is_active = true`. null si el `id` no existe. */
+  reactivar(id: string): Promise<ProductoAdmin | null>;
   existeCategoria(categoriaId: string): Promise<boolean>;
 }

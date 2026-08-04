@@ -63,7 +63,7 @@ export class ProductosAdminRepositoryPg implements ProductosAdminRepository {
   }
 
   // p4: incluye inactivos (a diferencia del catálogo público) — el admin necesita verlos para
-  // poder reactivarlos vía edición.
+  // poder reactivarlos (F2: `POST /admin/products/:id/reactivar`, no vía edición).
   async listar(filtro: FiltroProductosAdmin): Promise<PaginaProductosAdmin> {
     const offset = (filtro.pagina - 1) * filtro.tamanio;
     const datos = await this.client.query<{
@@ -163,6 +163,15 @@ export class ProductosAdminRepositoryPg implements ProductosAdminRepository {
   async desactivar(id: string): Promise<ProductoAdmin | null> {
     const r = await this.client.query<FilaProducto>(
       `UPDATE products SET is_active = false WHERE id = $1 RETURNING *`,
+      [id],
+    );
+    return r.rows[0] ? aProductoAdmin(r.rows[0]) : null;
+  }
+
+  /** F2: inverso de `desactivar`. */
+  async reactivar(id: string): Promise<ProductoAdmin | null> {
+    const r = await this.client.query<FilaProducto>(
+      `UPDATE products SET is_active = true WHERE id = $1 RETURNING *`,
       [id],
     );
     return r.rows[0] ? aProductoAdmin(r.rows[0]) : null;

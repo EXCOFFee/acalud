@@ -6,8 +6,11 @@ import type { RecursosAdminRepository } from './recursos-admin.repository';
 /** Auditoría propia del BC (RN-002/RNF-002, CU-19). Cada contexto declara la suya: ADR-002. */
 export interface AuditoriaCatalogo {
   registrar(evento: {
-    /** `audit_log.action`: CU-19 la enumera taxativamente como create/update/delete. */
-    tipo: 'create' | 'update' | 'delete';
+    /**
+     * `audit_log.action`: CU-19 la enumera taxativamente como create/update/delete;
+     * `reactivate` es F2 (inverso de la baja lógica, gap del CU no cubierto en la especificación).
+     */
+    tipo: 'create' | 'update' | 'delete' | 'reactivate';
     sujetoTipo: 'product' | 'category' | 'demo' | 'resource';
     sujetoId: string;
     actorId: string;
