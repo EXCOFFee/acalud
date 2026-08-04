@@ -54,6 +54,8 @@ export type CalcularEnvioInput = z.infer<typeof calcularEnvioSchema>;
 
 export const FiltroHistorialSchema = z.object({
   estado: z.enum(['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'under_review']).optional(),
+  // CU-24 RN-009: filtrar el historial institucional del personal.
+  order_type: z.enum(['b2c', 'b2b']).optional(),
   orden_por: z.enum(['created_at', 'total_amount']).optional(),
   orden_dir: z.enum(['asc', 'desc']).optional(),
   pagina: z.coerce.number().int().min(1).optional(),

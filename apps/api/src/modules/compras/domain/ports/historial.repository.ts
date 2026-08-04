@@ -1,7 +1,11 @@
-import type { EstadoPedido } from '../pedido';
+import type { DatosFacturacion, EstadoPedido } from '../pedido';
+
+export type TipoOrden = 'b2c' | 'b2b';
 
 export interface FiltroHistorial {
   estado?: EstadoPedido | undefined;
+  /** CU-24 RN-009: filtrar el historial institucional del personal. */
+  order_type?: TipoOrden | undefined;
   orden_por?: 'created_at' | 'total_amount' | undefined;
   orden_dir?: 'asc' | 'desc' | undefined;
   pagina?: number | undefined;
@@ -15,6 +19,8 @@ export interface OrdenHistorial {
   total: number;
   estado: EstadoPedido;
   tracking_code: string | null;
+  order_type: TipoOrden;
+  institution_id: string | null;
 }
 
 export interface ResultadoPaginado<T> {
@@ -33,6 +39,10 @@ export interface DetalleOrdenHistorial {
   envio_costo: number;
   total: number;
   tracking_code: string | null;
+  order_type: TipoOrden;
+  institution_id: string | null;
+  /** CU-24 RN-007: null en órdenes personales (order_type='b2c'). */
+  billing_data: DatosFacturacion | null;
   domicilio: {
     calle: string | null;
     numero: string | null;

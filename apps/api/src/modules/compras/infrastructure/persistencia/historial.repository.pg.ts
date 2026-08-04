@@ -1,6 +1,6 @@
 import type { Pool, PoolClient } from 'pg';
-import type { EstadoPedido } from '../../domain/pedido';
-import type { DetalleOrdenHistorial, FiltroHistorial, HistorialRepository, OrdenHistorial, ResultadoPaginado } from '../../domain/ports/historial.repository';
+import type { DatosFacturacion, EstadoPedido } from '../../domain/pedido';
+import type { DetalleOrdenHistorial, FiltroHistorial, HistorialRepository, OrdenHistorial, ResultadoPaginado, TipoOrden } from '../../domain/ports/historial.repository';
 
 type Ejecutor = Pool | PoolClient;
 
@@ -20,6 +20,11 @@ export class HistorialRepositoryPg implements HistorialRepository {
       where += ` AND status = $${values.length}`;
     }
 
+    if (filtro.order_type) {
+      values.push(filtro.order_type);
+      where += ` AND order_type = $${values.length}`;
+    }
+
     const orderCol = filtro.orden_por === 'total_amount' ? 'total_amount' : 'created_at';
     const orderDir = filtro.orden_dir === 'asc' ? 'ASC' : 'DESC';
 
@@ -32,7 +37,7 @@ export class HistorialRepositoryPg implements HistorialRepository {
 
     const dataQuery = `
       SELECT id, order_number as numero, created_at as fecha, total_amount::float8 as total,
-             status as estado, tracking_code
+             status as estado, tracking_code, order_type, institution_id
       FROM orders
       ${where}
       ORDER BY ${orderCol} ${orderDir}
@@ -47,6 +52,8 @@ export class HistorialRepositoryPg implements HistorialRepository {
       total: number;
       estado: EstadoPedido;
       tracking_code: string | null;
+      order_type: TipoOrden;
+      institution_id: string | null;
     }>(dataQuery, dataValues);
 
     const items: OrdenHistorial[] = dataResult.rows.map((row) => ({
@@ -56,6 +63,8 @@ export class HistorialRepositoryPg implements HistorialRepository {
       total: row.total,
       estado: row.estado,
       tracking_code: row.tracking_code,
+      order_type: row.order_type,
+      institution_id: row.institution_id,
     }));
 
     return {
@@ -80,13 +89,16 @@ export class HistorialRepositoryPg implements HistorialRepository {
       shipping_province: string | null;
       shipping_postal_code: string | null;
       tracking_code: string | null;
+      order_type: TipoOrden;
+      institution_id: string | null;
+      billing_data: DatosFacturacion | null;
       lineas: { juego_id: string; nombre: string; cantidad: number; precio_unitario: number; descuento_pct: number }[];
     }>(
       `
       SELECT o.id, o.order_number as numero, o.created_at as fecha, o.status as estado,
              o.total_amount::float8 as total, o.shipping_cost::float8 as envio_costo,
              o.shipping_street, o.shipping_number, o.shipping_city, o.shipping_province, o.shipping_postal_code,
-             o.tracking_code,
+             o.tracking_code, o.order_type, o.institution_id, o.billing_data,
              COALESCE(
                json_agg(
                  json_build_object(
@@ -120,6 +132,9 @@ export class HistorialRepositoryPg implements HistorialRepository {
       envio_costo: row.envio_costo,
       total: row.total,
       tracking_code: row.tracking_code,
+      order_type: row.order_type,
+      institution_id: row.institution_id,
+      billing_data: row.billing_data,
       domicilio: {
         calle: row.shipping_street,
         numero: row.shipping_number,
