@@ -16,4 +16,14 @@ export class DemosAdminRepositoryPg implements DemosAdminRepository {
     const fila = r.rows[0]!;
     return { id: fila.id, productId: fila.product_id, configJson: fila.config_json };
   }
+
+  async buscarPorProducto(productId: string): Promise<DemoAdmin | null> {
+    const r = await this.client.query<{ id: string; product_id: string; config_json: Record<string, unknown> }>(
+      `SELECT id, product_id, config_json FROM demos WHERE product_id = $1`,
+      [productId],
+    );
+    const fila = r.rows[0];
+    if (!fila) return null;
+    return { id: fila.id, productId: fila.product_id, configJson: fila.config_json };
+  }
 }

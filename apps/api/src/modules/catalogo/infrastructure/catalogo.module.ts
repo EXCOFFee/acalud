@@ -34,6 +34,7 @@ import { EliminarCategoria } from '../application/eliminar-categoria';
 import { ListarCategoriasAdmin } from '../application/listar-categorias-admin';
 import { AdminCategoriasController } from './http/admin-categorias.controller';
 import { AsignarDemo } from '../application/asignar-demo';
+import { VerDemoAdmin } from '../application/ver-demo-admin';
 import { AdminDemosController } from './http/admin-demos.controller';
 import { ActualizarRecurso } from '../application/actualizar-recurso';
 import { CrearRecurso } from '../application/crear-recurso';
@@ -176,6 +177,11 @@ import { FavoritosController } from './http/favoritos.controller';
     {
       provide: AsignarDemo,
       useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): AsignarDemo => new AsignarDemo(uow),
+      inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: VerDemoAdmin,
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): VerDemoAdmin => new VerDemoAdmin(uow),
       inject: [UOW_CATALOGO_ADMIN],
     },
     {

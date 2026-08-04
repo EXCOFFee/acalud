@@ -107,4 +107,55 @@ describe('CU-19 A8 · Asignación de Demo (admin)', () => {
       expect(res.status).toBe(422);
     });
   });
+
+  describe('Detalle de demo (precarga del formulario de edición)', () => {
+    it('producto sin demo asignada devuelve asignada:false, no 404', async () => {
+      const producto = await ctx.pg.query<{ id: string }>(
+        `INSERT INTO products (name, price, stock, is_active) VALUES ('Producto Sin Demo Test', 100, 10, true) RETURNING id`,
+      );
+      const id = producto.rows[0]!.id;
+
+      const res = await ctx.request
+        .get(`/api/v1/admin/products/${id}/demo`)
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.asignada).toBe(false);
+      expect(res.body.configuracion_json).toBeNull();
+    });
+
+    it('devuelve la configuración completa de una demo ya asignada', async () => {
+      await ctx.request
+        .put(`/api/v1/admin/products/${productoId}/demo`)
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({
+          configuracion_json: { tipo: 'publica', formato: 'html5', contenido_ref: 'https://demo.test/embed' },
+          url_unity_webgl: 'https://unity.test/build',
+        });
+
+      const res = await ctx.request
+        .get(`/api/v1/admin/products/${productoId}/demo`)
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.asignada).toBe(true);
+      expect(res.body.producto_id).toBe(productoId);
+      expect(res.body.configuracion_json.tipo).toBe('publica');
+      expect(res.body.configuracion_json.formato).toBe('html5');
+      expect(res.body.configuracion_json.contenido_ref).toBe('https://demo.test/embed');
+      expect(res.body.configuracion_json.unity_webgl_url).toBe('https://unity.test/build');
+    });
+
+    it('producto inexistente responde 404', async () => {
+      const res = await ctx.request
+        .get('/api/v1/admin/products/dddddddd-dddd-4ddd-8ddd-dddddddddddd/demo')
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      expect(res.status).toBe(404);
+    });
+
+    it('sin rol admin responde 403', async () => {
+      const res = await ctx.request
+        .get(`/api/v1/admin/products/${productoId}/demo`)
+        .set('Cookie', `acalud_sesion=${docenteToken}`);
+      expect(res.status).toBe(403);
+    });
+  });
 });
