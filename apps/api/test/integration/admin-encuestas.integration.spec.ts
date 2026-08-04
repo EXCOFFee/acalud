@@ -156,6 +156,48 @@ describe('CU-20 · ABM de Encuestas (admin)', () => {
     });
   });
 
+  describe('Detalle (A2: precarga del formulario de edición)', () => {
+    it('devuelve pregunta, nivel y opciones completas', async () => {
+      const alta = await ctx.request
+        .post('/api/v1/admin/polls')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...encuestaValida, nivel_educativo_id: nivelPrimariaId });
+      const id = alta.body.id as string;
+
+      const res = await ctx.request
+        .get(`/api/v1/admin/polls/${id}`)
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.id).toBe(id);
+      expect(res.body.pregunta).toBe(encuestaValida.pregunta);
+      expect(res.body.nivel_educativo_id).toBe(nivelPrimariaId);
+      expect(res.body.estado).toBe('draft');
+      // El orden de las opciones no está garantizado (SELECT ... ORDER BY o.id, no por inserción).
+      const textos = res.body.opciones.map((o: { texto: string }) => o.texto) as string[];
+      expect(textos.sort()).toEqual([...encuestaValida.opciones].sort());
+    });
+
+    it('encuesta inexistente responde 404', async () => {
+      const res = await ctx.request
+        .get('/api/v1/admin/polls/dddddddd-dddd-4ddd-8ddd-dddddddddddd')
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      expect(res.status).toBe(404);
+    });
+
+    it('sin rol admin responde 403', async () => {
+      const alta = await ctx.request
+        .post('/api/v1/admin/polls')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send(encuestaValida);
+
+      const res = await ctx.request
+        .get(`/api/v1/admin/polls/${alta.body.id}`)
+        .set('Cookie', `acalud_sesion=${docenteToken}`);
+      expect(res.status).toBe(403);
+    });
+  });
+
   describe('Edición (A2/RN-005)', () => {
     it('edita una encuesta inactiva (reemplaza pregunta y opciones)', async () => {
       const alta = await ctx.request

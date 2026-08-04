@@ -83,6 +83,18 @@ export class AdminEncuestasController {
     }));
   }
 
+  // CU-20 A2: detalle completo, para precargar el formulario de edición (F5 del frontend).
+  @Get(':poll_id')
+  async detalle(@Param('poll_id') pollId: string) {
+    try {
+      if (!UUID_RE.test(pollId)) throw new EncuestaAdminNoEncontrada();
+      const encuesta = await this.listar.detalle(pollId);
+      return aRespuesta(encuesta);
+    } catch (error) {
+      mapearError(error);
+    }
+  }
+
   @Post()
   async crear(
     @Req() req: RequestAutenticada,
