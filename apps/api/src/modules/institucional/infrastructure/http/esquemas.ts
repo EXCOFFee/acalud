@@ -107,9 +107,15 @@ export const exportarQuerySchema = z.object({
 });
 export type ExportarQuery = z.infer<typeof exportarQuerySchema>;
 
-/** CU-33: Query de GET /instituciones/:id/dashboard. Rango de fechas (default: últimos 30 días). */
+/**
+ * CU-33: Query de GET /instituciones/:id/dashboard. Rango de fechas (default: últimos 30 días)
+ * + filtro opcional de juego/docente (RN-004/A5) — nivel educativo queda afuera, no existe esa
+ * columna en `game_sessions` (mismo gap que Bloque E del pendiente).
+ */
 export const dashboardQuerySchema = z.object({
   desde: z.coerce.date().optional(),
   hasta: z.coerce.date().optional(),
+  producto_id: z.string().uuid().optional(),
+  docente_id: z.string().uuid().optional(),
 });
 export type DashboardQuery = z.infer<typeof dashboardQuerySchema>;

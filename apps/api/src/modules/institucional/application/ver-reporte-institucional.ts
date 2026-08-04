@@ -39,6 +39,7 @@ export interface FilaReporteJuegoDTO {
   minutos_totales: number;
   ultima_sesion: string | null;
   satisfaccion_promedio: number;
+  tasa_reutilizacion: number;
 }
 
 export interface FilaReporteDocenteDTO {
@@ -49,6 +50,7 @@ export interface FilaReporteDocenteDTO {
   alumnos_alcanzados: number;
   minutos_totales: number;
   satisfaccion_promedio: number;
+  tasa_reutilizacion: number;
 }
 
 /**
@@ -100,7 +102,8 @@ export class VerReporteInstitucional {
   }
 }
 
-function mapearFilaJuego(f: FilaReporteJuego): FilaReporteJuegoDTO {
+/** Exportado: reutilizado por CU-33 (`ver-dashboard-pedagogico.ts`) para `top_juegos`. */
+export function mapearFilaJuego(f: FilaReporteJuego): FilaReporteJuegoDTO {
   return {
     producto_id: f.productoId,
     nombre_producto: f.nombreProducto,
@@ -110,10 +113,12 @@ function mapearFilaJuego(f: FilaReporteJuego): FilaReporteJuegoDTO {
     minutos_totales: f.minutosTotales,
     ultima_sesion: f.ultimaSesion?.toISOString() ?? null,
     satisfaccion_promedio: f.satisfaccionPromedio,
+    tasa_reutilizacion: f.tasaReutilizacion,
   };
 }
 
-function mapearFilaDocente(f: FilaReporteDocente): FilaReporteDocenteDTO {
+/** Exportado: reutilizado por CU-33 (`ver-dashboard-pedagogico.ts`) para `top_docentes`. */
+export function mapearFilaDocente(f: FilaReporteDocente): FilaReporteDocenteDTO {
   return {
     docente_id: f.docenteId,
     nombre_docente: f.nombreDocente,
@@ -122,6 +127,7 @@ function mapearFilaDocente(f: FilaReporteDocente): FilaReporteDocenteDTO {
     alumnos_alcanzados: f.alumnosAlcanzados,
     minutos_totales: f.minutosTotales,
     satisfaccion_promedio: f.satisfaccionPromedio,
+    tasa_reutilizacion: f.tasaReutilizacion,
   };
 }
 

@@ -5,9 +5,11 @@ import type {
   DetalleReporteDocente,
   DetalleReporteJuego,
   DetalleSesion,
+  FilaDistribucionDiaSemana,
   FilaReporteDocente,
   FilaReporteJuego,
   FilaSerieTemporal,
+  FiltroDashboard,
   FiltroReporte,
   FiltroSesiones,
   HistorialSesion,
@@ -173,6 +175,7 @@ export class SesionesRepositoryPg implements SesionesRepository {
       minutos_totales: number;
       ultima_sesion: Date | null;
       satisfaccion_promedio: string;
+      tasa_reutilizacion: number;
     }>(
       `SELECT p.id AS product_id, p.name,
               COUNT(*)::int AS total_sesiones,
@@ -180,7 +183,8 @@ export class SesionesRepositoryPg implements SesionesRepository {
               COALESCE(SUM(gs.student_count), 0)::int AS alumnos_alcanzados,
               COALESCE(SUM(gs.duration_minutes), 0)::int AS minutos_totales,
               MAX(gs.session_date) AS ultima_sesion,
-              AVG(gs.teacher_satisfaction)::numeric(3,2) AS satisfaccion_promedio
+              AVG(gs.teacher_satisfaction)::numeric(3,2) AS satisfaccion_promedio,
+              ROUND(AVG(gs.would_reuse::int) * 100)::int AS tasa_reutilizacion
          FROM game_sessions gs
          JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
          JOIN products p ON p.id = gs.product_id
@@ -199,6 +203,7 @@ export class SesionesRepositoryPg implements SesionesRepository {
       minutosTotales: f.minutos_totales,
       ultimaSesion: f.ultima_sesion,
       satisfaccionPromedio: Number(f.satisfaccion_promedio),
+      tasaReutilizacion: f.tasa_reutilizacion,
     }));
   }
 
@@ -214,13 +219,15 @@ export class SesionesRepositoryPg implements SesionesRepository {
       alumnos_alcanzados: number;
       minutos_totales: number;
       satisfaccion_promedio: string;
+      tasa_reutilizacion: number;
     }>(
       `SELECT it.user_id, u.full_name,
               COUNT(*)::int AS total_sesiones,
               COUNT(DISTINCT gs.product_id)::int AS juegos_distintos,
               COALESCE(SUM(gs.student_count), 0)::int AS alumnos_alcanzados,
               COALESCE(SUM(gs.duration_minutes), 0)::int AS minutos_totales,
-              AVG(gs.teacher_satisfaction)::numeric(3,2) AS satisfaccion_promedio
+              AVG(gs.teacher_satisfaction)::numeric(3,2) AS satisfaccion_promedio,
+              ROUND(AVG(gs.would_reuse::int) * 100)::int AS tasa_reutilizacion
          FROM game_sessions gs
          JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
          JOIN users u ON u.id = it.user_id
@@ -238,6 +245,7 @@ export class SesionesRepositoryPg implements SesionesRepository {
       alumnosAlcanzados: f.alumnos_alcanzados,
       minutosTotales: f.minutos_totales,
       satisfaccionPromedio: Number(f.satisfaccion_promedio),
+      tasaReutilizacion: f.tasa_reutilizacion,
     }));
   }
 
@@ -245,9 +253,10 @@ export class SesionesRepositoryPg implements SesionesRepository {
   async serieTemporalReporte(institucionId: string, filtro: FiltroReporte): Promise<FilaSerieTemporal[]> {
     const { where, params } = this.construirFiltroReporte(institucionId, filtro);
 
-    const r = await this.client.query<{ periodo: string; sesiones: number }>(
+    const r = await this.client.query<{ periodo: string; sesiones: number; satisfaccion_promedio: string }>(
       `SELECT to_char(date_trunc('month', gs.session_date), 'YYYY-MM') AS periodo,
-              COUNT(*)::int AS sesiones
+              COUNT(*)::int AS sesiones,
+              AVG(gs.teacher_satisfaction)::numeric(3,2) AS satisfaccion_promedio
          FROM game_sessions gs
          JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
         ${where}
@@ -255,7 +264,34 @@ export class SesionesRepositoryPg implements SesionesRepository {
         ORDER BY date_trunc('month', gs.session_date)`,
       params,
     );
-    return r.rows;
+    return r.rows.map((f) => ({
+      periodo: f.periodo,
+      sesiones: f.sesiones,
+      satisfaccionPromedio: Number(f.satisfaccion_promedio),
+    }));
+  }
+
+  /** CU-33: distribución de sesiones por día de la semana (1=lunes…7=domingo, ISO), mismo filtro. */
+  async distribucionPorDiaSemana(
+    institucionId: string,
+    filtro: FiltroReporte,
+  ): Promise<FilaDistribucionDiaSemana[]> {
+    const { where, params } = this.construirFiltroReporte(institucionId, filtro);
+
+    const r = await this.client.query<{ dia_semana: number; sesiones: number }>(
+      `SELECT EXTRACT(ISODOW FROM gs.session_date)::int AS dia_semana,
+              COUNT(*)::int AS sesiones
+         FROM game_sessions gs
+         JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+        ${where}
+        GROUP BY EXTRACT(ISODOW FROM gs.session_date)`,
+      params,
+    );
+    const porDia = new Map(r.rows.map((f) => [f.dia_semana, f.sesiones]));
+    return ([1, 2, 3, 4, 5, 6, 7] as const).map((diaSemana) => ({
+      diaSemana,
+      sesiones: porDia.get(diaSemana) ?? 0,
+    }));
   }
 
   /** CU-31 RN-006: top de términos más frecuentes en `key_learnings`, mismo filtro. */
@@ -274,6 +310,25 @@ export class SesionesRepositoryPg implements SesionesRepository {
       params,
     );
     return tokenizarAprendizajes(r.rows.map((f) => f.key_learnings), limite);
+  }
+
+  /** CU-33 RN-006: top de términos más frecuentes en `difficulties` (columna opcional), mismo filtro. */
+  async dificultadesFrecuentes(
+    institucionId: string,
+    filtro: FiltroReporte,
+    limite: number,
+  ): Promise<PalabraFrecuente[]> {
+    const { where, params } = this.construirFiltroReporte(institucionId, filtro);
+
+    const r = await this.client.query<{ difficulties: string }>(
+      `SELECT gs.difficulties
+         FROM game_sessions gs
+         JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+        ${where}
+          AND gs.difficulties IS NOT NULL`,
+      params,
+    );
+    return tokenizarAprendizajes(r.rows.map((f) => f.difficulties), limite);
   }
 
   /** CU-31 RN-004: KPIs agregados del reporte, mismo filtro que el corte por juego/docente. */
@@ -545,24 +600,47 @@ export class SesionesRepositoryPg implements SesionesRepository {
     institucionId: string,
     desde: Date,
     hasta: Date,
+    filtro: FiltroDashboard,
   ): Promise<MetricasDashboard> {
-    // Periodo anterior: offset igual al rango seleccionado hacia atrás
+    // Periodo anterior: offset igual al rango seleccionado hacia atrás. El filtro de
+    // juego/docente (A5) se aplica a AMBOS períodos, así la variación % compara manzanas con
+    // manzanas.
     const rangoMs = hasta.getTime() - desde.getTime();
     const desdeAnterior = new Date(desde.getTime() - rangoMs);
     const hastaAnterior = desde;
+    const filtroActual: FiltroReporte = { desde, hasta, productoId: filtro.productoId, docenteId: filtro.docenteId };
+    const filtroAnterior: FiltroReporte = {
+      desde: desdeAnterior,
+      hasta: hastaAnterior,
+      productoId: filtro.productoId,
+      docenteId: filtro.docenteId,
+    };
 
-    // KPIs del periodo actual
-    const kpiActual = await this.kpis(institucionId, desde, hasta);
-    // KPIs del periodo anterior (para variaciones)
-    const kpiAnterior = await this.kpis(institucionId, desdeAnterior, hastaAnterior);
+    const [kpiActual, kpiAnterior] = await Promise.all([
+      this.kpis(institucionId, filtroActual),
+      this.kpis(institucionId, filtroAnterior),
+    ]);
 
-    // Serie temporal semanal
-    const serieSemanal = await this.serieSemanal(institucionId, desde, hasta);
+    const { where, params } = this.construirFiltroReporte(institucionId, filtroActual);
 
-    // Top 5 juegos y top 5 docentes
-    const [topJuegos, topDocentes] = await Promise.all([
-      this.topJuegos(institucionId, desde, hasta),
-      this.topDocentes(institucionId, desde, hasta),
+    const [
+      serieSemanal,
+      serieMensual,
+      distribucionSatisfaccion,
+      distribucionDiaSemana,
+      topJuegos,
+      topDocentes,
+      nubePalabras,
+      dificultadesFrecuentes,
+    ] = await Promise.all([
+      this.serieSemanal(institucionId, filtroActual),
+      this.serieTemporalReporte(institucionId, filtroActual),
+      this.distribucionSatisfaccion(where, params),
+      this.distribucionPorDiaSemana(institucionId, filtroActual),
+      this.reportePorJuego(institucionId, filtroActual).then((f) => f.slice(0, 5)),
+      this.reportePorDocente(institucionId, filtroActual).then((f) => f.slice(0, 5)),
+      this.nubeDePalabras(institucionId, filtroActual, LIMITE_NUBE_PALABRAS_DETALLE),
+      this.dificultadesFrecuentes(institucionId, filtroActual, LIMITE_NUBE_PALABRAS_DETALLE),
     ]);
 
     return {
@@ -574,9 +652,18 @@ export class SesionesRepositoryPg implements SesionesRepository {
       alumnosAlcanzadosAnterior: kpiAnterior.alumnosAlcanzados,
       minutosDeJuego: kpiActual.minutosDeJuego,
       minutosDeJuegoAnterior: kpiAnterior.minutosDeJuego,
+      satisfaccionPromedio: kpiActual.satisfaccionPromedio,
+      satisfaccionPromedioAnterior: kpiAnterior.satisfaccionPromedio,
+      tasaReutilizacion: kpiActual.tasaReutilizacion,
+      tasaReutilizacionAnterior: kpiAnterior.tasaReutilizacion,
       serieSemanal,
+      serieMensual,
+      distribucionSatisfaccion,
+      distribucionDiaSemana,
       topJuegos,
       topDocentes,
+      nubePalabras,
+      dificultadesFrecuentes,
     };
   }
 
@@ -611,25 +698,34 @@ export class SesionesRepositoryPg implements SesionesRepository {
 
   private async kpis(
     institucionId: string,
-    desde: Date,
-    hasta: Date,
-  ): Promise<{ sesiones: number; docentesActivos: number; alumnosAlcanzados: number; minutosDeJuego: number }> {
+    filtro: FiltroReporte,
+  ): Promise<{
+    sesiones: number;
+    docentesActivos: number;
+    alumnosAlcanzados: number;
+    minutosDeJuego: number;
+    satisfaccionPromedio: number;
+    tasaReutilizacion: number;
+  }> {
+    const { where, params } = this.construirFiltroReporte(institucionId, filtro);
     const r = await this.client.query<{
       sesiones: number;
       docentes_activos: number;
       alumnos_alcanzados: number;
       minutos_de_juego: number;
+      satisfaccion_promedio: string | null;
+      tasa_reutilizacion: number | null;
     }>(
       `SELECT COUNT(*)::int AS sesiones,
               COUNT(DISTINCT it.user_id)::int AS docentes_activos,
               COALESCE(SUM(gs.student_count), 0)::int AS alumnos_alcanzados,
-              COALESCE(SUM(gs.duration_minutes), 0)::int AS minutos_de_juego
+              COALESCE(SUM(gs.duration_minutes), 0)::int AS minutos_de_juego,
+              AVG(gs.teacher_satisfaction)::numeric(3,2) AS satisfaccion_promedio,
+              ROUND(AVG(gs.would_reuse::int) * 100)::int AS tasa_reutilizacion
          FROM game_sessions gs
          JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
-        WHERE it.institution_id = $1
-          AND gs.session_date >= $2
-          AND gs.session_date <= $3`,
-      [institucionId, desde, hasta],
+        ${where}`,
+      params,
     );
     const f = r.rows[0]!;
     return {
@@ -637,69 +733,27 @@ export class SesionesRepositoryPg implements SesionesRepository {
       docentesActivos: f.docentes_activos,
       alumnosAlcanzados: f.alumnos_alcanzados,
       minutosDeJuego: f.minutos_de_juego,
+      satisfaccionPromedio: f.satisfaccion_promedio !== null ? Number(f.satisfaccion_promedio) : 0,
+      tasaReutilizacion: f.tasa_reutilizacion ?? 0,
     };
   }
 
   private async serieSemanal(
     institucionId: string,
-    desde: Date,
-    hasta: Date,
+    filtro: FiltroReporte,
   ): Promise<{ semana: string; sesiones: number }[]> {
+    const { where, params } = this.construirFiltroReporte(institucionId, filtro);
     const r = await this.client.query<{ semana: string; sesiones: number }>(
       `SELECT to_char(date_trunc('week', gs.session_date), 'IYYY-"W"IW') AS semana,
               COUNT(*)::int AS sesiones
          FROM game_sessions gs
          JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
-        WHERE it.institution_id = $1
-          AND gs.session_date >= $2
-          AND gs.session_date <= $3
+        ${where}
         GROUP BY date_trunc('week', gs.session_date)
         ORDER BY date_trunc('week', gs.session_date)`,
-      [institucionId, desde, hasta],
+      params,
     );
     return r.rows;
-  }
-
-  private async topJuegos(
-    institucionId: string,
-    desde: Date,
-    hasta: Date,
-  ): Promise<{ productoId: string; nombre: string; sesiones: number }[]> {
-    const r = await this.client.query<{ product_id: string; name: string; sesiones: number }>(
-      `SELECT p.id AS product_id, p.name, COUNT(*)::int AS sesiones
-         FROM game_sessions gs
-         JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
-         JOIN products p ON p.id = gs.product_id
-        WHERE it.institution_id = $1
-          AND gs.session_date >= $2
-          AND gs.session_date <= $3
-        GROUP BY p.id, p.name
-        ORDER BY sesiones DESC
-        LIMIT 5`,
-      [institucionId, desde, hasta],
-    );
-    return r.rows.map((f) => ({ productoId: f.product_id, nombre: f.name, sesiones: f.sesiones }));
-  }
-
-  private async topDocentes(
-    institucionId: string,
-    desde: Date,
-    hasta: Date,
-  ): Promise<{ docenteId: string; nombre: string; sesiones: number }[]> {
-    const r = await this.client.query<{ user_id: string; full_name: string; sesiones: number }>(
-      `SELECT it.user_id, u.full_name, COUNT(*)::int AS sesiones
-         FROM game_sessions gs
-         JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
-         JOIN users u ON u.id = it.user_id
-        WHERE it.institution_id = $1
-          AND gs.session_date >= $2
-          AND gs.session_date <= $3
-        GROUP BY it.user_id, u.full_name
-        ORDER BY sesiones DESC
-        LIMIT 5`,
-      [institucionId, desde, hasta],
-    );
-    return r.rows.map((f) => ({ docenteId: f.user_id, nombre: f.full_name, sesiones: f.sesiones }));
   }
 }
 

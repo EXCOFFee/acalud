@@ -448,7 +448,10 @@ export class InstitucionesController {
       const hasta = query.hasta ?? new Date();
       const desde = query.desde ?? new Date(hasta.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-      return await this.verDashboard.ejecutar(institucionId, req.autenticado.id, desde, hasta);
+      return await this.verDashboard.ejecutar(institucionId, req.autenticado.id, desde, hasta, {
+        productoId: query.producto_id,
+        docenteId: query.docente_id,
+      });
     } catch (error) {
       mapearError(error);
     }

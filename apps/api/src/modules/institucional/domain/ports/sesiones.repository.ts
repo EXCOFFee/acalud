@@ -53,6 +53,8 @@ export interface FilaReporteJuego {
   minutosTotales: number;
   ultimaSesion: Date | null;
   satisfaccionPromedio: number;
+  /** CU-33: % de sesiones con `would_reuse = true` (0-100). */
+  tasaReutilizacion: number;
 }
 
 /** CU-31: Fila del reporte corte "por docente". */
@@ -64,11 +66,21 @@ export interface FilaReporteDocente {
   alumnosAlcanzados: number;
   minutosTotales: number;
   satisfaccionPromedio: number;
+  /** CU-33: % de sesiones con `would_reuse = true` (0-100). */
+  tasaReutilizacion: number;
 }
 
-/** CU-31 RN-005: evolución mensual de sesiones (respeta los mismos filtros que el reporte). */
+/** CU-31 RN-005 / CU-33: evolución mensual de sesiones (respeta los mismos filtros que el reporte). */
 export interface FilaSerieTemporal {
   periodo: string; // 'YYYY-MM'
+  sesiones: number;
+  /** CU-33: satisfacción promedio de las sesiones de ese mes. */
+  satisfaccionPromedio: number;
+}
+
+/** CU-33: cantidad de sesiones por día de la semana (1 = lunes … 7 = domingo, ISO). */
+export interface FilaDistribucionDiaSemana {
+  diaSemana: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   sesiones: number;
 }
 
@@ -158,6 +170,12 @@ export interface SesionReporteCompleta {
 
 // ─── CU-33: Métricas del Dashboard Pedagógico ────────────────────────────────
 
+/** CU-33: filtro adicional de juego/docente para el dashboard (aplica a ambos períodos). */
+export interface FiltroDashboard {
+  productoId?: string | undefined;
+  docenteId?: string | undefined;
+}
+
 export interface MetricasDashboard {
   sesiones: number;
   sesionesAnterior: number;
@@ -167,9 +185,21 @@ export interface MetricasDashboard {
   alumnosAlcanzadosAnterior: number;
   minutosDeJuego: number;
   minutosDeJuegoAnterior: number;
+  satisfaccionPromedio: number;
+  satisfaccionPromedioAnterior: number;
+  /** CU-33: % de sesiones con `would_reuse = true` (0-100). */
+  tasaReutilizacion: number;
+  tasaReutilizacionAnterior: number;
   serieSemanal: { semana: string; sesiones: number }[];
-  topJuegos: { productoId: string; nombre: string; sesiones: number }[];
-  topDocentes: { docenteId: string; nombre: string; sesiones: number }[];
+  /** CU-33: evolución mensual de sesiones + satisfacción. */
+  serieMensual: FilaSerieTemporal[];
+  distribucionSatisfaccion: ItemDistribucionSatisfaccion[];
+  distribucionDiaSemana: FilaDistribucionDiaSemana[];
+  /** CU-33: top 5 por sesiones — reusa la misma agregación de CU-31 (`reportePorJuego`). */
+  topJuegos: FilaReporteJuego[];
+  topDocentes: FilaReporteDocente[];
+  nubePalabras: PalabraFrecuente[];
+  dificultadesFrecuentes: PalabraFrecuente[];
 }
 
 /** CU-29, CU-30, CU-31, CU-32, CU-33: Puerto de escritura, lectura y agregación de sesiones. */
@@ -219,6 +249,20 @@ export interface SesionesRepository {
   /** CU-32 PI-04: conteo de sesiones individuales para validar el tope (5000) antes de exportar. */
   contarSesionesReporte(institucionId: string, filtro: FiltroReporte): Promise<number>;
 
-  /** CU-33: Métricas del dashboard pedagógico con variaciones vs. periodo anterior. */
-  metricasDashboard(institucionId: string, desde: Date, hasta: Date): Promise<MetricasDashboard>;
+  /** CU-33 RN-006: top de términos más frecuentes en `difficulties` (columna opcional), mismo filtro. */
+  dificultadesFrecuentes(institucionId: string, filtro: FiltroReporte, limite: number): Promise<PalabraFrecuente[]>;
+
+  /** CU-33: distribución de sesiones por día de la semana (1=lunes…7=domingo), mismo filtro. */
+  distribucionPorDiaSemana(institucionId: string, filtro: FiltroReporte): Promise<FilaDistribucionDiaSemana[]>;
+
+  /**
+   * CU-33: Métricas del dashboard pedagógico con variaciones vs. periodo anterior. `filtro`
+   * (juego/docente) se aplica tanto al período actual como al anterior.
+   */
+  metricasDashboard(
+    institucionId: string,
+    desde: Date,
+    hasta: Date,
+    filtro: FiltroDashboard,
+  ): Promise<MetricasDashboard>;
 }
