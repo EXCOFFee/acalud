@@ -139,6 +139,54 @@ describe('CU-19 · ABM de Productos (admin)', () => {
     });
   });
 
+  describe('Detalle de producto (A1: precarga del formulario de edición)', () => {
+    it('devuelve todos los campos del producto, no solo el resumen del listado', async () => {
+      const alta = await ctx.request
+        .post('/api/v1/admin/products')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({
+          ...productoValido,
+          titulo: 'Producto Detalle Test',
+          descripcion: 'Descripción completa de prueba',
+          categoria_id: categoriaId,
+          imagen_url: 'https://ejemplo.com/img.png',
+        });
+      const id = alta.body.id as string;
+
+      const res = await ctx.request
+        .get(`/api/v1/admin/products/${id}`)
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.id).toBe(id);
+      expect(res.body.titulo).toBe('Producto Detalle Test');
+      expect(res.body.descripcion).toBe('Descripción completa de prueba');
+      expect(res.body.categoria_id).toBe(categoriaId);
+      expect(res.body.imagen_url).toBe('https://ejemplo.com/img.png');
+      expect(res.body.marca_propia).toBe(true);
+      expect(res.body.activo).toBe(true);
+    });
+
+    it('producto inexistente responde 404', async () => {
+      const res = await ctx.request
+        .get('/api/v1/admin/products/dddddddd-dddd-4ddd-8ddd-dddddddddddd')
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      expect(res.status).toBe(404);
+    });
+
+    it('sin rol admin responde 403', async () => {
+      const alta = await ctx.request
+        .post('/api/v1/admin/products')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send(productoValido);
+
+      const res = await ctx.request
+        .get(`/api/v1/admin/products/${alta.body.id}`)
+        .set('Cookie', `acalud_sesion=${docenteToken}`);
+      expect(res.status).toBe(403);
+    });
+  });
+
   describe('Edición de producto (A1)', () => {
     it('edita un producto existente', async () => {
       const alta = await ctx.request

@@ -94,6 +94,18 @@ export class AdminCatalogoController {
     };
   }
 
+  // CU-19 A1: detalle completo, para precargar el formulario de edición (F2 del frontend).
+  @Get(':product_id')
+  async detalle(@Param('product_id') productId: string) {
+    try {
+      if (!UUID_RE.test(productId)) throw new ProductoAdminNoEncontrado();
+      const producto = await this.listarProductos.detalle(productId);
+      return aRespuesta(producto);
+    } catch (error) {
+      mapearError(error);
+    }
+  }
+
   @Post()
   async crear(
     @Req() req: RequestAutenticada,

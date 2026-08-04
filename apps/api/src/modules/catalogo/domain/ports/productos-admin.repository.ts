@@ -31,6 +31,8 @@ export interface PaginaProductosAdmin {
 export interface ProductosAdminRepository {
   listar(filtro: FiltroProductosAdmin): Promise<PaginaProductosAdmin>;
   existeProducto(id: string): Promise<boolean>;
+  /** Detalle completo para precargar el formulario de edición (F2). null si no existe. */
+  buscarPorId(id: string): Promise<ProductoAdmin | null>;
   crear(datos: DatosProducto): Promise<ProductoAdmin>;
   /** null si el `id` no corresponde a ningún producto (A1). */
   actualizar(id: string, datos: DatosProducto): Promise<ProductoAdmin | null>;

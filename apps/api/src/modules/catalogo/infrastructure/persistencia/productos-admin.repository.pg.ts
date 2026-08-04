@@ -57,6 +57,11 @@ export class ProductosAdminRepositoryPg implements ProductosAdminRepository {
     return r.rowCount !== null && r.rowCount > 0;
   }
 
+  async buscarPorId(id: string): Promise<ProductoAdmin | null> {
+    const r = await this.client.query<FilaProducto>('SELECT * FROM products WHERE id = $1', [id]);
+    return r.rows[0] ? aProductoAdmin(r.rows[0]) : null;
+  }
+
   // p4: incluye inactivos (a diferencia del catálogo público) — el admin necesita verlos para
   // poder reactivarlos vía edición.
   async listar(filtro: FiltroProductosAdmin): Promise<PaginaProductosAdmin> {
