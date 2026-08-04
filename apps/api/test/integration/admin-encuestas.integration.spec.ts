@@ -251,6 +251,7 @@ describe('CU-20 · ABM de Encuestas (admin)', () => {
       expect(res.status).toBe(200);
       expect(res.body.some((e: { pregunta: string }) => e.pregunta === encuestaValida.pregunta)).toBe(true);
       expect(res.body[0]).toHaveProperty('total_votos');
+      expect(res.body[0]).toHaveProperty('nivel_educativo_id');
     });
   });
 

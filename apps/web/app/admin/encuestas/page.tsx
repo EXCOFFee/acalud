@@ -214,6 +214,15 @@ export default function AdminEncuestasPage() {
       encabezado: 'Estado',
       render: (e) => <Insignia variante={ESTADO[e.estado]!.variante}>{ESTADO[e.estado]!.etiqueta}</Insignia>,
     },
+    {
+      clave: 'nivel',
+      encabezado: 'Nivel',
+      render: (e) => {
+        if (!e.nivel_educativo_id) return <span style={{ color: 'var(--color-text-muted, #888)' }}>Todos</span>;
+        const nivel = niveles.find((n) => n.id === e.nivel_educativo_id);
+        return nivel ? nivel.nombre : '—';
+      },
+    },
     { clave: 'votos', encabezado: 'Votos', alinear: 'derecha', render: (e) => e.total_votos },
     { clave: 'creada', encabezado: 'Creada', render: (e) => fechaCorta(e.creada_en) },
     {

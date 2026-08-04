@@ -78,6 +78,7 @@ export class AdminEncuestasController {
       id: e.id,
       pregunta: e.question,
       estado: e.status,
+      nivel_educativo_id: e.targetLevelId,
       creada_en: e.createdAt,
       total_votos: e.totalVotes,
     }));

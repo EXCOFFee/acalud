@@ -27,6 +27,7 @@ export interface EncuestaAdminResumen {
   id: string;
   question: string;
   status: EstadoEncuesta;
+  targetLevelId: string | null;
   createdAt: Date;
   totalVotes: number;
 }

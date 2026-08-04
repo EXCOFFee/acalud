@@ -44,10 +44,11 @@ export class EncuestasAdminRepositoryPg implements EncuestasAdminRepository {
       id: string;
       question: string;
       status: EstadoEncuesta;
+      target_level_id: string | null;
       created_at: Date;
       total_votes: number;
     }>(
-      `SELECT p.id, p.question, p.status, p.created_at,
+      `SELECT p.id, p.question, p.status, p.target_level_id, p.created_at,
               (SELECT count(*)::int FROM poll_responses r WHERE r.poll_id = p.id) AS total_votes
          FROM polls p
         ORDER BY p.created_at DESC`,
@@ -56,6 +57,7 @@ export class EncuestasAdminRepositoryPg implements EncuestasAdminRepository {
       id: f.id,
       question: f.question,
       status: f.status,
+      targetLevelId: f.target_level_id,
       createdAt: f.created_at,
       totalVotes: f.total_votes,
     }));

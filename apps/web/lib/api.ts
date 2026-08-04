@@ -841,6 +841,7 @@ export interface EncuestaAdminResumen {
   id: string;
   pregunta: string;
   estado: EstadoEncuestaAdmin;
+  nivel_educativo_id: string | null;
   creada_en: string;
   total_votos: number;
 }
