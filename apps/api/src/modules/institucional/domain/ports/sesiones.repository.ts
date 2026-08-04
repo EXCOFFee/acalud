@@ -144,6 +144,18 @@ export interface DetalleReporteDocente {
   sesiones: SesionDelDocente[];
 }
 
+/** CU-32 paso 10.2: fila completa de la hoja "Sesiones" del Excel (y de la lista del PDF). */
+export interface SesionReporteCompleta {
+  fecha: Date;
+  nombreProducto: string;
+  nombreDocente: string;
+  grupo: string;
+  estudiantes: number;
+  duracionMinutos: number;
+  satisfaccion: number;
+  aprendizajes: string;
+}
+
 // ─── CU-33: Métricas del Dashboard Pedagógico ────────────────────────────────
 
 export interface MetricasDashboard {
@@ -201,8 +213,11 @@ export interface SesionesRepository {
     filtro: FiltroReporte,
   ): Promise<DetalleReporteDocente | null>;
 
-  /** CU-32: Conteo de filas para validar PI-04 (tope de 5000). */
-  contarFilasReporte(institucionId: string, corte: 'juego' | 'docente', filtro: FiltroReporte): Promise<number>;
+  /** CU-32 paso 10.2: listado completo de sesiones individuales, mismo filtro que el reporte. */
+  listarSesionesReporte(institucionId: string, filtro: FiltroReporte): Promise<SesionReporteCompleta[]>;
+
+  /** CU-32 PI-04: conteo de sesiones individuales para validar el tope (5000) antes de exportar. */
+  contarSesionesReporte(institucionId: string, filtro: FiltroReporte): Promise<number>;
 
   /** CU-33: Métricas del dashboard pedagógico con variaciones vs. periodo anterior. */
   metricasDashboard(institucionId: string, desde: Date, hasta: Date): Promise<MetricasDashboard>;

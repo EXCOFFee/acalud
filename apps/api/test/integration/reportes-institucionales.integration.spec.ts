@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import ExcelJS from 'exceljs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CtxApp, levantarApp } from './helpers/app';
 
 // CU-31 · Ver reporte de uso institucional (KPIs, serie temporal, nube de palabras).
+// CU-32 · Exportar reporte (Excel).
 const PW = 'correcta-bateria-caballo-grapa';
 
 let ctx: CtxApp;
@@ -105,6 +107,19 @@ const verDetalleDocente = (token: string, institucionId: string, docenteId: stri
   ctx.request
     .get(`/api/v1/instituciones/${institucionId}/reportes/uso/docente/${docenteId}${qs}`)
     .set(bearer(token));
+
+// El xlsx no tiene parser registrado en superagent: hay que pedirle explícitamente que
+// bufferee la respuesta binaria completa en `res.body` (Buffer) en vez de descartarla.
+const exportarReporte = (token: string, institucionId: string, qs = '') =>
+  ctx.request
+    .get(`/api/v1/instituciones/${institucionId}/reportes/uso/exportar${qs}`)
+    .set(bearer(token))
+    .buffer(true)
+    .parse((res, cb) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => cb(null, Buffer.concat(chunks)));
+    });
 
 async function encargadoTeacherIdDe(usuarioId: string): Promise<string> {
   const r = await ctx.pg.query<{ id: string }>(`SELECT id FROM institutional_teachers WHERE user_id = $1`, [
@@ -349,5 +364,68 @@ describe('CU-31 A8/A9 · Detalle de juego y de docente dentro del reporte', () =
       [juegoA, juegoB].sort(),
     );
     expect(r.body.sesiones).toHaveLength(2);
+  });
+});
+
+describe('CU-32 · Exportar reporte a Excel', () => {
+  it('401 sin sesión, 404 si no es encargado, 404 si no hay datos (A2)', async () => {
+    const encargado = await docente('Directora Export');
+    const institucionId = await institucionDe(encargado.token);
+
+    const sinToken = await ctx.request.get(`/api/v1/instituciones/${institucionId}/reportes/uso/exportar`);
+    expect(sinToken.status).toBe(401);
+
+    const otro = await docente('Docente Ajeno Export');
+    expect((await exportarReporte(otro.token, institucionId)).status).toBe(404);
+
+    // Institución sin sesiones: A2, "sin datos para exportar".
+    expect((await exportarReporte(encargado.token, institucionId)).status).toBe(404);
+  });
+
+  it('genera un .xlsx con las 5 hojas (Resumen, Sesiones, Docentes, Juegos, Aprendizajes)', async () => {
+    const encargado = await docente('Director Export Con Datos');
+    const institucionId = await institucionDe(encargado.token);
+    const encargadoTeacherId = await encargadoTeacherIdDe(encargado.id);
+
+    const juego = await producto('Juego Exportable');
+    await inventario(institucionId, juego, 10);
+    const profe = await docenteVinculado(institucionId, 'Nora Profesora');
+    await asignarLicencia(institucionId, juego, profe.teacherId, encargadoTeacherId);
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    await cargarSesion(profe.token, {
+      producto_id: juego,
+      fecha_uso: hoy,
+      grupo: '1°A',
+      cantidad_estudiantes: 24,
+      duracion_minutos: 40,
+      satisfaccion_docente: 4,
+      aprendizajes_clave: 'Coordinación motriz y trabajo colaborativo en el aula.',
+      reutilizaria: true,
+    });
+
+    const r = await exportarReporte(encargado.token, institucionId);
+    expect(r.status).toBe(200);
+    expect(r.headers['content-type']).toBe(
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    expect(r.headers['content-disposition']).toMatch(/^attachment; filename="Reporte_Institucional_.+\.xlsx"$/);
+
+    const libro = new ExcelJS.Workbook();
+    await libro.xlsx.load(r.body as Buffer);
+    const nombresHojas = libro.worksheets.map((h) => h.name);
+    expect(nombresHojas).toEqual(['Resumen', 'Sesiones', 'Docentes', 'Juegos', 'Aprendizajes']);
+
+    const sesionesHoja = libro.getWorksheet('Sesiones')!;
+    expect(sesionesHoja.rowCount).toBe(2); // encabezado + 1 sesión
+    expect(sesionesHoja.getRow(2).getCell(2).value).toBe('Juego Exportable'); // columna "Juego"
+
+    const juegosHoja = libro.getWorksheet('Juegos')!;
+    expect(juegosHoja.getRow(2).getCell(1).value).toBe('Juego Exportable');
+
+    const aprendizajesHoja = libro.getWorksheet('Aprendizajes')!;
+    const palabras = [];
+    for (let i = 2; i <= aprendizajesHoja.rowCount; i++) palabras.push(aprendizajesHoja.getRow(i).getCell(1).value);
+    expect(palabras).toContain('coordinacion');
   });
 });

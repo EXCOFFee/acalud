@@ -20,6 +20,7 @@ import type {
   SesionDelDocente,
   SesionDelJuego,
   SesionesRepository,
+  SesionReporteCompleta,
 } from '../../domain/ports/sesiones.repository';
 
 /** CU-31 RN-006: cantidad de términos que se devuelven en la nube de palabras de un detalle. */
@@ -489,16 +490,47 @@ export class SesionesRepositoryPg implements SesionesRepository {
   }
 
   /** CU-32 PI-04: cuenta rápida para validar tope antes de exportar. */
-  async contarFilasReporte(
-    institucionId: string,
-    corte: 'juego' | 'docente',
-    filtro: FiltroReporte,
-  ): Promise<number> {
+  /** CU-32 paso 10.2: listado completo de sesiones individuales para la hoja "Sesiones"/PDF. */
+  async listarSesionesReporte(institucionId: string, filtro: FiltroReporte): Promise<SesionReporteCompleta[]> {
     const { where, params } = this.construirFiltroReporte(institucionId, filtro);
-    const groupBy = corte === 'juego' ? 'gs.product_id' : 'gs.institutional_teacher_id';
 
+    const r = await this.client.query<{
+      session_date: Date;
+      product_name: string;
+      full_name: string;
+      group_name: string;
+      student_count: number;
+      duration_minutes: number;
+      teacher_satisfaction: number;
+      key_learnings: string;
+    }>(
+      `SELECT gs.session_date, p.name AS product_name, u.full_name, gs.group_name,
+              gs.student_count, gs.duration_minutes, gs.teacher_satisfaction, gs.key_learnings
+         FROM game_sessions gs
+         JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+         JOIN products p ON p.id = gs.product_id
+         JOIN users u ON u.id = it.user_id
+        ${where}
+        ORDER BY gs.session_date DESC`,
+      params,
+    );
+    return r.rows.map((f) => ({
+      fecha: f.session_date,
+      nombreProducto: f.product_name,
+      nombreDocente: f.full_name,
+      grupo: f.group_name,
+      estudiantes: f.student_count,
+      duracionMinutos: f.duration_minutes,
+      satisfaccion: f.teacher_satisfaction,
+      aprendizajes: f.key_learnings,
+    }));
+  }
+
+  /** CU-32 PI-04: conteo de sesiones individuales para validar el tope (5000) antes de exportar. */
+  async contarSesionesReporte(institucionId: string, filtro: FiltroReporte): Promise<number> {
+    const { where, params } = this.construirFiltroReporte(institucionId, filtro);
     const r = await this.client.query<{ total: number }>(
-      `SELECT COUNT(DISTINCT ${groupBy})::int AS total
+      `SELECT COUNT(*)::int AS total
          FROM game_sessions gs
          JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
         ${where}`,

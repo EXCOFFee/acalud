@@ -45,6 +45,8 @@ export interface InstitucionRepository {
    * está vinculado a ninguna.
    */
   buscarPropia(usuarioId: string): Promise<MembresiaPropia | null>;
+  /** CU-32 paso 12: nombre de la institución para el encabezado/nombre del archivo exportado. */
+  buscarNombre(institucionId: string): Promise<string | null>;
 }
 
 /** Auditoría propia del BC (RNF-011). Cada contexto declara la suya: ADR-002. */

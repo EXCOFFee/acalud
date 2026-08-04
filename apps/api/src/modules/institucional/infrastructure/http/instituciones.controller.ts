@@ -39,6 +39,7 @@ import { type ReporteInstitucional, VerReporteInstitucional } from '../../applic
 import { type DetalleReporteJuegoDTO, VerDetalleReporteJuego } from '../../application/ver-detalle-reporte-juego';
 import { type DetalleReporteDocenteDTO, VerDetalleReporteDocente } from '../../application/ver-detalle-reporte-docente';
 import {
+  ArchivoExcedeTamano,
   AsignacionNoEncontrada,
   CantidadRevocacionInvalida,
   CuitDuplicado,
@@ -50,6 +51,7 @@ import {
   LicenciasInsuficientes,
   NivelEducativoInvalido,
   ProductoNoEnInventario,
+  SinDatosParaExportar,
   SinPermisosDeEncargado,
   UsuarioYaVinculado,
 } from '../../domain/errores';
@@ -103,9 +105,14 @@ function mapearError(error: unknown): never {
     error instanceof ProductoNoEnInventario ||
     error instanceof SinPermisosDeEncargado ||
     error instanceof AsignacionNoEncontrada ||
-    error instanceof DocenteNoEncontrado
+    error instanceof DocenteNoEncontrado ||
+    error instanceof SinDatosParaExportar
   ) {
     throw new HttpException({ title: 'No encontrado', detail: error.message }, 404);
+  }
+  // CU-32 RNF-002/A3: el archivo generado (PDF/Excel) supera el tamaño máximo permitido.
+  if (error instanceof ArchivoExcedeTamano) {
+    throw new HttpException({ title: 'Archivo demasiado grande', detail: error.message }, 413);
   }
   throw error;
 }
@@ -402,17 +409,12 @@ export class InstitucionesController {
       throw new HttpException({ title: 'No encontrado', detail: 'Recurso inexistente' }, 404);
     }
     try {
-      const result = await this.exportarReporte.ejecutar(
-        institucionId,
-        req.autenticado.id,
-        query.corte,
-        {
-          desde: query.desde,
-          hasta: query.hasta,
-          productoId: query.producto_id,
-          docenteId: query.docente_id,
-        },
-      );
+      const result = await this.exportarReporte.ejecutar(institucionId, req.autenticado.id, {
+        desde: query.desde,
+        hasta: query.hasta,
+        productoId: query.producto_id,
+        docenteId: query.docente_id,
+      });
 
       res
         .set('Content-Type', result.contentType)

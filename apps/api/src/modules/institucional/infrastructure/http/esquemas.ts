@@ -94,9 +94,11 @@ export const reporteQuerySchema = z.object({
 });
 export type ReporteQuery = z.infer<typeof reporteQuerySchema>;
 
-/** CU-32: Query de GET /instituciones/:id/reportes/uso/exportar. Hereda filtros de CU-31. */
+/**
+ * CU-32: Query de GET /instituciones/:id/reportes/uso/exportar. Hereda los filtros de fecha/
+ * juego/docente de CU-31 — `corte` no aplica: el export siempre incluye juegos y docentes.
+ */
 export const exportarQuerySchema = z.object({
-  corte: z.enum(['juego', 'docente']).default('juego'),
   desde: z.coerce.date().optional(),
   hasta: z.coerce.date().optional(),
   producto_id: z.string().uuid().optional(),

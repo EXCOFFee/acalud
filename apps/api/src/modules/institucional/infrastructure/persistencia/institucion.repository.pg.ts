@@ -39,6 +39,15 @@ export class InstitucionRepositoryPg implements InstitucionRepository {
     return fila ? { institucionId: fila.institution_id, esEncargado: fila.is_admin } : null;
   }
 
+  /** CU-32 paso 12: nombre de la institución para el encabezado/nombre del archivo exportado. */
+  async buscarNombre(institucionId: string): Promise<string | null> {
+    const r = await this.client.query<{ legal_name: string }>(
+      `SELECT legal_name FROM institutions WHERE id = $1`,
+      [institucionId],
+    );
+    return r.rows[0]?.legal_name ?? null;
+  }
+
   async buscarNivelPorNombre(nombre: string): Promise<string | null> {
     const r = await this.client.query<{ id: string }>(
       `SELECT id FROM levels WHERE lower(name) = lower($1)`,

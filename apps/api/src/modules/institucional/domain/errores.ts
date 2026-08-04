@@ -135,3 +135,21 @@ export class ExportExcedeLimite extends ErrorDeDominio {
     );
   }
 }
+
+/** CU-32 RNF-002/A3: el archivo generado (PDF o Excel) supera los 10 MB. → 413. */
+export class ArchivoExcedeTamano extends ErrorDeDominio {
+  readonly clase = 'VALIDATION' as const;
+  constructor() {
+    super(
+      'El archivo generado es demasiado grande. Acotá el rango de fechas o seleccioná menos datos',
+    );
+  }
+}
+
+/** CU-32 A2: no hay sesiones que coincidan con los filtros aplicados. → 404. */
+export class SinDatosParaExportar extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('No hay datos para exportar con los filtros seleccionados. Ajustá los filtros e intentá nuevamente');
+  }
+}
