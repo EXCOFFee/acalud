@@ -9,7 +9,9 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoNotas,
   Paginacion,
+  PipsDado,
   Selector,
   Tabla,
   type ColumnaTabla,
@@ -27,8 +29,13 @@ import {
 
 const TAMANIO_PAGINA = 20;
 
-function estrellas(n: number): string {
-  return `${'★'.repeat(n)}${'☆'.repeat(5 - n)} (${n}/5)`;
+function estrellas(n: number) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+      <PipsDado valor={n} size={18} />
+      <span style={{ color: 'var(--tinta-suave)', fontSize: '0.85rem' }}>({n}/5)</span>
+    </span>
+  );
 }
 
 export default function MisSesionesPage() {
@@ -137,7 +144,7 @@ export default function MisSesionesPage() {
 
         {estado === 'ok' && resultado && resultado.totalItems === 0 && !productoId ? (
           <EstadoVacio
-            icono="📝"
+            icono={<IconoNotas size={40} />}
             titulo="Aún no has registrado sesiones de juego"
             accion={
               <Boton variante="primario" href="/mis-juegos">

@@ -9,6 +9,8 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoCarrito,
+  IconoPaquete,
   Insignia,
   Paginacion,
   Selector,
@@ -220,7 +222,7 @@ export default function PedidosPage() {
 
         {estado === 'ok' && resultado && resultado.items.length === 0 ? (
           <EstadoVacio
-            icono="🛒"
+            icono={<IconoCarrito size={40} />}
             titulo="Aún no hiciste ninguna compra"
             accion={
               <Boton variante="primario" href="/catalogo">
@@ -315,7 +317,7 @@ export default function PedidosPage() {
                       Código de seguimiento: <strong>{detalle.tracking_code}</strong>
                     </p>
                     <Boton variante="primario" onClick={verSeguimiento}>
-                      📦 Seguir pedido
+                      <IconoPaquete size={18} /> Seguir pedido
                     </Boton>
                   </div>
                 ) : tieneTrackingVisible(detalle.estado) ? (

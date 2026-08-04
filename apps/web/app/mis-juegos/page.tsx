@@ -10,6 +10,8 @@ import {
   EstadoCarga,
   EstadoError,
   EstadoVacio,
+  IconoDado,
+  PipsDado,
   Tabla,
   useToast,
   type ColumnaTabla,
@@ -177,7 +179,7 @@ export default function MisJuegosPage() {
         ) : null}
 
         {estado === 'ok' && juegos && juegos.length === 0 ? (
-          <EstadoVacio icono="🎲" titulo="Aún no tenés juegos asignados por tu institución">
+          <EstadoVacio icono={<IconoDado size={40} />} titulo="Aún no tenés juegos asignados por tu institución">
             Contactá a tu encargado institucional para solicitar licencias.
           </EstadoVacio>
         ) : null}
@@ -239,7 +241,7 @@ export default function MisJuegosPage() {
                     checked={form.satisfaccion_docente === String(n)}
                     onChange={() => setForm((f) => ({ ...f, satisfaccion_docente: String(n) }))}
                   />
-                  {'★'.repeat(n)} <span style={{ color: 'var(--tinta-suave)' }}>({n})</span>
+                  <PipsDado valor={n} size={20} /> <span style={{ color: 'var(--tinta-suave)' }}>({n})</span>
                 </label>
               ))}
             </div>

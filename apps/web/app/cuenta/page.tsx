@@ -3,7 +3,18 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Alerta, Boton, Campo, Dialogo } from '@/components/ui';
+import {
+  Alerta,
+  Boton,
+  Campo,
+  Dialogo,
+  IconoAjustes,
+  IconoDado,
+  IconoEscuela,
+  IconoFavorito,
+  IconoNotas,
+  IconoPaquete,
+} from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
 import { api, ApiError, type PerfilPropio } from '@/lib/api';
 import { NIVELES_EDUCATIVOS } from '@/lib/institucion';
@@ -130,23 +141,23 @@ export default function CuentaPage() {
             {cambioMensaje ? <Alerta tipo="ok">{cambioMensaje}</Alerta> : null}
             <p style={{ margin: '0 0 1.2rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Link className="boton boton--fantasma" href="/cuenta/pedidos">
-                📦 Ver mis pedidos
+                <IconoPaquete size={18} /> Ver mis pedidos
               </Link>
               <Link className="boton boton--fantasma" href="/cuenta/favoritos">
-                ☆ Mis favoritos
+                <IconoFavorito size={18} /> Mis favoritos
               </Link>
               <Link className="boton boton--fantasma" href="/institucion">
-                🏫 Mi institución
+                <IconoEscuela size={18} /> Mi institución
               </Link>
               <Link className="boton boton--fantasma" href="/mis-juegos">
-                🎲 Mis juegos asignados
+                <IconoDado size={18} /> Mis juegos asignados
               </Link>
               <Link className="boton boton--fantasma" href="/mis-sesiones">
-                📝 Mis sesiones
+                <IconoNotas size={18} /> Mis sesiones
               </Link>
               {perfil.es_admin ? (
                 <Link className="boton boton--fantasma" href="/admin">
-                  🛠️ Panel de administración
+                  <IconoAjustes size={18} /> Panel de administración
                 </Link>
               ) : null}
             </p>

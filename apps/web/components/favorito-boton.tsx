@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useToast } from '@/components/ui';
+import { IconoFavorito, useToast } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 
 type TipoFavoritable = 'producto' | 'recurso' | 'editorial';
@@ -68,7 +68,7 @@ export function BotonFavorito({ tipo, itemId, favoritoId, onCambio }: BotonFavor
       aria-label={favoritoId !== null ? 'Quitar de favoritos' : 'Guardar en favoritos'}
       title={favoritoId !== null ? 'Quitar de favoritos' : 'Guardar en favoritos'}
     >
-      {favoritoId !== null ? '★' : '☆'}
+      <IconoFavorito relleno={favoritoId !== null} size={19} />
     </button>
   );
 }

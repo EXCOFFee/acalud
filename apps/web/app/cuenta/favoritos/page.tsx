@@ -3,7 +3,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Boton, EstadoCarga, EstadoError, EstadoVacio, Insignia, Tabla, type ColumnaTabla } from '@/components/ui';
+import {
+  Boton,
+  EstadoCarga,
+  EstadoError,
+  EstadoVacio,
+  IconoFavorito,
+  Insignia,
+  Tabla,
+  type ColumnaTabla,
+} from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
 import { api, ApiError, type FavoritoResumen, type TipoFavorito } from '@/lib/api';
 
@@ -97,7 +106,7 @@ export default function FavoritosPage() {
         ) : null}
         {estado === 'ok' && favoritos.length === 0 ? (
           <EstadoVacio
-            icono="☆"
+            icono={<IconoFavorito size={40} />}
             titulo="Todavía no guardaste favoritos"
             accion={
               <Boton variante="primario" href="/catalogo">
