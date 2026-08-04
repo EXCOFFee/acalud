@@ -497,6 +497,7 @@ export interface FilaReporteJuego {
   minutos_totales: number;
   ultima_sesion: string | null;
   satisfaccion_promedio: number;
+  tasa_reutilizacion: number;
 }
 
 export interface FilaReporteDocente {
@@ -507,6 +508,7 @@ export interface FilaReporteDocente {
   alumnos_alcanzados: number;
   minutos_totales: number;
   satisfaccion_promedio: number;
+  tasa_reutilizacion: number;
 }
 
 export interface KpisReporte {
@@ -588,31 +590,47 @@ export interface DetalleReporteDocente {
   sesiones: SesionDelDocente[];
 }
 
-// CU-33: dashboard pedagógico — 4 KPIs con variación % vs período anterior, serie semanal y
-// top 5 juegos/docentes. Solo admite filtro por rango de fechas (a diferencia de lo que pide
-// el CU: juego/docente/nivel educativo quedaron pendientes, ver docs/claude/05-pendientes-post-frontend.md).
+// CU-33: dashboard pedagógico — KPIs con variación % vs período anterior, distribución de
+// satisfacción, estacionalidad por día de semana, top 5 juegos/docentes (reusa las mismas filas
+// de CU-31), nube de palabras y dificultades frecuentes. Filtros: fecha + juego + docente
+// (nivel educativo queda afuera, no existe esa columna en game_sessions).
 export interface KPIDashboard {
   valor: number;
   variacion_porcentual: number | null;
 }
 
+export interface ItemDistribucionDiaSemana {
+  dia_semana: number; // 1=lunes … 7=domingo (ISO)
+  sesiones: number;
+}
+
 export interface DashboardPedagogico {
   institucion_id: string;
   rango: { desde: string; hasta: string };
+  filtros: { producto_id?: string; docente_id?: string };
   kpis: {
     sesiones: KPIDashboard;
     docentes_activos: KPIDashboard;
     alumnos_alcanzados: KPIDashboard;
     minutos_de_juego: KPIDashboard;
+    satisfaccion_promedio: KPIDashboard;
+    tasa_reutilizacion: KPIDashboard;
   };
   serie_semanal: { semana: string; sesiones: number }[];
-  top_juegos: { producto_id: string; nombre: string; sesiones: number }[];
-  top_docentes: { docente_id: string; nombre: string; sesiones: number }[];
+  serie_mensual: { periodo: string; sesiones: number; satisfaccion_promedio: number }[];
+  distribucion_satisfaccion: ItemDistribucionSatisfaccion[];
+  distribucion_dia_semana: ItemDistribucionDiaSemana[];
+  top_juegos: FilaReporteJuego[];
+  top_docentes: FilaReporteDocente[];
+  nube_palabras: PalabraFrecuente[];
+  dificultades_frecuentes: PalabraFrecuente[];
 }
 
 export interface FiltroDashboard {
   desde?: string | undefined;
   hasta?: string | undefined;
+  producto_id?: string | undefined;
+  docente_id?: string | undefined;
 }
 
 function armarQueryReporte(filtro: FiltroReporte): string {
@@ -622,6 +640,15 @@ function armarQueryReporte(filtro: FiltroReporte): string {
   if (filtro.hasta) qs.set('hasta', filtro.hasta);
   if (filtro.producto_id) qs.set('producto_id', filtro.producto_id);
   if (filtro.docente_id) qs.set('docente_id', filtro.docente_id);
+  return qs.toString();
+}
+
+function armarQueryDashboard(filtro: FiltroDashboard | undefined): string {
+  const qs = new URLSearchParams();
+  if (filtro?.desde) qs.set('desde', filtro.desde);
+  if (filtro?.hasta) qs.set('hasta', filtro.hasta);
+  if (filtro?.producto_id) qs.set('producto_id', filtro.producto_id);
+  if (filtro?.docente_id) qs.set('docente_id', filtro.docente_id);
   return qs.toString();
 }
 
@@ -1057,11 +1084,45 @@ export const api = {
   },
   // CU-33: sin filtro, el backend usa los últimos 30 días por defecto.
   verDashboard: (institucionId: string, filtro?: FiltroDashboard) => {
-    const qs = new URLSearchParams();
-    if (filtro?.desde) qs.set('desde', filtro.desde);
-    if (filtro?.hasta) qs.set('hasta', filtro.hasta);
-    const cola = qs.toString() ? `?${qs.toString()}` : '';
-    return pedir<DashboardPedagogico>('GET', `/instituciones/${institucionId}/dashboard${cola}`);
+    const cola = armarQueryDashboard(filtro);
+    return pedir<DashboardPedagogico>('GET', `/instituciones/${institucionId}/dashboard${cola ? `?${cola}` : ''}`);
+  },
+  // CU-33 A9: descarga el Excel/PDF del dashboard — mismo patrón que exportarReporte (CU-32).
+  exportarDashboard: async (
+    institucionId: string,
+    filtro: FiltroDashboard | undefined,
+    formato: 'excel' | 'pdf',
+  ): Promise<void> => {
+    const headers: Record<string, string> = {};
+    const token = tokenActual();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const cola = armarQueryDashboard(filtro);
+    const res = await fetch(
+      `${BASE}/api/v1/instituciones/${institucionId}/dashboard/exportar?${cola ? `${cola}&` : ''}formato=${formato}`,
+      { method: 'GET', credentials: 'include', headers },
+    );
+    if (!res.ok) {
+      let problema: ProblemDetails = {};
+      try {
+        problema = (await res.json()) as ProblemDetails;
+      } catch {
+        /* respuesta sin cuerpo */
+      }
+      throw new ApiError(res.status, problema);
+    }
+    const disposicion = res.headers.get('Content-Disposition') ?? '';
+    const nombreArchivo =
+      /filename="([^"]+)"/.exec(disposicion)?.[1] ?? `dashboard.${formato === 'pdf' ? 'pdf' : 'xlsx'}`;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   },
   // CU-16: listado público de encuestas (sin sesión).
   listarEncuestas: (status?: EstadoEncuesta) =>

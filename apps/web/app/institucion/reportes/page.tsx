@@ -17,6 +17,8 @@ import {
   type ColumnaTabla,
 } from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
+import { BarraHorizontal, GraficoEvolucion, NubeDePalabras } from '@/components/graficos';
+import { type FormatoExportacion, ModalExportar } from '@/components/modal-exportar';
 import { fechaCorta } from '@/lib/pedidos';
 import {
   api,
@@ -26,120 +28,12 @@ import {
   type DocenteInstitucion,
   type FilaReporteDocente,
   type FilaReporteJuego,
-  type FilaSerieTemporalReporte,
   type FiltroReporte,
   type ItemInventarioInstitucional,
-  type PalabraFrecuente,
   type ReporteInstitucional,
   type SesionDelDocente,
   type SesionDelJuego,
 } from '@/lib/api';
-
-function BarraHorizontal({
-  etiqueta,
-  valor,
-  maximo,
-  sufijo = '',
-  onClick,
-}: {
-  etiqueta: string;
-  valor: number;
-  maximo: number;
-  sufijo?: string;
-  onClick?: () => void;
-}) {
-  const porcentaje = maximo > 0 ? Math.max(4, Math.round((valor / maximo) * 100)) : 0;
-  const barra = (
-    <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.2rem' }}>
-        <span>{etiqueta}</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-          {valor}
-          {sufijo}
-        </span>
-      </div>
-      <div style={{ background: 'var(--superficie-2)', borderRadius: '999px', height: '0.6rem', overflow: 'hidden' }}>
-        <div style={{ width: `${porcentaje}%`, height: '100%', background: 'var(--marca)', borderRadius: '999px' }} />
-      </div>
-    </>
-  );
-  return (
-    <li style={{ listStyle: 'none' }}>
-      {onClick ? (
-        <button
-          type="button"
-          onClick={onClick}
-          style={{
-            all: 'unset',
-            display: 'block',
-            width: '100%',
-            cursor: 'pointer',
-            minHeight: '2.75rem',
-          }}
-          aria-label={`Ver detalle de ${etiqueta}`}
-        >
-          {barra}
-        </button>
-      ) : (
-        barra
-      )}
-    </li>
-  );
-}
-
-/** Línea de evolución temporal — SVG nativo, sin librería de gráficos (mismo criterio que el resto del proyecto). */
-function GraficoEvolucion({ serie }: { serie: FilaSerieTemporalReporte[] }) {
-  const alto = 100;
-  const ancho = 480;
-  const maximo = Math.max(1, ...serie.map((s) => s.sesiones));
-  const pasoX = serie.length > 1 ? ancho / (serie.length - 1) : 0;
-  const puntos = serie.map((s, i) => ({
-    x: i * pasoX,
-    y: alto - (s.sesiones / maximo) * (alto - 16),
-  }));
-  const polyline = puntos.map((p) => `${p.x},${p.y}`).join(' ');
-  const descripcion = serie.map((s) => `${s.periodo}: ${s.sesiones} sesiones`).join(', ');
-
-  return (
-    <svg
-      viewBox={`0 0 ${ancho} ${alto + 20}`}
-      role="img"
-      aria-label={`Evolución de sesiones por mes: ${descripcion}`}
-      style={{ width: '100%', height: 'auto', maxWidth: `${ancho}px` }}
-    >
-      <polyline points={polyline} fill="none" stroke="var(--marca)" strokeWidth={2} />
-      {puntos.map((p, i) => (
-        <g key={serie[i]!.periodo}>
-          <circle cx={p.x} cy={p.y} r={3} fill="var(--marca)" />
-          <text x={p.x} y={alto + 14} fontSize={9} textAnchor="middle" fill="var(--tinta-suave)">
-            {serie[i]!.periodo.slice(5)}
-          </text>
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-/** Nube de palabras — lista con tamaño de fuente proporcional a la frecuencia (texto, accesible por default). */
-function NubeDePalabras({ palabras }: { palabras: PalabraFrecuente[] }) {
-  const frecuenciaMax = Math.max(1, ...palabras.map((p) => p.frecuencia));
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'baseline' }}>
-      {palabras.map((p) => {
-        const tamanio = 0.8 + (p.frecuencia / frecuenciaMax) * 1.1; // 0.8rem–1.9rem
-        return (
-          <span
-            key={p.palabra}
-            style={{ fontSize: `${tamanio}rem`, color: 'var(--marca)', fontWeight: 600 }}
-            title={`${p.frecuencia} mención${p.frecuencia === 1 ? '' : 'es'}`}
-          >
-            {p.palabra}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
 
 export default function ReporteInstitucionalPage() {
   const router = useRouter();
@@ -153,7 +47,6 @@ export default function ReporteInstitucionalPage() {
   const [exportando, setExportando] = useState(false);
   // CU-32 pasos 3-6: modal de exportación (formato + confirmación del rango).
   const [modalExportar, setModalExportar] = useState(false);
-  const [formatoExport, setFormatoExport] = useState<'excel' | 'pdf'>('excel');
   const [errorExport, setErrorExport] = useState<string | null>(null);
 
   // CU-31 A8/A9: detalle de un juego o de un docente, en un modal.
@@ -204,12 +97,12 @@ export default function ReporteInstitucionalPage() {
     };
   }, [institucionId, filtro, router]);
 
-  async function exportar(): Promise<void> {
+  async function exportar(formato: FormatoExportacion): Promise<void> {
     if (!institucionId) return;
     setErrorExport(null);
     setExportando(true);
     try {
-      await api.exportarReporte(institucionId, filtro, formatoExport);
+      await api.exportarReporte(institucionId, filtro, formato);
       notificar('¡Reporte exportado exitosamente!', 'ok');
       setModalExportar(false);
     } catch (err) {
@@ -522,7 +415,12 @@ export default function ReporteInstitucionalPage() {
                 {reporte.serie_temporal.length > 1 ? (
                   <div className="tarjeta" style={{ padding: '1.2rem', marginBottom: '1rem' }}>
                     <h2 style={{ fontSize: '1rem', margin: '0 0 0.8rem' }}>Evolución de sesiones por mes</h2>
-                    <GraficoEvolucion serie={reporte.serie_temporal} />
+                    <GraficoEvolucion
+                      puntos={reporte.serie_temporal.map((s) => ({ etiqueta: s.periodo, valor: s.sesiones }))}
+                      descripcion={`Evolución de sesiones por mes: ${reporte.serie_temporal
+                        .map((s) => `${s.periodo}: ${s.sesiones} sesiones`)
+                        .join(', ')}`}
+                    />
                   </div>
                 ) : null}
 
@@ -651,71 +549,17 @@ export default function ReporteInstitucionalPage() {
         ) : null}
       </Dialogo>
 
-      <Dialogo
+      <ModalExportar
         abierto={modalExportar}
         onCerrar={() => setModalExportar(false)}
+        onExportar={exportar}
+        cargando={exportando}
+        error={errorExport}
         titulo="Exportar reporte"
-        acciones={
-          <>
-            <Boton variante="fantasma" onClick={() => setModalExportar(false)} disabled={exportando}>
-              Cancelar
-            </Boton>
-            <Boton variante="primario" onClick={exportar} cargando={exportando}>
-              Exportar
-            </Boton>
-          </>
-        }
-      >
-        {errorExport ? <Alerta tipo="error">{errorExport}</Alerta> : null}
-
-        <div className="campo">
-          <span className="campo__label" id="formato-export-label">
-            Formato
-          </span>
-          <div role="group" aria-labelledby="formato-export-label" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label
-              className="tarjeta"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', padding: '0.7rem 1rem', cursor: 'pointer' }}
-            >
-              <input
-                type="radio"
-                name="formato_export"
-                checked={formatoExport === 'excel'}
-                onChange={() => setFormatoExport('excel')}
-              />
-              <span>
-                <strong>Excel</strong>
-                <br />
-                <span style={{ fontSize: '0.85rem', color: 'var(--tinta-suave)' }}>
-                  Tablas detalladas de sesiones, docentes y juegos
-                </span>
-              </span>
-            </label>
-            <label
-              className="tarjeta"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', padding: '0.7rem 1rem', cursor: 'pointer' }}
-            >
-              <input
-                type="radio"
-                name="formato_export"
-                checked={formatoExport === 'pdf'}
-                onChange={() => setFormatoExport('pdf')}
-              />
-              <span>
-                <strong>PDF</strong>
-                <br />
-                <span style={{ fontSize: '0.85rem', color: 'var(--tinta-suave)' }}>
-                  Presentación visual con gráficos y resumen
-                </span>
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <p style={{ margin: '0.8rem 0 0', fontSize: '0.85rem', color: 'var(--tinta-suave)' }}>
-          Período: {filtro.desde ?? 'sin definir'} a {filtro.hasta ?? 'hoy'}
-        </p>
-      </Dialogo>
+        descripcionExcel="Tablas detalladas de sesiones, docentes y juegos"
+        descripcionPdf="Presentación visual con gráficos y resumen"
+        periodoTexto={`Período: ${filtro.desde ?? 'sin definir'} a ${filtro.hasta ?? 'hoy'}`}
+      />
     </>
   );
 }
