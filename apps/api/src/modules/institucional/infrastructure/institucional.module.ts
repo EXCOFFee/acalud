@@ -9,6 +9,8 @@ import { VerDashboardPedagogico } from '../application/ver-dashboard-pedagogico'
 import { VerDocentesAsignados } from '../application/ver-docentes-asignados';
 import { VerInventario } from '../application/ver-inventario';
 import { VerReporteInstitucional } from '../application/ver-reporte-institucional';
+import { VerDetalleReporteJuego } from '../application/ver-detalle-reporte-juego';
+import { VerDetalleReporteDocente } from '../application/ver-detalle-reporte-docente';
 import { VerMiInstitucion } from '../application/ver-mi-institucion';
 import {
   UOW_INSTITUCIONAL,
@@ -77,6 +79,18 @@ import { VerMisJuegosAsignados } from '../application/ver-mis-juegos-asignados';
       provide: VerReporteInstitucional,
       useFactory: (uow: UnidadDeTrabajoInstitucional): VerReporteInstitucional =>
         new VerReporteInstitucional(uow),
+      inject: [UOW_INSTITUCIONAL],
+    },
+    {
+      provide: VerDetalleReporteJuego,
+      useFactory: (uow: UnidadDeTrabajoInstitucional): VerDetalleReporteJuego =>
+        new VerDetalleReporteJuego(uow),
+      inject: [UOW_INSTITUCIONAL],
+    },
+    {
+      provide: VerDetalleReporteDocente,
+      useFactory: (uow: UnidadDeTrabajoInstitucional): VerDetalleReporteDocente =>
+        new VerDetalleReporteDocente(uow),
       inject: [UOW_INSTITUCIONAL],
     },
     {

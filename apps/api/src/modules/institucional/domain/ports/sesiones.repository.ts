@@ -86,6 +86,64 @@ export interface KpisReporte {
   juegosEnUso: number;
 }
 
+// ─── CU-31 A8/A9: Detalle de un juego/docente dentro del reporte ──────────────
+
+export interface ItemDistribucionSatisfaccion {
+  estrellas: 1 | 2 | 3 | 4 | 5;
+  cantidad: number;
+}
+
+export interface ItemDistribucionJuego {
+  productoId: string;
+  nombreProducto: string;
+  sesiones: number;
+}
+
+/** CU-31 A8: sesión de un juego, vista desde el detalle (identifica al docente). */
+export interface SesionDelJuego {
+  fecha: Date;
+  docenteId: string;
+  nombreDocente: string;
+  grupo: string;
+  estudiantes: number;
+  duracionMinutos: number;
+  satisfaccion: number;
+}
+
+/** CU-31 A9: sesión de un docente, vista desde el detalle (identifica el juego). */
+export interface SesionDelDocente {
+  fecha: Date;
+  productoId: string;
+  nombreProducto: string;
+  grupo: string;
+  estudiantes: number;
+  duracionMinutos: number;
+  satisfaccion: number;
+}
+
+/** CU-31 A8: detalle de un juego dentro del reporte (respeta los filtros de fecha/docente). */
+export interface DetalleReporteJuego {
+  productoId: string;
+  nombreProducto: string;
+  totalSesiones: number;
+  alumnosAlcanzados: number;
+  satisfaccionPromedio: number;
+  distribucionSatisfaccion: ItemDistribucionSatisfaccion[];
+  sesiones: SesionDelJuego[];
+  nubePalabras: PalabraFrecuente[];
+}
+
+/** CU-31 A9: detalle de un docente dentro del reporte (respeta los filtros de fecha/juego). */
+export interface DetalleReporteDocente {
+  docenteId: string;
+  nombreDocente: string;
+  email: string;
+  totalSesiones: number;
+  alumnosAlcanzados: number;
+  distribucionJuegos: ItemDistribucionJuego[];
+  sesiones: SesionDelDocente[];
+}
+
 // ─── CU-33: Métricas del Dashboard Pedagógico ────────────────────────────────
 
 export interface MetricasDashboard {
@@ -132,6 +190,16 @@ export interface SesionesRepository {
 
   /** CU-31 RN-004: KPIs agregados del reporte, mismo filtro que el corte por juego/docente. */
   kpisReporte(institucionId: string, filtro: FiltroReporte): Promise<KpisReporte>;
+
+  /** CU-31 A8: detalle de un juego. null si no hay sesiones de ese producto en la institución. */
+  detalleJuego(institucionId: string, productoId: string, filtro: FiltroReporte): Promise<DetalleReporteJuego | null>;
+
+  /** CU-31 A9: detalle de un docente. null si no hay sesiones de ese docente en la institución. */
+  detalleDocente(
+    institucionId: string,
+    docenteId: string,
+    filtro: FiltroReporte,
+  ): Promise<DetalleReporteDocente | null>;
 
   /** CU-32: Conteo de filas para validar PI-04 (tope de 5000). */
   contarFilasReporte(institucionId: string, corte: 'juego' | 'docente', filtro: FiltroReporte): Promise<number>;

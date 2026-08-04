@@ -96,6 +96,16 @@ const cargarSesion = (token: string, body: Record<string, unknown>) =>
 const verReporte = (token: string, institucionId: string, qs = '') =>
   ctx.request.get(`/api/v1/instituciones/${institucionId}/reportes/uso${qs}`).set(bearer(token));
 
+const verDetalleJuego = (token: string, institucionId: string, productoId: string, qs = '') =>
+  ctx.request
+    .get(`/api/v1/instituciones/${institucionId}/reportes/uso/producto/${productoId}${qs}`)
+    .set(bearer(token));
+
+const verDetalleDocente = (token: string, institucionId: string, docenteId: string, qs = '') =>
+  ctx.request
+    .get(`/api/v1/instituciones/${institucionId}/reportes/uso/docente/${docenteId}${qs}`)
+    .set(bearer(token));
+
 async function encargadoTeacherIdDe(usuarioId: string): Promise<string> {
   const r = await ctx.pg.query<{ id: string }>(`SELECT id FROM institutional_teachers WHERE user_id = $1`, [
     usuarioId,
@@ -222,5 +232,122 @@ describe('CU-31 · Reporte de uso institucional', () => {
     // Filtro por fecha fuera de rango: sin resultados.
     const fueraDeRango = await verReporte(encargado.token, institucionId, '?desde=2000-01-01&hasta=2000-01-31');
     expect(fueraDeRango.body.kpis.total_sesiones).toBe(0);
+  });
+});
+
+describe('CU-31 A8/A9 · Detalle de juego y de docente dentro del reporte', () => {
+  it('401 sin sesión, 404 si no es encargado, 404 si el producto/docente no tiene sesiones', async () => {
+    const encargado = await docente('Directora Detalle');
+    const institucionId = await institucionDe(encargado.token);
+    const juego = await producto('Juego Sin Sesiones');
+    await inventario(institucionId, juego, 5);
+
+    const sinToken = await ctx.request.get(`/api/v1/instituciones/${institucionId}/reportes/uso/producto/${juego}`);
+    expect(sinToken.status).toBe(401);
+
+    const otro = await docente('Docente Ajeno Detalle');
+    expect((await verDetalleJuego(otro.token, institucionId, juego)).status).toBe(404);
+
+    // El juego existe en el inventario, pero nadie cargó sesiones todavía.
+    expect((await verDetalleJuego(encargado.token, institucionId, juego)).status).toBe(404);
+    expect((await verDetalleDocente(encargado.token, institucionId, encargado.id)).status).toBe(404);
+  });
+
+  it('devuelve distribución de satisfacción, sesiones y nube de palabras del juego', async () => {
+    const encargado = await docente('Director Detalle Juego');
+    const institucionId = await institucionDe(encargado.token);
+    const encargadoTeacherId = await encargadoTeacherIdDe(encargado.id);
+
+    const juego = await producto('Ajedrez Didáctico');
+    await inventario(institucionId, juego, 10);
+    const profe = await docenteVinculado(institucionId, 'Marta Profesora');
+    await asignarLicencia(institucionId, juego, profe.teacherId, encargadoTeacherId);
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    await cargarSesion(profe.token, {
+      producto_id: juego,
+      fecha_uso: hoy,
+      grupo: '3°A',
+      cantidad_estudiantes: 18,
+      duracion_minutos: 35,
+      satisfaccion_docente: 5,
+      aprendizajes_clave: 'Pensamiento estratégico y planificación a largo plazo.',
+      reutilizaria: true,
+    });
+    await cargarSesion(profe.token, {
+      producto_id: juego,
+      fecha_uso: hoy,
+      grupo: '3°B',
+      cantidad_estudiantes: 20,
+      duracion_minutos: 40,
+      satisfaccion_docente: 5,
+      aprendizajes_clave: 'Reforzaron el pensamiento estratégico durante toda la clase.',
+      reutilizaria: true,
+    });
+
+    const r = await verDetalleJuego(encargado.token, institucionId, juego);
+    expect(r.status).toBe(200);
+    expect(r.body.nombre_producto).toBe('Ajedrez Didáctico');
+    expect(r.body.total_sesiones).toBe(2);
+    expect(r.body.alumnos_alcanzados).toBe(38);
+    expect(r.body.satisfaccion_promedio).toBe(5);
+    expect(r.body.distribucion_satisfaccion).toEqual([
+      { estrellas: 1, cantidad: 0 },
+      { estrellas: 2, cantidad: 0 },
+      { estrellas: 3, cantidad: 0 },
+      { estrellas: 4, cantidad: 0 },
+      { estrellas: 5, cantidad: 2 },
+    ]);
+    expect(r.body.sesiones).toHaveLength(2);
+    expect(r.body.sesiones[0].nombre_docente).toBe('Marta Profesora');
+    const estrategico = r.body.nube_palabras.find((p: { palabra: string }) => p.palabra === 'estrategico');
+    expect(estrategico?.frecuencia).toBe(2);
+  });
+
+  it('devuelve distribución de juegos y sesiones del docente', async () => {
+    const encargado = await docente('Director Detalle Docente');
+    const institucionId = await institucionDe(encargado.token);
+    const encargadoTeacherId = await encargadoTeacherIdDe(encargado.id);
+
+    const juegoA = await producto('Rompecabezas Numérico');
+    const juegoB = await producto('Mapa Interactivo');
+    await inventario(institucionId, juegoA, 10);
+    await inventario(institucionId, juegoB, 10);
+    const profe = await docenteVinculado(institucionId, 'Sofía Docente');
+    await asignarLicencia(institucionId, juegoA, profe.teacherId, encargadoTeacherId);
+    await asignarLicencia(institucionId, juegoB, profe.teacherId, encargadoTeacherId);
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    await cargarSesion(profe.token, {
+      producto_id: juegoA,
+      fecha_uso: hoy,
+      grupo: '2°A',
+      cantidad_estudiantes: 22,
+      duracion_minutos: 30,
+      satisfaccion_docente: 4,
+      aprendizajes_clave: 'Resolución de problemas matemáticos en grupo.',
+      reutilizaria: true,
+    });
+    await cargarSesion(profe.token, {
+      producto_id: juegoB,
+      fecha_uso: hoy,
+      grupo: '2°B',
+      cantidad_estudiantes: 19,
+      duracion_minutos: 25,
+      satisfaccion_docente: 3,
+      aprendizajes_clave: 'Ubicación geográfica y orientación espacial básica.',
+      reutilizaria: true,
+    });
+
+    const r = await verDetalleDocente(encargado.token, institucionId, profe.id);
+    expect(r.status).toBe(200);
+    expect(r.body.nombre_docente).toBe('Sofía Docente');
+    expect(r.body.email).toBe(profe.email);
+    expect(r.body.total_sesiones).toBe(2);
+    expect(r.body.alumnos_alcanzados).toBe(41);
+    expect(r.body.distribucion_juegos.map((j: { producto_id: string }) => j.producto_id).sort()).toEqual(
+      [juegoA, juegoB].sort(),
+    );
+    expect(r.body.sesiones).toHaveLength(2);
   });
 });

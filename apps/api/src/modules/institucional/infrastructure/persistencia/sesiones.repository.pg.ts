@@ -2,6 +2,8 @@ import type { PoolClient } from 'pg';
 import { tokenizarAprendizajes } from '../../domain/nube-de-palabras';
 import type { ComandoGuardarSesion } from '../../domain/sesion-juego';
 import type {
+  DetalleReporteDocente,
+  DetalleReporteJuego,
   DetalleSesion,
   FilaReporteDocente,
   FilaReporteJuego,
@@ -9,12 +11,19 @@ import type {
   FiltroReporte,
   FiltroSesiones,
   HistorialSesion,
+  ItemDistribucionJuego,
+  ItemDistribucionSatisfaccion,
   KpisReporte,
   MetricasDashboard,
   PalabraFrecuente,
   ResultadoPaginado,
+  SesionDelDocente,
+  SesionDelJuego,
   SesionesRepository,
 } from '../../domain/ports/sesiones.repository';
+
+/** CU-31 RN-006: cantidad de términos que se devuelven en la nube de palabras de un detalle. */
+const LIMITE_NUBE_PALABRAS_DETALLE = 30;
 
 export class SesionesRepositoryPg implements SesionesRepository {
   constructor(private readonly client: PoolClient) {}
@@ -292,6 +301,191 @@ export class SesionesRepositoryPg implements SesionesRepository {
       satisfaccionPromedio: f.satisfaccion_promedio !== null ? Number(f.satisfaccion_promedio) : 0,
       juegosEnUso: f.juegos_en_uso,
     };
+  }
+
+  /** CU-31 A8: detalle de un juego. null si no hay sesiones de ese producto en la institución. */
+  async detalleJuego(
+    institucionId: string,
+    productoId: string,
+    filtro: FiltroReporte,
+  ): Promise<DetalleReporteJuego | null> {
+    const filtroForzado: FiltroReporte = { ...filtro, productoId };
+    const { where, params } = this.construirFiltroReporte(institucionId, filtroForzado);
+
+    const agregado = await this.client.query<{
+      name: string;
+      total_sesiones: number;
+      alumnos_alcanzados: number;
+      satisfaccion_promedio: string;
+    }>(
+      `SELECT p.name,
+              COUNT(*)::int AS total_sesiones,
+              COALESCE(SUM(gs.student_count), 0)::int AS alumnos_alcanzados,
+              AVG(gs.teacher_satisfaction)::numeric(3,2) AS satisfaccion_promedio
+         FROM game_sessions gs
+         JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+         JOIN products p ON p.id = gs.product_id
+        ${where}
+        GROUP BY p.name`,
+      params,
+    );
+    const fila = agregado.rows[0];
+    if (!fila) return null; // A8: sin sesiones de este producto en la institución → 404
+
+    const [distribucion, sesiones, nubePalabras] = await Promise.all([
+      this.distribucionSatisfaccion(where, params),
+      this.client
+        .query<{
+          session_date: Date;
+          user_id: string;
+          full_name: string;
+          group_name: string;
+          student_count: number;
+          duration_minutes: number;
+          teacher_satisfaction: number;
+        }>(
+          `SELECT gs.session_date, it.user_id, u.full_name, gs.group_name,
+                  gs.student_count, gs.duration_minutes, gs.teacher_satisfaction
+             FROM game_sessions gs
+             JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+             JOIN users u ON u.id = it.user_id
+            ${where}
+            ORDER BY gs.session_date DESC`,
+          params,
+        )
+        .then((r) =>
+          r.rows.map(
+            (f): SesionDelJuego => ({
+              fecha: f.session_date,
+              docenteId: f.user_id,
+              nombreDocente: f.full_name,
+              grupo: f.group_name,
+              estudiantes: f.student_count,
+              duracionMinutos: f.duration_minutes,
+              satisfaccion: f.teacher_satisfaction,
+            }),
+          ),
+        ),
+      this.nubeDePalabras(institucionId, filtroForzado, LIMITE_NUBE_PALABRAS_DETALLE),
+    ]);
+
+    return {
+      productoId,
+      nombreProducto: fila.name,
+      totalSesiones: fila.total_sesiones,
+      alumnosAlcanzados: fila.alumnos_alcanzados,
+      satisfaccionPromedio: Number(fila.satisfaccion_promedio),
+      distribucionSatisfaccion: distribucion,
+      sesiones,
+      nubePalabras,
+    };
+  }
+
+  /** CU-31 A9: detalle de un docente. null si no hay sesiones de ese docente en la institución. */
+  async detalleDocente(
+    institucionId: string,
+    docenteId: string,
+    filtro: FiltroReporte,
+  ): Promise<DetalleReporteDocente | null> {
+    const filtroForzado: FiltroReporte = { ...filtro, docenteId };
+    const { where, params } = this.construirFiltroReporte(institucionId, filtroForzado);
+
+    const agregado = await this.client.query<{
+      full_name: string;
+      email: string;
+      total_sesiones: number;
+      alumnos_alcanzados: number;
+    }>(
+      `SELECT u.full_name, u.email,
+              COUNT(*)::int AS total_sesiones,
+              COALESCE(SUM(gs.student_count), 0)::int AS alumnos_alcanzados
+         FROM game_sessions gs
+         JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+         JOIN users u ON u.id = it.user_id
+        ${where}
+        GROUP BY u.full_name, u.email`,
+      params,
+    );
+    const fila = agregado.rows[0];
+    if (!fila) return null; // A9: sin sesiones de este docente en la institución → 404
+
+    const [distribucionJuegos, sesiones] = await Promise.all([
+      this.client
+        .query<{ product_id: string; name: string; sesiones: number }>(
+          `SELECT p.id AS product_id, p.name, COUNT(*)::int AS sesiones
+             FROM game_sessions gs
+             JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+             JOIN products p ON p.id = gs.product_id
+            ${where}
+            GROUP BY p.id, p.name
+            ORDER BY sesiones DESC`,
+          params,
+        )
+        .then((r) =>
+          r.rows.map(
+            (f): ItemDistribucionJuego => ({ productoId: f.product_id, nombreProducto: f.name, sesiones: f.sesiones }),
+          ),
+        ),
+      this.client
+        .query<{
+          session_date: Date;
+          product_id: string;
+          name: string;
+          group_name: string;
+          student_count: number;
+          duration_minutes: number;
+          teacher_satisfaction: number;
+        }>(
+          `SELECT gs.session_date, gs.product_id, p.name, gs.group_name,
+                  gs.student_count, gs.duration_minutes, gs.teacher_satisfaction
+             FROM game_sessions gs
+             JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+             JOIN products p ON p.id = gs.product_id
+            ${where}
+            ORDER BY gs.session_date DESC`,
+          params,
+        )
+        .then((r) =>
+          r.rows.map(
+            (f): SesionDelDocente => ({
+              fecha: f.session_date,
+              productoId: f.product_id,
+              nombreProducto: f.name,
+              grupo: f.group_name,
+              estudiantes: f.student_count,
+              duracionMinutos: f.duration_minutes,
+              satisfaccion: f.teacher_satisfaction,
+            }),
+          ),
+        ),
+    ]);
+
+    return {
+      docenteId,
+      nombreDocente: fila.full_name,
+      email: fila.email,
+      totalSesiones: fila.total_sesiones,
+      alumnosAlcanzados: fila.alumnos_alcanzados,
+      distribucionJuegos,
+      sesiones,
+    };
+  }
+
+  /** Cuenta sesiones por cada valor de satisfacción (1 a 5), completando los que no aparecen con 0. */
+  private async distribucionSatisfaccion(where: string, params: unknown[]): Promise<ItemDistribucionSatisfaccion[]> {
+    const r = await this.client.query<{ estrellas: number; cantidad: number }>(
+      `SELECT gs.teacher_satisfaction AS estrellas, COUNT(*)::int AS cantidad
+         FROM game_sessions gs
+         JOIN institutional_teachers it ON it.id = gs.institutional_teacher_id
+        ${where}
+        GROUP BY gs.teacher_satisfaction`,
+      params,
+    );
+    const porEstrella = new Map(r.rows.map((f) => [f.estrellas, f.cantidad]));
+    return ([1, 2, 3, 4, 5] as const).map((estrellas) => ({
+      estrellas,
+      cantidad: porEstrella.get(estrellas) ?? 0,
+    }));
   }
 
   /** CU-32 PI-04: cuenta rápida para validar tope antes de exportar. */

@@ -36,6 +36,8 @@ import {
   VerInventario,
 } from '../../application/ver-inventario';
 import { type ReporteInstitucional, VerReporteInstitucional } from '../../application/ver-reporte-institucional';
+import { type DetalleReporteJuegoDTO, VerDetalleReporteJuego } from '../../application/ver-detalle-reporte-juego';
+import { type DetalleReporteDocenteDTO, VerDetalleReporteDocente } from '../../application/ver-detalle-reporte-docente';
 import {
   AsignacionNoEncontrada,
   CantidadRevocacionInvalida,
@@ -118,6 +120,8 @@ export class InstitucionesController {
     private readonly revocarLicencias: RevocarLicencias,
     private readonly verDocentesAsignados: VerDocentesAsignados,
     private readonly verReporte: VerReporteInstitucional,
+    private readonly verDetalleReporteJuego: VerDetalleReporteJuego,
+    private readonly verDetalleReporteDocente: VerDetalleReporteDocente,
     private readonly exportarReporte: ExportarReporte,
     private readonly verDashboard: VerDashboardPedagogico,
     private readonly verMiInstitucion: VerMiInstitucion,
@@ -327,6 +331,56 @@ export class InstitucionesController {
         hasta: query.hasta,
         productoId: query.producto_id,
         docenteId: query.docente_id,
+      });
+    } catch (error) {
+      mapearError(error);
+    }
+  }
+
+  // ─── CU-31 A8: Detalle de un juego dentro del reporte ─────────────────────
+
+  @Get(':institucion_id/reportes/uso/producto/:producto_id')
+  @UseGuards(AuthGuard)
+  async detalleReporteJuego(
+    @Req() req: RequestAutenticada,
+    @Param('institucion_id') institucionId: string,
+    @Param('producto_id') productoId: string,
+    @Query(new ZodValidationPipe(reporteQuerySchema)) query: ReporteQuery,
+  ): Promise<DetalleReporteJuegoDTO> {
+    if (req.autenticado === undefined) throw new UnauthorizedException();
+    if (!UUID_RE.test(institucionId) || !UUID_RE.test(productoId)) {
+      throw new HttpException({ title: 'No encontrado', detail: 'Recurso inexistente' }, 404);
+    }
+    try {
+      return await this.verDetalleReporteJuego.ejecutar(institucionId, req.autenticado.id, productoId, {
+        desde: query.desde,
+        hasta: query.hasta,
+        docenteId: query.docente_id,
+      });
+    } catch (error) {
+      mapearError(error);
+    }
+  }
+
+  // ─── CU-31 A9: Detalle de un docente dentro del reporte ───────────────────
+
+  @Get(':institucion_id/reportes/uso/docente/:docente_id')
+  @UseGuards(AuthGuard)
+  async detalleReporteDocente(
+    @Req() req: RequestAutenticada,
+    @Param('institucion_id') institucionId: string,
+    @Param('docente_id') docenteId: string,
+    @Query(new ZodValidationPipe(reporteQuerySchema)) query: ReporteQuery,
+  ): Promise<DetalleReporteDocenteDTO> {
+    if (req.autenticado === undefined) throw new UnauthorizedException();
+    if (!UUID_RE.test(institucionId) || !UUID_RE.test(docenteId)) {
+      throw new HttpException({ title: 'No encontrado', detail: 'Recurso inexistente' }, 404);
+    }
+    try {
+      return await this.verDetalleReporteDocente.ejecutar(institucionId, req.autenticado.id, docenteId, {
+        desde: query.desde,
+        hasta: query.hasta,
+        productoId: query.producto_id,
       });
     } catch (error) {
       mapearError(error);
