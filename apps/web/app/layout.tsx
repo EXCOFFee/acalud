@@ -34,6 +34,24 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es-AR" className={`${display.variable} ${body.variable} ${utilitaria.variable}`}>
+      <head>
+        <script
+          /* eslint-disable-next-line no-restricted-syntax */
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var theme = localStorage.getItem('acalud-tema');
+                if (theme === 'dark' || theme === 'light') {
+                  document.documentElement.setAttribute('data-theme', theme);
+                } else {
+                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
       <body>
         <ToastProvider>{children}</ToastProvider>
       </body>

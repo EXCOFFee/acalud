@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Boton, Dialogo, IconoCerrar, IconoMenu, IconoAtras } from '@/components/ui';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { api } from '@/lib/api';
 
 const LINKS = [
@@ -105,9 +106,11 @@ export function SiteNav() {
           {accionSesion}
         </nav>
 
-        <button
-          type="button"
-          className="nav__hamburguesa"
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <ThemeToggle />
+          <button
+            type="button"
+            className="nav__hamburguesa"
           aria-expanded={movilAbierto}
           aria-controls="nav-movil"
           aria-label={movilAbierto ? 'Cerrar menú' : 'Abrir menú'}
@@ -115,6 +118,7 @@ export function SiteNav() {
         >
           {movilAbierto ? <IconoCerrar /> : <IconoMenu />}
         </button>
+        </div>
       </header>
 
       {movilAbierto ? (

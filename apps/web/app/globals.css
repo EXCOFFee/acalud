@@ -36,9 +36,32 @@
   --anillo: 0 0 0 3px var(--superficie), 0 0 0 5px var(--acento);
 }
 
+:root[data-theme='dark'] {
+  /* Controles nativos (scrollbar, date/select picker) siguen el tema del sistema. */
+  color-scheme: dark;
+  --bg: #131715;
+  --superficie: #1b221f;
+  --superficie-2: #212a26;
+  --tinta: #edefe8;
+  --tinta-suave: #9aa59d;
+  --marca: #6bb3a1;
+  --marca-fuerte: #86c6b6;
+  --acento: #e8a944;
+  --acento-suave: #322818;
+  --ficha: #ff8266;
+  --ficha-suave: #3a2119;
+  --borde: #2c3530;
+  --error: #e0857a;
+  --error-bg: #2e1e1c;
+  --ok: #7fc79c;
+  --ok-bg: #16251c;
+  --sombra: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
+  --sombra-suave: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --anillo: 0 0 0 3px var(--superficie), 0 0 0 5px var(--acento);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
-    /* Controles nativos (scrollbar, date/select picker) siguen el tema del sistema. */
+  :root:not([data-theme='light']) {
     color-scheme: dark;
     --bg: #131715;
     --superficie: #1b221f;
@@ -82,6 +105,7 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* La display (Fraunces) se reserva para el título de cada página (h1) y los momentos de firma
@@ -151,6 +175,34 @@ a {
   justify-content: space-between;
   gap: 1rem;
   padding: 1.1rem clamp(1rem, 4vw, 2.5rem);
+}
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--tinta-suave);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  color: var(--tinta);
+  background: var(--superficie-2);
+}
+.theme-toggle__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.theme-toggle__icon--dark {
+  transform: rotate(360deg);
 }
 .nav__acciones {
   display: flex;
