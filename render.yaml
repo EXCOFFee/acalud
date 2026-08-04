@@ -37,3 +37,16 @@ services:
         value: tabla
       - key: RECEIPT_ARCA_ENABLED
         value: "false"
+      # Email transaccional (verificación de cuenta, recuperación, notificaciones). Sin estas
+      # variables, crearEmailProvider() cae en el adapter fake (marca "enviado" sin mandar nada,
+      # sin error visible) — hay que cargar los valores reales en el dashboard de Render.
+      - key: EMAIL_PROVIDER
+        value: gmail-api
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
