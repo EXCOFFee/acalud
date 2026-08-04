@@ -59,7 +59,7 @@ export class ProcesarPago {
         }
 
         // Aprobado. 1) Claim del pedido con guard; si ya no está en `pending` → no tocar stock.
-        const transicionado = await repos.pedidos.transicionar(pedido.id, 'pending', 'paid');
+        const transicionado = await repos.pedidos.transicionar(pedido.id, 'pending', 'paid', paymentId);
         if (!transicionado) return 'already_processed';
 
         // 2) Decremento condicional por línea; si alguna falla → throw → rollback TOTAL (E2).

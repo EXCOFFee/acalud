@@ -1,8 +1,17 @@
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ProcesarPago } from '../../src/modules/compras/application/procesar-pago';
 import { MercadoPagoFakeAdapter } from '../../src/modules/compras/infrastructure/adapters/mercado-pago-fake.adapter';
 import { type CtxApp, levantarApp } from './helpers/app';
+
+const MP_WEBHOOK_SECRET_TEST = 'secreto-de-prueba-integracion';
+
+function firmarWebhookMp(dataId: string, xRequestId: string, secret = MP_WEBHOOK_SECRET_TEST) {
+  const ts = Date.now().toString();
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+  const hash = createHmac('sha256', secret).update(manifest).digest('hex');
+  return { 'x-signature': `ts=${ts},v1=${hash}`, 'x-request-id': xRequestId };
+}
 
 // CU-012 (checkout) contra la app real + PostgreSQL real (Testcontainers). Los tests más
 // importantes del proyecto: idempotencia y concurrencia con el UNIQUE/guards activos.
@@ -19,6 +28,7 @@ let ctx: CtxApp;
 let procesar: ProcesarPago;
 
 beforeAll(async () => {
+  process.env.MP_WEBHOOK_SECRET = MP_WEBHOOK_SECRET_TEST;
   ctx = await levantarApp();
   procesar = ctx.app.get(ProcesarPago);
 });
@@ -72,6 +82,16 @@ async function estado(pedidoId: string): Promise<string> {
   return r.rows[0]!.estado;
 }
 
+async function pagoGuardado(
+  pedidoId: string,
+): Promise<{ preferencia: string | null; paymentIdMp: string | null }> {
+  const r = await ctx.pg.query<{ preferencia: string | null; paymentIdMp: string | null }>(
+    `SELECT payment_preference_id AS preferencia, payment_id_mp AS "paymentIdMp" FROM orders WHERE id = $1`,
+    [pedidoId],
+  );
+  return r.rows[0]!;
+}
+
 describe('CU-012 · Checkout', () => {
   it('@scenario:CHK-CU012-HAPPY-001 · pago aprobado → pagado, stock descontado, carrito vaciado, email', async () => {
     const { token, email } = await usuarioVerificado();
@@ -85,11 +105,16 @@ describe('CU-012 · Checkout', () => {
     const pedidoId = co.body.pedido_id as string;
     expect(co.body.init_point).toContain(pedidoId);
     expect(await estado(pedidoId)).toBe('pending');
+    // CU-12 (paso 14): el preference_id de Mercado Pago queda guardado tras iniciar el checkout.
+    expect((await pagoGuardado(pedidoId)).preferencia).toBe(`fake-pref-${pedidoId}`);
 
-    const resultado = await procesar.ejecutar(MercadoPagoFakeAdapter.paymentIdDe(pedidoId));
+    const paymentId = MercadoPagoFakeAdapter.paymentIdDe(pedidoId);
+    const resultado = await procesar.ejecutar(paymentId);
     expect(resultado).toBe('paid');
 
     expect(await estado(pedidoId)).toBe('paid');
+    // CU-12 (poscondición): "se guarda el payment_id_mp" al aprobarse el pago.
+    expect((await pagoGuardado(pedidoId)).paymentIdMp).toBe(paymentId);
     expect(await stock(jx)).toBe(3); // 5 − 2, exactamente
     expect(await stock(jy)).toBe(4); // 5 − 1
     // Carrito vaciado.
@@ -183,5 +208,60 @@ describe('CU-012 · Checkout', () => {
     await agregar(token, jx, 1);
     expect((await checkout(token)).status).toBe(201);
     expect((await checkout(token)).status).toBe(409);
+  });
+
+  describe('Webhook de Mercado Pago (HTTP, firma real — CU-12 RN-004/RNF-002/A7)', () => {
+    it('sin header x-signature → 401, el pedido no se toca', async () => {
+      const { token } = await usuarioVerificado();
+      const jx = await crearJuego(10000, 5);
+      await agregar(token, jx, 1);
+      const pedidoId = (await checkout(token)).body.pedido_id as string;
+      const paymentId = MercadoPagoFakeAdapter.paymentIdDe(pedidoId);
+
+      const r = await ctx.request.post(`/api/v1/webhooks/mercadopago?data.id=${paymentId}`);
+      expect(r.status).toBe(401);
+      expect(await estado(pedidoId)).toBe('pending');
+    });
+
+    it('firma calculada con un secreto incorrecto → 401, el pedido no se toca', async () => {
+      const { token } = await usuarioVerificado();
+      const jx = await crearJuego(10000, 5);
+      await agregar(token, jx, 1);
+      const pedidoId = (await checkout(token)).body.pedido_id as string;
+      const paymentId = MercadoPagoFakeAdapter.paymentIdDe(pedidoId);
+
+      const headers = firmarWebhookMp(paymentId, 'req-falso', 'secreto-equivocado');
+      const r = await ctx.request
+        .post(`/api/v1/webhooks/mercadopago?data.id=${paymentId}`)
+        .set(headers);
+      expect(r.status).toBe(401);
+      expect(await estado(pedidoId)).toBe('pending');
+    });
+
+    it('firma válida → 200, pedido pasa a paid; repetirla es idempotente', async () => {
+      const { token } = await usuarioVerificado();
+      const jx = await crearJuego(10000, 5);
+      await agregar(token, jx, 1);
+      const pedidoId = (await checkout(token)).body.pedido_id as string;
+      const paymentId = MercadoPagoFakeAdapter.paymentIdDe(pedidoId);
+
+      const headers = firmarWebhookMp(paymentId, 'req-1');
+      const r1 = await ctx.request
+        .post(`/api/v1/webhooks/mercadopago?data.id=${paymentId}`)
+        .set(headers);
+      expect(r1.status).toBe(200);
+      expect(r1.body.resultado).toBe('paid');
+      expect(await estado(pedidoId)).toBe('paid');
+      expect(await stock(jx)).toBe(4); // 5 − 1, una sola vez
+
+      // Reenvío (MP reintenta si no confirmás rápido): misma firma, mismo data.id → no-op.
+      const headers2 = firmarWebhookMp(paymentId, 'req-2');
+      const r2 = await ctx.request
+        .post(`/api/v1/webhooks/mercadopago?data.id=${paymentId}`)
+        .set(headers2);
+      expect(r2.status).toBe(200);
+      expect(r2.body.resultado).toBe('already_processed');
+      expect(await stock(jx)).toBe(4); // sin doble descuento
+    });
   });
 });

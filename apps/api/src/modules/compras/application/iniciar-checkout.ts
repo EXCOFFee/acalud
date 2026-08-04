@@ -87,15 +87,21 @@ export class IniciarCheckout {
     });
 
     // Preferencia de pago FUERA de la tx (F2). Sin fallback: si el adapter falla → 503 (ADR-006).
+    let pref;
     try {
-      const pref = await this.pagos.crearPreferencia({
+      pref = await this.pagos.crearPreferencia({
         pedido_id: creado.pedidoId,
         monto_total: creado.montoTotal,
         descripcion: `Pedido ${creado.numero}`,
       });
-      return { pedido_id: creado.pedidoId, init_point: pref.init_point };
     } catch {
       throw new PagoIndisponible();
     }
+    // CU-12 (paso 14): guardar el preference_id es trazabilidad, no crítico para el pago — si
+    // falla, no tumba el checkout (la preferencia ya existe en Mercado Pago de todos modos).
+    await this.uow
+      .transaccion((repos) => repos.pedidos.guardarPreferencia(creado.pedidoId, pref.preferencia_id))
+      .catch(() => undefined);
+    return { pedido_id: creado.pedidoId, init_point: pref.init_point };
   }
 }

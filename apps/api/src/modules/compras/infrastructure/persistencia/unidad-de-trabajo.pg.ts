@@ -122,14 +122,26 @@ class PedidoRepositorioPg implements PedidoRepositorio {
     return r.rows[0] ?? null;
   }
 
-  async transicionar(pedidoId: string, origen: EstadoPedido, destino: EstadoPedido): Promise<boolean> {
+  async transicionar(
+    pedidoId: string,
+    origen: EstadoPedido,
+    destino: EstadoPedido,
+    paymentIdMp?: string,
+  ): Promise<boolean> {
     const r = await this.db.query(
       // Guarda de máquina de estados (ADR-002): prohibido el UPDATE directo del estado.
-      `UPDATE orders SET status = $3::order_status, updated_at = now()
+      `UPDATE orders SET status = $3::order_status, payment_id_mp = COALESCE($4, payment_id_mp), updated_at = now()
         WHERE id = $1 AND status = $2::order_status`,
-      [pedidoId, origen, destino],
+      [pedidoId, origen, destino, paymentIdMp ?? null],
     );
     return (r.rowCount ?? 0) > 0;
+  }
+
+  async guardarPreferencia(pedidoId: string, preferenciaId: string): Promise<void> {
+    await this.db.query('UPDATE orders SET payment_preference_id = $2 WHERE id = $1', [
+      pedidoId,
+      preferenciaId,
+    ]);
   }
 }
 

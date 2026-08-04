@@ -56,3 +56,11 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      # Mercado Pago (CU-12, ADR-006: selección fija, sin fallback). Access token de PRUEBA
+      # (sandbox) desde "Tus integraciones" → credenciales de prueba; el webhook secret se
+      # genera al configurar la URL de notificaciones en el mismo panel. Sin estas dos, el
+      # checkout responde 503 "pago no disponible".
+      - key: MP_ACCESS_TOKEN
+        sync: false
+      - key: MP_WEBHOOK_SECRET
+        sync: false

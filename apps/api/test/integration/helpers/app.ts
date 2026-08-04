@@ -9,6 +9,8 @@ import { Client } from 'pg';
 import supertest from 'supertest';
 import { AppModule } from '../../../src/app.module';
 import { configurarApp } from '../../../src/configurar-app';
+import { MercadoPagoFakeAdapter } from '../../../src/modules/compras/infrastructure/adapters/mercado-pago-fake.adapter';
+import { PAYMENT_PROVIDER } from '../../../src/modules/compras/domain/ports/payment-provider.port';
 import { aplicarMigraciones } from '../../../src/platform/db/migrator';
 
 const MIGRACIONES_DIR = resolve(process.cwd(), '../../infra/migrations');
@@ -43,6 +45,10 @@ export async function levantarApp(): Promise<CtxApp> {
   const { STORAGE_PROVIDER } = await import('../../../src/platform/storage/storage-provider.port');
   const storageMock = new Map<string, Buffer>();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    // El PaymentProvider real (MercadoPagoAdapter) llama a la API real de MP — en tests se
+    // reemplaza por el fake determinista (ADR-006: selección fija en runtime, no en tests).
+    .overrideProvider(PAYMENT_PROVIDER)
+    .useValue(new MercadoPagoFakeAdapter())
     .overrideProvider(STORAGE_PROVIDER)
     .useValue({
       generarUrlFirmada: async (bucket: string, path: string, exp?: number) => `https://mock-storage.com/${bucket}/${path}?token=mock&exp=${exp}`,

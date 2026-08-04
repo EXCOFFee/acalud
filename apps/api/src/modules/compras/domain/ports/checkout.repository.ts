@@ -5,8 +5,19 @@ export interface PedidoRepositorio {
   /** Crea el pedido pendiente_pago + líneas snapshot. Lanza si ya hay uno pendiente por carrito. */
   crear(datos: NuevoPedido): Promise<{ id: string; numero: string }>;
   buscarParaPago(pedidoId: string): Promise<PedidoParaPago | null>;
-  /** Transición con guard `WHERE estado = origen`; false si no aplicó (0 filas). */
-  transicionar(pedidoId: string, origen: EstadoPedido, destino: EstadoPedido): Promise<boolean>;
+  /**
+   * Transición con guard `WHERE estado = origen`; false si no aplicó (0 filas). `paymentIdMp`
+   * (CU-12, poscondición "se guarda el payment_id_mp") se persiste junto con la transición a
+   * `paid`; se ignora en cualquier otra transición.
+   */
+  transicionar(
+    pedidoId: string,
+    origen: EstadoPedido,
+    destino: EstadoPedido,
+    paymentIdMp?: string,
+  ): Promise<boolean>;
+  /** CU-12 (paso 14): guarda el id de la preferencia de pago creada en Mercado Pago. */
+  guardarPreferencia(pedidoId: string, preferenciaId: string): Promise<void>;
 }
 
 export interface StockRepositorio {

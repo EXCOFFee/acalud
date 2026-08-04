@@ -29,11 +29,14 @@ export const checkoutSchema = z.object({
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
-/** Webhook fake de MP: el payload trae el payment_id (Etapa 3: firma + payload real de MP). */
-export const webhookSchema = z.object({
-  payment_id: z.string().min(1),
+/**
+ * Query string real del webhook de Mercado Pago (CU-12): `data.id` es el payment_id, y es lo
+ * que entra en el manifest de la firma (RN-004) — el body no participa de la verificación.
+ */
+export const webhookQuerySchema = z.object({
+  'data.id': z.string().min(1),
 });
-export type WebhookInput = z.infer<typeof webhookSchema>;
+export type WebhookQuery = z.infer<typeof webhookQuerySchema>;
 
 /** CU-11 A1: código postal argentino, 4 dígitos (ej: 1425). A4: al menos un ítem. */
 export const calcularEnvioSchema = z.object({

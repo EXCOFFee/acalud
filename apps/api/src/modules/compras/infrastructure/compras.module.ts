@@ -43,7 +43,6 @@ export const TRACKING_REPOSITORY = Symbol('TrackingRepository');
 @Module({
   controllers: [CarritoController, CheckoutController, HistorialController, EnvioController],
   providers: [
-    // Singleton: el fake de MP es stateful (guarda el monto por pedido entre crear y consultar).
     { provide: PAYMENT_PROVIDER, useFactory: () => crearPaymentProvider() },
     {
       provide: CARRITO_REPOSITORY,
