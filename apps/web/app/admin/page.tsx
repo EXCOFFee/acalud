@@ -58,6 +58,9 @@ export default function AdminPage() {
             <Link className="boton boton--fantasma" href="/admin/encuestas">
               🗳️ Encuestas
             </Link>
+            <Link className="boton boton--fantasma" href="/admin/propuestas">
+              💡 Propuestas de juegos
+            </Link>
           </div>
         ) : null}
       </main>

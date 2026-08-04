@@ -715,6 +715,37 @@ export interface EncuestaAdminInput {
   opciones: string[];
 }
 
+// CU-21 (F6, admin): revisar propuestas de juegos enviadas por docentes. Sin gap de backend acá
+// — GET /admin/proposals/:id ya existe (a diferencia de F2/F3/F5).
+export type EstadoPropuestaAdmin = 'pending' | 'reviewed' | 'approved' | 'rejected';
+
+export interface PropuestaAdminResumen {
+  id: string;
+  titulo: string;
+  autor: string;
+  estado: EstadoPropuestaAdmin;
+  creada_en: string;
+}
+
+export interface PropuestaAdminDetalle {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  autor: { id: string; nombre: string; email: string };
+  materia_id: string | null;
+  nivel_educativo_id: string | null;
+  estado: EstadoPropuestaAdmin;
+  feedback_admin: string | null;
+  creada_en: string;
+  actualizada_en: string;
+}
+
+export interface FiltroPropuestasAdmin {
+  status?: EstadoPropuestaAdmin | undefined;
+  search?: string | undefined;
+  order?: 'asc' | 'desc' | undefined;
+}
+
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
@@ -983,4 +1014,21 @@ export const api = {
   alternarEstadoEncuestaAdmin: (id: string) => pedir<EncuestaAdminDetalle>('PATCH', `/admin/polls/${id}/toggle`),
   // CU-20 A3: baja física con cascada a opciones y respuestas (RN-006).
   eliminarEncuestaAdmin: (id: string) => pedir<void>('DELETE', `/admin/polls/${id}`),
+  // CU-21 (admin): revisar propuestas.
+  listarPropuestasAdmin: (filtro?: FiltroPropuestasAdmin) => {
+    const qs = new URLSearchParams();
+    if (filtro?.status) qs.set('status', filtro.status);
+    if (filtro?.search) qs.set('search', filtro.search);
+    if (filtro?.order) qs.set('order', filtro.order);
+    const cola = qs.toString() ? `?${qs.toString()}` : '';
+    return pedir<PropuestaAdminResumen[]>('GET', `/admin/proposals${cola}`);
+  },
+  verPropuestaAdmin: (id: string) => pedir<PropuestaAdminDetalle>('GET', `/admin/proposals/${id}`),
+  // CU-21 RN-008: no se puede volver a 'pending' desde 'approved'/'rejected' (409 si se intenta).
+  revisarPropuestaAdmin: (id: string, d: { estado: EstadoPropuestaAdmin; feedback: string | null }) =>
+    pedir<{ id: string; titulo: string; estado: EstadoPropuestaAdmin; feedback_admin: string | null; actualizada_en: string }>(
+      'PUT',
+      `/admin/proposals/${id}`,
+      d,
+    ),
 };
