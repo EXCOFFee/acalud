@@ -47,6 +47,8 @@ export interface CarritoCheckout {
   vaciar(carritoId: string): Promise<void>;
   /** CU-24 RN-001/A1/A3: mismo chequeo que en el carrito, dentro de la transacción de checkout. */
   esEncargadoActivo(userId: string, institutionId: string): Promise<boolean>;
+  /** CU-24 RN-007: razón social + CUIT de la institución para el snapshot de facturación. */
+  datosFacturacion(institutionId: string): Promise<{ razonSocial: string; cuit: string } | null>;
 }
 
 /**

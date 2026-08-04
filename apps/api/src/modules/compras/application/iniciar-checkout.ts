@@ -43,6 +43,14 @@ export class IniciarCheckout {
         throw new SinPermisosInstitucionales();
       }
 
+      // CU-24 RN-007: la factura va a nombre de la institución, no del encargado individual.
+      const billingData =
+        input.contexto !== null
+          ? await repos.carrito.datosFacturacion(input.contexto).then((d) =>
+              d ? { razon_social: d.razonSocial, cuit: d.cuit } : null,
+            )
+          : null;
+
       const { carritoId, lineas } = await repos.carrito.leer(input.cuentaId, input.contexto);
       if (lineas.length === 0) throw new CarritoNoCheckouteable('Tu carrito está vacío');
 
@@ -70,6 +78,7 @@ export class IniciarCheckout {
         envio_costo: envioCosto,
         monto_total: montoTotal,
         lineas: lineasPedido,
+        billing_data: billingData,
       };
       const pedido = await repos.pedidos.crear(nuevo); // lanza PedidoPendienteExistente (409) si ya hay uno
       await repos.auditoria.registrar({

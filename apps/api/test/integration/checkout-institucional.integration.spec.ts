@@ -114,6 +114,56 @@ describe('CU-24 · Checkout institucional', () => {
     expect(orden.rows[0].institution_id).toBe(institucionId);
   });
 
+  it('RN-007: la orden B2B guarda billing_data con la razón social y el CUIT de la institución', async () => {
+    // Institución + encargado propios (carrito institucional limpio, sin pisar el pendiente que
+    // deja RN-003 sobre el carrito compartido de este describe).
+    const aislada = await crearInstitucionConEncargado();
+    await ctx.request
+      .put(`/api/v1/carrito/lineas/${productoId}?contexto=${aislada.institucionId}`)
+      .set(bearer(aislada.token))
+      .send({ cantidad: 2 });
+
+    const res = await ctx.request
+      .post('/api/v1/checkout')
+      .set(bearer(aislada.token))
+      .send({
+        contexto: aislada.institucionId,
+        modalidad_envio: 'home_delivery',
+        codigo_postal: DOM.codigo_postal,
+        domicilio: DOM,
+      });
+    expect(res.status).toBe(201);
+
+    const institucion = await ctx.pg.query('SELECT legal_name, tax_id FROM institutions WHERE id = $1', [
+      aislada.institucionId,
+    ]);
+    const orden = await ctx.pg.query('SELECT billing_data FROM orders WHERE id = $1', [res.body.pedido_id]);
+    expect(orden.rows[0].billing_data).toEqual({
+      razon_social: institucion.rows[0].legal_name,
+      cuit: institucion.rows[0].tax_id,
+    });
+  });
+
+  it('el checkout personal (sin contexto) NO guarda billing_data', async () => {
+    // Encargado propio: el carrito personal de `encargadoToken` ya lo usan otros tests de este
+    // describe y puede tener un pedido pendiente.
+    const aislada = await crearInstitucionConEncargado();
+    await ctx.request.put(`/api/v1/carrito/lineas/${productoId}`).set(bearer(aislada.token)).send({ cantidad: 1 });
+
+    const res = await ctx.request
+      .post('/api/v1/checkout')
+      .set(bearer(aislada.token))
+      .send({
+        modalidad_envio: 'home_delivery',
+        codigo_postal: DOM.codigo_postal,
+        domicilio: DOM,
+      });
+    expect(res.status).toBe(201);
+
+    const orden = await ctx.pg.query('SELECT billing_data FROM orders WHERE id = $1', [res.body.pedido_id]);
+    expect(orden.rows[0].billing_data).toBeNull();
+  });
+
   it('A3: docente sin permisos no puede finalizar la compra institucional (404)', async () => {
     await ctx.request
       .put(`/api/v1/carrito/lineas/${productoId}?contexto=${institucionId}`)

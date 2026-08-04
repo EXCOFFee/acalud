@@ -29,6 +29,12 @@ export interface LineaPedido {
   descuento_pct_snapshot: number;
 }
 
+/** CU-24 RN-007: facturación a nombre de la institución, no del encargado individual. */
+export interface DatosFacturacion {
+  razon_social: string;
+  cuit: string;
+}
+
 /** Datos para crear el pedido pendiente_pago con su snapshot (server-side). */
 export interface NuevoPedido {
   cuenta_id: string;
@@ -40,6 +46,8 @@ export interface NuevoPedido {
   envio_costo: number;
   monto_total: number;
   lineas: LineaPedido[];
+  /** CU-24 RN-007: null en compras personales (order_type='b2c'). */
+  billing_data: DatosFacturacion | null;
 }
 
 /** Pedido cargado con lo necesario para procesar el pago (CU-012 paso 5). */

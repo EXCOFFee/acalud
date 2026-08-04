@@ -53,8 +53,8 @@ class PedidoRepositorioPg implements PedidoRepositorio {
         `INSERT INTO orders
            (order_number, order_type, user_id, institution_id, cart_id,
             shipping_street, shipping_number, shipping_city, shipping_province, shipping_postal_code,
-            shipping_method, shipping_cost, shipping_quote_source, total_amount)
-         VALUES ($1, $13::order_type, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $14::shipping_quote_source, $12)
+            shipping_method, shipping_cost, shipping_quote_source, total_amount, billing_data)
+         VALUES ($1, $13::order_type, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $14::shipping_quote_source, $12, $15::jsonb)
          RETURNING id`,
         [
           numero,
@@ -71,6 +71,7 @@ class PedidoRepositorioPg implements PedidoRepositorio {
           datos.monto_total,
           orderType,
           VALOR_ORIGEN_COTIZACION_LOCAL,
+          datos.billing_data ? JSON.stringify(datos.billing_data) : null,
         ],
       );
       id = r.rows[0]!.id;
@@ -235,6 +236,16 @@ class CarritoCheckoutPg implements CarritoCheckout {
       [institutionId, userId],
     );
     return r.rows.length > 0;
+  }
+
+  /** CU-24 RN-007: mismo precedente que `esEncargadoActivo` de leer `institutions` desde Compras. */
+  async datosFacturacion(institutionId: string): Promise<{ razonSocial: string; cuit: string } | null> {
+    const r = await this.db.query<{ legal_name: string; tax_id: string }>(
+      `SELECT legal_name, tax_id FROM institutions WHERE id = $1`,
+      [institutionId],
+    );
+    const fila = r.rows[0];
+    return fila ? { razonSocial: fila.legal_name, cuit: fila.tax_id } : null;
   }
 }
 
