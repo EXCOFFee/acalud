@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { PistaTablero } from '@/components/pista-tablero';
 
 export default function Home() {
   return (
@@ -21,16 +22,15 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="contenedor" style={{ paddingTop: 'clamp(3rem, 10vh, 7rem)' }}>
-        <p className="eyebrow">Juegos educativos · Docentes e instituciones</p>
-        <h1 style={{ fontSize: 'clamp(2.4rem, 7vw, 4rem)', maxWidth: '16ch', margin: '0.4rem 0' }}>
+      <main className="contenedor" style={{ maxWidth: '58rem', paddingTop: 'clamp(2.5rem, 8vh, 5.5rem)' }}>
+        <h1 style={{ fontSize: 'clamp(2.3rem, 6vw, 3.6rem)', maxWidth: '17ch' }}>
           Del tablero al aula, con datos.
         </h1>
-        <p style={{ fontSize: '1.15rem', color: 'var(--tinta-suave)', maxWidth: '52ch' }}>
-          Comprá juegos, sumate a la comunidad docente y medí el uso real de cada juego en clase.
-          Todo en un lugar.
+        <p style={{ fontSize: '1.1rem', color: 'var(--tinta-suave)', maxWidth: '48ch', marginTop: '0.9rem' }}>
+          Comprá juegos de mesa educativos, sumate a la comunidad docente y medí el uso real de
+          cada juego en clase.
         </p>
-        <div style={{ display: 'flex', gap: '0.7rem', marginTop: '1.8rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.7rem', marginTop: '1.6rem', flexWrap: 'wrap' }}>
           <Link className="boton boton--primario" href="/catalogo">
             Ver catálogo
           </Link>
@@ -38,6 +38,8 @@ export default function Home() {
             Crear cuenta
           </Link>
         </div>
+
+        <PistaTablero />
       </main>
     </>
   );

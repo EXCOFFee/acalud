@@ -470,6 +470,8 @@ a {
   max-width: 22ch;
 }
 .auth__lema h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
   font-size: clamp(1.8rem, 3.4vw, 2.9rem);
   color: #fbf7ee;
 }
@@ -535,6 +537,97 @@ a {
   * {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- Pista de tablero (firma de la home) ---------- */
+.pista {
+  position: relative;
+  margin-top: clamp(2.5rem, 6vw, 4rem);
+}
+.pista__via {
+  position: absolute;
+  top: 0.85rem;
+  left: calc(100% / 6);
+  right: calc(100% / 6);
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--borde) 0 10px,
+    transparent 10px 18px
+  );
+}
+.pista__ficha {
+  position: absolute;
+  top: 50%;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  background: var(--ficha);
+  box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.18);
+  transform: translate(-50%, -50%);
+  animation: pista-avanza 3.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes pista-avanza {
+  0%,
+  8% {
+    left: 0%;
+  }
+  42%,
+  58% {
+    left: 50%;
+  }
+  92%,
+  100% {
+    left: 100%;
+  }
+}
+.pista__pasos {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+.pista__paso {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.pista__numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  background: var(--superficie);
+  border: 2px solid var(--marca);
+  color: var(--marca);
+  font-family: var(--font-utilitaria);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.pista__titulo {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-top: 0.3rem;
+}
+.pista__texto {
+  color: var(--tinta-suave);
+  font-size: 0.92rem;
+  margin: 0;
+  max-width: 32ch;
+}
+@media (max-width: 720px) {
+  .pista__via {
+    display: none;
+  }
+  .pista__pasos {
+    grid-template-columns: 1fr;
+    gap: 1.6rem;
   }
 }
 

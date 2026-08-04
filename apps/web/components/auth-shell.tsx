@@ -11,7 +11,7 @@ interface AuthShellProps {
 const tokens: Array<{ left: string; bottom: string; color: string }> = [
   { left: '16%', bottom: '20%', color: 'var(--acento)' },
   { left: '38%', bottom: '36%', color: '#fbf7ee' },
-  { left: '60%', bottom: '28%', color: 'var(--acento)' },
+  { left: '60%', bottom: '28%', color: 'var(--ficha)' },
   { left: '82%', bottom: '50%', color: '#fbf7ee' },
 ];
 
