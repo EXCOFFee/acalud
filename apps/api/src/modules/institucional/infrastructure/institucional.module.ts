@@ -6,6 +6,7 @@ import { ExportarReporte } from '../application/exportar-reporte';
 import { RegistrarInstitucion } from '../application/registrar-institucion';
 import { RevocarLicencias } from '../application/revocar-licencias';
 import { VerDashboardPedagogico } from '../application/ver-dashboard-pedagogico';
+import { ExportarDashboard } from '../application/exportar-dashboard';
 import { VerDocentesAsignados } from '../application/ver-docentes-asignados';
 import { VerInventario } from '../application/ver-inventario';
 import { VerReporteInstitucional } from '../application/ver-reporte-institucional';
@@ -103,6 +104,11 @@ import { VerMisJuegosAsignados } from '../application/ver-mis-juegos-asignados';
       provide: VerDashboardPedagogico,
       useFactory: (uow: UnidadDeTrabajoInstitucional): VerDashboardPedagogico =>
         new VerDashboardPedagogico(uow),
+      inject: [UOW_INSTITUCIONAL],
+    },
+    {
+      provide: ExportarDashboard,
+      useFactory: (uow: UnidadDeTrabajoInstitucional): ExportarDashboard => new ExportarDashboard(uow),
       inject: [UOW_INSTITUCIONAL],
     },
     {

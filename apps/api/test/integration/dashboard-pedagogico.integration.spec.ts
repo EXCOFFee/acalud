@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import ExcelJS from 'exceljs';
+import pdfParse from 'pdf-parse';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CtxApp, levantarApp } from './helpers/app';
 
-// CU-33 · Ver dashboard de métricas pedagógicas.
+// CU-33 · Ver dashboard de métricas pedagógicas + exportarlo (A9).
 const PW = 'correcta-bateria-caballo-grapa';
 
 let ctx: CtxApp;
@@ -95,6 +97,19 @@ const cargarSesion = (token: string, body: Record<string, unknown>) =>
 
 const verDashboard = (token: string, institucionId: string, qs = '') =>
   ctx.request.get(`/api/v1/instituciones/${institucionId}/dashboard${qs}`).set(bearer(token));
+
+// El xlsx/pdf no tienen parser registrado en superagent: hay que bufferear la respuesta binaria
+// completa en `res.body` (mismo patrón que en reportes-institucionales.integration.spec.ts).
+const exportarDashboard = (token: string, institucionId: string, qs = '') =>
+  ctx.request
+    .get(`/api/v1/instituciones/${institucionId}/dashboard/exportar${qs}`)
+    .set(bearer(token))
+    .buffer(true)
+    .parse((res, cb) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => cb(null, Buffer.concat(chunks)));
+    });
 
 async function encargadoTeacherIdDe(usuarioId: string): Promise<string> {
   const r = await ctx.pg.query<{ id: string }>(`SELECT id FROM institutional_teachers WHERE user_id = $1`, [
@@ -236,5 +251,73 @@ describe('CU-33 · Dashboard de métricas pedagógicas', () => {
       `?desde=2000-01-01&producto_id=${juegoB}&docente_id=${profeUno.id}`,
     );
     expect(filtradoDocenteAjeno.body.kpis.sesiones.valor).toBe(0);
+  });
+});
+
+describe('CU-33 A9 · Exportar el dashboard pedagógico', () => {
+  it('401 sin sesión, 404 si no es encargado', async () => {
+    const encargado = await docente('Directora Export Dashboard');
+    const institucionId = await institucionDe(encargado.token);
+
+    const sinToken = await ctx.request.get(`/api/v1/instituciones/${institucionId}/dashboard/exportar`);
+    expect(sinToken.status).toBe(401);
+
+    const otro = await docente('Docente Ajeno Export Dashboard');
+    expect((await exportarDashboard(otro.token, institucionId)).status).toBe(404);
+  });
+
+  it('genera un .xlsx con las 5 hojas del dashboard (aun sin sesiones)', async () => {
+    const encargado = await docente('Director Export Dashboard Excel');
+    const institucionId = await institucionDe(encargado.token);
+
+    const r = await exportarDashboard(encargado.token, institucionId);
+    expect(r.status).toBe(200);
+    expect(r.headers['content-type']).toBe(
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    expect(r.headers['content-disposition']).toMatch(/^attachment; filename="Dashboard_Pedagogico_.+\.xlsx"$/);
+
+    const libro = new ExcelJS.Workbook();
+    await libro.xlsx.load(r.body as Buffer);
+    expect(libro.worksheets.map((h) => h.name)).toEqual([
+      'Resumen',
+      'Juegos',
+      'Docentes',
+      'Aprendizajes',
+      'Dificultades',
+    ]);
+  });
+
+  it('genera un PDF válido con los KPIs del dashboard', async () => {
+    const encargado = await docente('Director Export Dashboard PDF');
+    const institucionId = await institucionDe(encargado.token);
+    const encargadoTeacherId = await encargadoTeacherIdDe(encargado.id);
+
+    const juego = await producto('Juego Export Dashboard');
+    await inventario(institucionId, juego, 10);
+    const profe = await docenteVinculado(institucionId, 'Tomás Profesor');
+    await asignarLicencia(institucionId, juego, profe.teacherId, encargadoTeacherId);
+
+    await cargarSesion(profe.token, {
+      producto_id: juego,
+      fecha_uso: new Date().toISOString().slice(0, 10),
+      grupo: '3°C',
+      cantidad_estudiantes: 12,
+      duracion_minutos: 40,
+      satisfaccion_docente: 5,
+      aprendizajes_clave: 'Comunicación efectiva y trabajo en equipo colaborativo.',
+      reutilizaria: true,
+    });
+
+    const r = await exportarDashboard(encargado.token, institucionId, '?formato=pdf&desde=2000-01-01');
+    expect(r.status).toBe(200);
+    expect(r.headers['content-type']).toBe('application/pdf');
+    expect(r.headers['content-disposition']).toMatch(/^attachment; filename="Dashboard_Pedagogico_.+\.pdf"$/);
+
+    const buffer = r.body as Buffer;
+    expect(buffer.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    const { text } = await pdfParse(buffer);
+    expect(text).toContain('Total de sesiones: 1');
+    expect(text).toContain('Dashboard pedagógico');
   });
 });

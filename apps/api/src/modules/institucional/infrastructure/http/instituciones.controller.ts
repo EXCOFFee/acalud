@@ -29,6 +29,7 @@ import {
   VerDocentesAsignados,
 } from '../../application/ver-docentes-asignados';
 import { type DashboardPedagogico, VerDashboardPedagogico } from '../../application/ver-dashboard-pedagogico';
+import { ExportarDashboard } from '../../application/exportar-dashboard';
 import { type MiInstitucion, VerMiInstitucion } from '../../application/ver-mi-institucion';
 import {
   type DetalleProductoInventario,
@@ -58,6 +59,8 @@ import {
 import {
   type AsignarLicenciasBody,
   asignarLicenciasSchema,
+  type DashboardExportarQuery,
+  dashboardExportarQuerySchema,
   type DashboardQuery,
   dashboardQuerySchema,
   type DocentesQuery,
@@ -131,6 +134,7 @@ export class InstitucionesController {
     private readonly verDetalleReporteDocente: VerDetalleReporteDocente,
     private readonly exportarReporte: ExportarReporte,
     private readonly verDashboard: VerDashboardPedagogico,
+    private readonly exportarDashboard: ExportarDashboard,
     private readonly verMiInstitucion: VerMiInstitucion,
   ) {}
 
@@ -452,6 +456,42 @@ export class InstitucionesController {
         productoId: query.producto_id,
         docenteId: query.docente_id,
       });
+    } catch (error) {
+      mapearError(error);
+    }
+  }
+
+  // ─── CU-33 A9: Exportar el dashboard pedagógico ───────────────────────────
+
+  @Get(':institucion_id/dashboard/exportar')
+  @UseGuards(AuthGuard)
+  async exportarDashboardEndpoint(
+    @Req() req: RequestAutenticada,
+    @Res() res: Response,
+    @Param('institucion_id') institucionId: string,
+    @Query(new ZodValidationPipe(dashboardExportarQuerySchema)) query: DashboardExportarQuery,
+  ): Promise<void> {
+    if (req.autenticado === undefined) throw new UnauthorizedException();
+    if (!UUID_RE.test(institucionId)) {
+      throw new HttpException({ title: 'No encontrado', detail: 'Recurso inexistente' }, 404);
+    }
+    try {
+      const hasta = query.hasta ?? new Date();
+      const desde = query.desde ?? new Date(hasta.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const result = await this.exportarDashboard.ejecutar(
+        institucionId,
+        req.autenticado.id,
+        desde,
+        hasta,
+        { productoId: query.producto_id, docenteId: query.docente_id },
+        query.formato,
+      );
+
+      res
+        .set('Content-Type', result.contentType)
+        .set('Content-Disposition', `attachment; filename="${result.filename}"`)
+        .send(result.buffer);
     } catch (error) {
       mapearError(error);
     }

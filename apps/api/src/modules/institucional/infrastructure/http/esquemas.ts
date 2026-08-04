@@ -119,3 +119,13 @@ export const dashboardQuerySchema = z.object({
   docente_id: z.string().uuid().optional(),
 });
 export type DashboardQuery = z.infer<typeof dashboardQuerySchema>;
+
+/** CU-33 A9: Query de GET /instituciones/:id/dashboard/exportar. Mismos filtros + formato. */
+export const dashboardExportarQuerySchema = z.object({
+  formato: z.enum(['excel', 'pdf']).default('excel'),
+  desde: z.coerce.date().optional(),
+  hasta: z.coerce.date().optional(),
+  producto_id: z.string().uuid().optional(),
+  docente_id: z.string().uuid().optional(),
+});
+export type DashboardExportarQuery = z.infer<typeof dashboardExportarQuerySchema>;
