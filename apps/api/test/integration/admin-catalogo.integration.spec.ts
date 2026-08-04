@@ -139,6 +139,113 @@ describe('CU-19 · ABM de Productos (admin)', () => {
     });
   });
 
+  describe('Subida de imagen (CU-19: "subida de archivo", no URL a mano)', () => {
+    it('sin sesión responde 401', async () => {
+      const res = await ctx.request
+        .post('/api/v1/admin/products/imagen')
+        .attach('archivo', Buffer.from('fake-png'), { filename: 'x.png', contentType: 'image/png' });
+      expect(res.status).toBe(401);
+    });
+
+    it('autenticado pero sin rol admin responde 403', async () => {
+      const res = await ctx.request
+        .post('/api/v1/admin/products/imagen')
+        .set('Cookie', `acalud_sesion=${docenteToken}`)
+        .attach('archivo', Buffer.from('fake-png'), { filename: 'x.png', contentType: 'image/png' });
+      expect(res.status).toBe(403);
+    });
+
+    it('mimetype inválido responde 422', async () => {
+      const res = await ctx.request
+        .post('/api/v1/admin/products/imagen')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .attach('archivo', Buffer.from('no-es-una-imagen'), { filename: 'x.txt', contentType: 'text/plain' });
+      expect(res.status).toBe(422);
+    });
+
+    it('sube la imagen y devuelve una URL pública del bucket productos', async () => {
+      const res = await ctx.request
+        .post('/api/v1/admin/products/imagen')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .attach('archivo', Buffer.from('fake-png-bytes'), { filename: 'foto.png', contentType: 'image/png' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.imagen_url).toContain('mock-storage.com/productos/');
+    });
+
+    it('al reemplazar la imagen de un producto, borra la vieja del bucket', async () => {
+      const primera = await ctx.request
+        .post('/api/v1/admin/products/imagen')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .attach('archivo', Buffer.from('imagen-vieja'), { filename: 'vieja.png', contentType: 'image/png' });
+      const imagenVieja = primera.body.imagen_url as string;
+
+      const alta = await ctx.request
+        .post('/api/v1/admin/products')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...productoValido, titulo: 'Producto Con Imagen Test', imagen_url: imagenVieja });
+      const id = alta.body.id as string;
+      expect(ctx.storageMock.has(`productos/${imagenVieja.split('/').pop()}`)).toBe(true);
+
+      const segunda = await ctx.request
+        .post('/api/v1/admin/products/imagen')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .attach('archivo', Buffer.from('imagen-nueva'), { filename: 'nueva.png', contentType: 'image/png' });
+      const imagenNueva = segunda.body.imagen_url as string;
+
+      const edicion = await ctx.request
+        .put(`/api/v1/admin/products/${id}`)
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...productoValido, titulo: 'Producto Con Imagen Test', imagen_url: imagenNueva });
+      expect(edicion.status).toBe(200);
+
+      expect(ctx.storageMock.has(`productos/${imagenVieja.split('/').pop()}`)).toBe(false);
+      expect(ctx.storageMock.has(`productos/${imagenNueva.split('/').pop()}`)).toBe(true);
+    });
+
+    it('reemplazar una imagen propia por una URL externa pegada a mano sí borra la vieja', async () => {
+      const subida = await ctx.request
+        .post('/api/v1/admin/products/imagen')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .attach('archivo', Buffer.from('imagen-propia'), { filename: 'propia.png', contentType: 'image/png' });
+      const imagenPropia = subida.body.imagen_url as string;
+
+      const alta = await ctx.request
+        .post('/api/v1/admin/products')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...productoValido, titulo: 'Producto URL Externa Test', imagen_url: imagenPropia });
+      const id = alta.body.id as string;
+
+      // La imagen anterior era nuestra (subida por este mismo endpoint): al reemplazarla
+      // por una URL externa pegada a mano, igual se borra del bucket (RN: no dejar huérfanos).
+      const edicion = await ctx.request
+        .put(`/api/v1/admin/products/${id}`)
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...productoValido, titulo: 'Producto URL Externa Test', imagen_url: 'https://externo.com/otra.png' });
+      expect(edicion.status).toBe(200);
+      expect(ctx.storageMock.has(`productos/${imagenPropia.split('/').pop()}`)).toBe(false);
+    });
+
+    it('reemplazar una URL externa por otra no intenta borrar nada del bucket', async () => {
+      const alta = await ctx.request
+        .post('/api/v1/admin/products')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...productoValido, titulo: 'Producto URL Externa Test 2', imagen_url: 'https://externo.com/original.png' });
+      const id = alta.body.id as string;
+
+      const tamanioPrevio = ctx.storageMock.size;
+
+      // La imagen anterior NUNCA fue nuestra (URL externa pegada a mano): no debe intentar
+      // borrar nada del bucket ni fallar al no encontrar un path propio.
+      const edicion = await ctx.request
+        .put(`/api/v1/admin/products/${id}`)
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...productoValido, titulo: 'Producto URL Externa Test 2', imagen_url: 'https://externo.com/otra.png' });
+      expect(edicion.status).toBe(200);
+      expect(ctx.storageMock.size).toBe(tamanioPrevio);
+    });
+  });
+
   describe('Detalle de producto (A1: precarga del formulario de edición)', () => {
     it('devuelve todos los campos del producto, no solo el resumen del listado', async () => {
       const alta = await ctx.request

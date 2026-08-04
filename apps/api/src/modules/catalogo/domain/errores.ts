@@ -80,6 +80,14 @@ export class ProductoRelacionadoInvalido extends ErrorDeDominio {
   }
 }
 
+/** CU-19 A8/A9: el archivo subido no cumple el tipo o tamaño permitido. → 422. */
+export class ArchivoInvalido extends ErrorDeDominio {
+  readonly clase = 'VALIDATION' as const;
+  constructor(motivo: string) {
+    super(motivo);
+  }
+}
+
 /** CU-17 A3: la editorial no existe o no está activa (recurso ajeno = 404). → 404. */
 export class EditorialNoEncontrada extends ErrorDeDominio {
   readonly clase = 'BUSINESS_RULE' as const;

@@ -3,6 +3,8 @@ import type { DatosRecurso, RecursoAdmin } from '../recurso-admin';
 /** Puerto de ABM de recursos (CU-19 A9). */
 export interface RecursosAdminRepository {
   listar(): Promise<RecursoAdmin[]>;
+  /** Para leer el `url`/`type` previos antes de sobreescribir (borrado del PDF reemplazado). */
+  buscarPorId(id: string): Promise<RecursoAdmin | null>;
   crear(datos: DatosRecurso): Promise<RecursoAdmin>;
   /** null si el `id` no corresponde a ningún recurso. */
   actualizar(id: string, datos: DatosRecurso): Promise<RecursoAdmin | null>;

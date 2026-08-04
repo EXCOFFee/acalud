@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -9,8 +10,11 @@ import {
   Post,
   Put,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AdminGuard } from '../../../../platform/auth/admin.guard';
 import { AuthGuard } from '../../../../platform/auth/auth.guard';
 import type { RequestAutenticada } from '../../../../platform/auth/autenticado';
@@ -19,7 +23,8 @@ import { ActualizarRecurso } from '../../application/actualizar-recurso';
 import { CrearRecurso } from '../../application/crear-recurso';
 import { EliminarRecurso } from '../../application/eliminar-recurso';
 import { ListarRecursosAdmin } from '../../application/listar-recursos-admin';
-import { ProductoRelacionadoInvalido, RecursoAdminNoEncontrado } from '../../domain/errores';
+import { SubirPdfRecurso } from '../../application/subir-pdf-recurso';
+import { ArchivoInvalido, ProductoRelacionadoInvalido, RecursoAdminNoEncontrado } from '../../domain/errores';
 import type { RecursoAdmin } from '../../domain/recurso-admin';
 import { type RecursoAdminBody, recursoAdminSchema } from './admin-recursos.esquemas';
 
@@ -29,7 +34,7 @@ function mapearError(error: unknown): never {
   if (error instanceof RecursoAdminNoEncontrado) {
     throw new HttpException({ title: 'No encontrado', detail: error.message }, 404);
   }
-  if (error instanceof ProductoRelacionadoInvalido) {
+  if (error instanceof ProductoRelacionadoInvalido || error instanceof ArchivoInvalido) {
     throw new HttpException({ title: 'Dato inválido', detail: error.message }, 422);
   }
   throw error;
@@ -65,7 +70,21 @@ export class AdminRecursosController {
     private readonly crearRecurso: CrearRecurso,
     private readonly actualizarRecurso: ActualizarRecurso,
     private readonly eliminarRecurso: EliminarRecurso,
+    private readonly subirPdfRecurso: SubirPdfRecurso,
   ) {}
+
+  // CU-19 A9: sube al bucket privado 'recursos' antes de guardar el form; el path resultante
+  // se pega en el campo url, igual que antes se pegaba a mano.
+  @Post('pdf')
+  @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  async subirPdf(@UploadedFile() archivo?: Express.Multer.File) {
+    if (!archivo) throw new BadRequestException('Falta el archivo');
+    try {
+      return await this.subirPdfRecurso.ejecutar(archivo.buffer, archivo.mimetype, archivo.size);
+    } catch (error) {
+      mapearError(error);
+    }
+  }
 
   @Get()
   async listarTodos() {

@@ -20,6 +20,8 @@ export interface CtxApp {
   container: StartedPostgreSqlContainer;
   pg: Client; // cliente directo para asserts contra la BD
   request: Peticion;
+  /** Contenido subido al StorageProvider fake, clave `bucket/path` — para verificar subida/borrado. */
+  storageMock: Map<string, Buffer>;
   detener: () => Promise<void>;
 }
 
@@ -39,10 +41,22 @@ export async function levantarApp(): Promise<CtxApp> {
 
   process.env.DATABASE_URL = uri; // lo lee el PgModule al instanciar el pool
   const { STORAGE_PROVIDER } = await import('../../../src/platform/storage/storage-provider.port');
+  const storageMock = new Map<string, Buffer>();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(STORAGE_PROVIDER)
     .useValue({
       generarUrlFirmada: async (bucket: string, path: string, exp?: number) => `https://mock-storage.com/${bucket}/${path}?token=mock&exp=${exp}`,
+      subirArchivo: async (bucket: string, path: string, contenido: Buffer) => {
+        storageMock.set(`${bucket}/${path}`, contenido);
+        return { path, urlPublica: `https://mock-storage.com/${bucket}/${path}` };
+      },
+      eliminarArchivo: async (bucket: string, path: string) => {
+        storageMock.delete(`${bucket}/${path}`);
+      },
+      extraerPathPropio: (bucket: string, url: string) => {
+        const prefijo = `https://mock-storage.com/${bucket}/`;
+        return url.startsWith(prefijo) ? url.slice(prefijo.length) : null;
+      },
     })
     .compile();
   const app = moduleRef.createNestApplication();
@@ -60,5 +74,5 @@ export async function levantarApp(): Promise<CtxApp> {
     await container.stop();
   };
 
-  return { app, container, pg, request, detener };
+  return { app, container, pg, request, storageMock, detener };
 }

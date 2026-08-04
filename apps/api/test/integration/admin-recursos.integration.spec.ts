@@ -190,4 +190,90 @@ describe('CU-19 A9 · ABM de Recursos (admin)', () => {
       expect(res.status).toBe(404);
     });
   });
+
+  describe('Subida de PDF (CU-19 A9: para tipo pdf, no una URL/path a mano)', () => {
+    it('sin sesión responde 401', async () => {
+      const res = await ctx.request
+        .post('/api/v1/admin/resources/pdf')
+        .attach('archivo', Buffer.from('%PDF-fake'), { filename: 'x.pdf', contentType: 'application/pdf' });
+      expect(res.status).toBe(401);
+    });
+
+    it('autenticado pero sin rol admin responde 403', async () => {
+      const res = await ctx.request
+        .post('/api/v1/admin/resources/pdf')
+        .set('Cookie', `acalud_sesion=${docenteToken}`)
+        .attach('archivo', Buffer.from('%PDF-fake'), { filename: 'x.pdf', contentType: 'application/pdf' });
+      expect(res.status).toBe(403);
+    });
+
+    it('mimetype inválido (no PDF) responde 422', async () => {
+      const res = await ctx.request
+        .post('/api/v1/admin/resources/pdf')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .attach('archivo', Buffer.from('no es pdf'), { filename: 'x.png', contentType: 'image/png' });
+      expect(res.status).toBe(422);
+    });
+
+    it('sube el PDF y devuelve un path interno del bucket recursos', async () => {
+      const res = await ctx.request
+        .post('/api/v1/admin/resources/pdf')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .attach('archivo', Buffer.from('%PDF-fake-bytes'), { filename: 'guia.pdf', contentType: 'application/pdf' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.url).toMatch(/^pdfs\/.+\.pdf$/);
+    });
+
+    it('al reemplazar el PDF de un recurso tipo pdf, borra el viejo del bucket', async () => {
+      const primero = await ctx.request
+        .post('/api/v1/admin/resources/pdf')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .attach('archivo', Buffer.from('pdf-viejo'), { filename: 'viejo.pdf', contentType: 'application/pdf' });
+      const pdfViejo = primero.body.url as string;
+
+      const alta = await ctx.request
+        .post('/api/v1/admin/resources')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...recursoValido, titulo: 'Recurso Con PDF Test', url: pdfViejo });
+      const id = alta.body.id as string;
+      expect(ctx.storageMock.has(`recursos/${pdfViejo}`)).toBe(true);
+
+      const segundo = await ctx.request
+        .post('/api/v1/admin/resources/pdf')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .attach('archivo', Buffer.from('pdf-nuevo'), { filename: 'nuevo.pdf', contentType: 'application/pdf' });
+      const pdfNuevo = segundo.body.url as string;
+
+      const edicion = await ctx.request
+        .put(`/api/v1/admin/resources/${id}`)
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...recursoValido, titulo: 'Recurso Con PDF Test', url: pdfNuevo });
+      expect(edicion.status).toBe(200);
+
+      expect(ctx.storageMock.has(`recursos/${pdfViejo}`)).toBe(false);
+      expect(ctx.storageMock.has(`recursos/${pdfNuevo}`)).toBe(true);
+    });
+
+    it('cambiar de tipo link a pdf no intenta borrar nada (el link anterior no era un path nuestro)', async () => {
+      const alta = await ctx.request
+        .post('/api/v1/admin/resources')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...recursoValido, titulo: 'Recurso Link A PDF Test', tipo: 'link', url: 'https://externo.test/video' });
+      const id = alta.body.id as string;
+
+      const subida = await ctx.request
+        .post('/api/v1/admin/resources/pdf')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .attach('archivo', Buffer.from('pdf-nuevo-2'), { filename: 'nuevo2.pdf', contentType: 'application/pdf' });
+      const pdfNuevo = subida.body.url as string;
+
+      const edicion = await ctx.request
+        .put(`/api/v1/admin/resources/${id}`)
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...recursoValido, titulo: 'Recurso Link A PDF Test', tipo: 'pdf', url: pdfNuevo });
+      expect(edicion.status).toBe(200);
+      expect(ctx.storageMock.has(`recursos/${pdfNuevo}`)).toBe(true);
+    });
+  });
 });

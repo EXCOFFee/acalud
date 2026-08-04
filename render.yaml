@@ -50,3 +50,9 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
+      # Supabase Storage (imágenes de producto, PDFs de recursos, descargas firmadas CU-08/09).
+      # Sin estas dos, SupabaseStorageAdapter cae a un cliente dummy y falla al usarse.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

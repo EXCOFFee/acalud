@@ -17,7 +17,7 @@ import { RecursosRepositoryPg } from './persistencia/recursos.repository.pg';
 import { DescargasRepositoryPg } from './persistencia/descargas.repository.pg';
 import { RecursosAutorizacionPg } from './persistencia/recursos-autorizacion.pg';
 import { DescargarRecurso } from '../application/descargar-recurso';
-import { STORAGE_PROVIDER } from '../../../platform/storage/storage-provider.port';
+import { STORAGE_PROVIDER, type StorageProvider } from '../../../platform/storage/storage-provider.port';
 import { ActualizarProducto } from '../application/actualizar-producto';
 import { CrearProducto } from '../application/crear-producto';
 import { DesactivarProducto } from '../application/desactivar-producto';
@@ -40,6 +40,8 @@ import { ActualizarRecurso } from '../application/actualizar-recurso';
 import { CrearRecurso } from '../application/crear-recurso';
 import { EliminarRecurso } from '../application/eliminar-recurso';
 import { ListarRecursosAdmin } from '../application/listar-recursos-admin';
+import { SubirImagenProducto } from '../application/subir-imagen-producto';
+import { SubirPdfRecurso } from '../application/subir-pdf-recurso';
 import { AdminRecursosController } from './http/admin-recursos.controller';
 import { ListarEditoriales } from '../application/listar-editoriales';
 import { VerEditorial } from '../application/ver-editorial';
@@ -146,8 +148,9 @@ import { FavoritosController } from './http/favoritos.controller';
     },
     {
       provide: ActualizarProducto,
-      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): ActualizarProducto => new ActualizarProducto(uow),
-      inject: [UOW_CATALOGO_ADMIN],
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin, storage: StorageProvider): ActualizarProducto =>
+        new ActualizarProducto(uow, storage),
+      inject: [UOW_CATALOGO_ADMIN, STORAGE_PROVIDER],
     },
     {
       provide: DesactivarProducto,
@@ -196,13 +199,24 @@ import { FavoritosController } from './http/favoritos.controller';
     },
     {
       provide: ActualizarRecurso,
-      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): ActualizarRecurso => new ActualizarRecurso(uow),
-      inject: [UOW_CATALOGO_ADMIN],
+      useFactory: (uow: UnidadDeTrabajoCatalogoAdmin, storage: StorageProvider): ActualizarRecurso =>
+        new ActualizarRecurso(uow, storage),
+      inject: [UOW_CATALOGO_ADMIN, STORAGE_PROVIDER],
     },
     {
       provide: EliminarRecurso,
       useFactory: (uow: UnidadDeTrabajoCatalogoAdmin): EliminarRecurso => new EliminarRecurso(uow),
       inject: [UOW_CATALOGO_ADMIN],
+    },
+    {
+      provide: SubirImagenProducto,
+      useFactory: (storage: StorageProvider): SubirImagenProducto => new SubirImagenProducto(storage),
+      inject: [STORAGE_PROVIDER],
+    },
+    {
+      provide: SubirPdfRecurso,
+      useFactory: (storage: StorageProvider): SubirPdfRecurso => new SubirPdfRecurso(storage),
+      inject: [STORAGE_PROVIDER],
     },
     {
       provide: EDITORIALES_REPOSITORY,

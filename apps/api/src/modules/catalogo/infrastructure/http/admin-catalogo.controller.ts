@@ -1,4 +1,20 @@
-import { Body, Controller, Delete, Get, HttpException, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpException,
+  Param,
+  Post,
+  Put,
+  Query,
+  Req,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AdminGuard } from '../../../../platform/auth/admin.guard';
 import { AuthGuard } from '../../../../platform/auth/auth.guard';
 import type { RequestAutenticada } from '../../../../platform/auth/autenticado';
@@ -7,7 +23,8 @@ import { ActualizarProducto } from '../../application/actualizar-producto';
 import { CrearProducto } from '../../application/crear-producto';
 import { DesactivarProducto } from '../../application/desactivar-producto';
 import { ListarProductosAdmin } from '../../application/listar-productos-admin';
-import { CategoriaInvalida, ProductoAdminNoEncontrado } from '../../domain/errores';
+import { SubirImagenProducto } from '../../application/subir-imagen-producto';
+import { ArchivoInvalido, CategoriaInvalida, ProductoAdminNoEncontrado } from '../../domain/errores';
 import type { ProductoAdmin } from '../../domain/producto-admin';
 import {
   type ListadoProductosAdminQuery,
@@ -22,7 +39,7 @@ function mapearError(error: unknown): never {
   if (error instanceof ProductoAdminNoEncontrado) {
     throw new HttpException({ title: 'No encontrado', detail: error.message }, 404);
   }
-  if (error instanceof CategoriaInvalida) {
+  if (error instanceof CategoriaInvalida || error instanceof ArchivoInvalido) {
     throw new HttpException({ title: 'Dato inválido', detail: error.message }, 422);
   }
   throw error;
@@ -71,7 +88,21 @@ export class AdminCatalogoController {
     private readonly crearProducto: CrearProducto,
     private readonly actualizarProducto: ActualizarProducto,
     private readonly desactivarProducto: DesactivarProducto,
+    private readonly subirImagenProducto: SubirImagenProducto,
   ) {}
+
+  // CU-19 ("Imagen del producto: subida de archivo"): sube antes de guardar el form, el
+  // resultado se pega en el campo imagen_url igual que antes se pegaba una URL a mano.
+  @Post('imagen')
+  @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  async subirImagen(@UploadedFile() archivo?: Express.Multer.File) {
+    if (!archivo) throw new BadRequestException('Falta el archivo');
+    try {
+      return await this.subirImagenProducto.ejecutar(archivo.buffer, archivo.mimetype, archivo.size);
+    } catch (error) {
+      mapearError(error);
+    }
+  }
 
   @Get()
   async listar(@Query(new ZodValidationPipe(listadoProductosAdminSchema)) query: ListadoProductosAdminQuery) {

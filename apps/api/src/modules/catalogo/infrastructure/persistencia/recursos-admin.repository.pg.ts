@@ -32,6 +32,14 @@ export class RecursosAdminRepositoryPg implements RecursosAdminRepository {
     return r.rows.map(aRecursoAdmin);
   }
 
+  async buscarPorId(id: string): Promise<RecursoAdmin | null> {
+    const r = await this.client.query<FilaRecurso>(
+      `SELECT id, product_id, title, type, url, is_licensed FROM resources WHERE id = $1`,
+      [id],
+    );
+    return r.rows[0] ? aRecursoAdmin(r.rows[0]) : null;
+  }
+
   async crear(datos: DatosRecurso): Promise<RecursoAdmin> {
     const r = await this.client.query<FilaRecurso>(
       `INSERT INTO resources (product_id, title, type, url, is_licensed)

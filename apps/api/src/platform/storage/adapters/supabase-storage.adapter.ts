@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { StorageProvider } from '../storage-provider.port';
+import type { ArchivoSubido, StorageProvider } from '../storage-provider.port';
 
 @Injectable()
 export class SupabaseStorageAdapter implements StorageProvider {
@@ -29,5 +29,42 @@ export class SupabaseStorageAdapter implements StorageProvider {
     }
 
     return data.signedUrl;
+  }
+
+  async subirArchivo(
+    bucket: string,
+    path: string,
+    contenido: Buffer,
+    contentType: string,
+  ): Promise<ArchivoSubido> {
+    const { error } = await this.supabase.storage
+      .from(bucket)
+      .upload(path, contenido, { contentType, upsert: false });
+
+    if (error) {
+      this.logger.error(`Error subiendo ${bucket}/${path}: ${error.message}`);
+      throw new Error(`No se pudo subir el archivo: ${error.message}`);
+    }
+
+    // getPublicUrl no valida si el bucket es realmente público — en un bucket privado (ej.
+    // 'recursos') la URL que devuelve no sirve para nada; el llamador decide si la usa.
+    const { data } = this.supabase.storage.from(bucket).getPublicUrl(path);
+    return { path, urlPublica: data.publicUrl ?? null };
+  }
+
+  async eliminarArchivo(bucket: string, path: string): Promise<void> {
+    const { error } = await this.supabase.storage.from(bucket).remove([path]);
+    if (error) {
+      // Best-effort: un archivo que ya no existe (o un error transitorio de Storage) no debe
+      // tumbar la operación de guardar el producto/recurso que disparó este borrado.
+      this.logger.warn(`No se pudo borrar ${bucket}/${path}: ${error.message}`);
+    }
+  }
+
+  extraerPathPropio(bucket: string, url: string): string | null {
+    const { data } = this.supabase.storage.from(bucket).getPublicUrl('');
+    const prefijo = data.publicUrl;
+    if (!prefijo || !url.startsWith(prefijo)) return null;
+    return url.slice(prefijo.length);
   }
 }
