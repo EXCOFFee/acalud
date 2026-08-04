@@ -7,12 +7,10 @@ import { Alerta, Boton, Campo, EstadoCarga } from '@/components/ui';
 import { precioARS, SiteNav } from '@/components/site-nav';
 import { api, ApiError, type ModalidadEnvio, type OpcionEnvio } from '@/lib/api';
 
-type Paso = 'form' | 'pagar' | 'resultado';
 type EstadoEnvio = 'inactivo' | 'calculando' | 'ok' | 'error';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const [paso, setPaso] = useState<Paso>('form');
   const [datos, setDatos] = useState({
     calle: '',
     numero: '',
@@ -20,10 +18,8 @@ export default function CheckoutPage() {
     provincia: '',
     localidad: '',
   });
-  const [pedidoId, setPedidoId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
-  const [resultado, setResultado] = useState('');
 
   // CU-11: opciones de envío cotizadas contra el código postal ingresado.
   const [envioEstado, setEnvioEstado] = useState<EstadoEnvio>('inactivo');
@@ -92,8 +88,9 @@ export default function CheckoutPage() {
           localidad: datos.localidad,
         },
       });
-      setPedidoId(r.pedido_id);
-      setPaso('pagar');
+      // Redirect real a Mercado Pago (Checkout Pro): sale de la SPA, MP nos devuelve a
+      // /checkout/resultado según back_urls (CU-12).
+      window.location.href = r.init_point;
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401) return router.replace('/login?volver=/checkout');
@@ -109,34 +106,16 @@ export default function CheckoutPage() {
     }
   }
 
-  // Demo del pago (Etapa 1): en producción esto es la redirección a Mercado Pago + su webhook.
-  async function pagar(aprobar: boolean): Promise<void> {
-    setCargando(true);
-    setError(null);
-    try {
-      const paymentId = `${aprobar ? 'fake-pay-' : 'fake-reject-'}${pedidoId}`;
-      const r = await api.confirmarPagoDemo(paymentId);
-      setResultado(r.resultado);
-      setPaso('resultado');
-    } catch {
-      setError('No pudimos procesar el pago de prueba.');
-    } finally {
-      setCargando(false);
-    }
-  }
-
   return (
     <>
       <SiteNav />
       <main className="contenedor" style={{ paddingTop: '2.2rem', maxWidth: '640px' }}>
         <p className="eyebrow">Checkout</p>
 
-        {paso === 'form' ? (
-          <>
-            <h1 style={{ fontSize: 'clamp(1.7rem, 5vw, 2.4rem)', margin: '0.3rem 0 0.8rem' }}>
-              Datos de envío
-            </h1>
-            <form onSubmit={iniciar} noValidate>
+        <h1 style={{ fontSize: 'clamp(1.7rem, 5vw, 2.4rem)', margin: '0.3rem 0 0.8rem' }}>
+          Datos de envío
+        </h1>
+        <form onSubmit={iniciar} noValidate>
               {error ? <Alerta tipo="error">{error}</Alerta> : null}
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.9rem' }}>
                 <Campo id="calle" etiqueta="Calle" required value={datos.calle} onChange={set('calle')} />
@@ -224,46 +203,7 @@ export default function CheckoutPage() {
               <p style={{ textAlign: 'center', margin: '0.9rem 0 0' }}>
                 <Link href="/carrito">← Volver al carrito</Link>
               </p>
-            </form>
-          </>
-        ) : null}
-
-        {paso === 'pagar' ? (
-          <>
-            <h1 style={{ fontSize: 'clamp(1.7rem, 5vw, 2.4rem)', margin: '0.3rem 0 0.6rem' }}>Pago</h1>
-            <Alerta tipo="aviso">
-              Demo: en producción te redirigimos a Mercado Pago. Acá simulamos el resultado.
-            </Alerta>
-            {error ? <Alerta tipo="error">{error}</Alerta> : null}
-            <div style={{ display: 'flex', gap: '0.7rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-              <button className="boton boton--primario" type="button" disabled={cargando} onClick={() => pagar(true)}>
-                {cargando ? 'Procesando…' : 'Pagar (aprobado)'}
-              </button>
-              <button className="boton boton--fantasma" type="button" disabled={cargando} onClick={() => pagar(false)}>
-                Simular rechazo
-              </button>
-            </div>
-          </>
-        ) : null}
-
-        {paso === 'resultado' ? (
-          <>
-            <h1 style={{ fontSize: 'clamp(1.7rem, 5vw, 2.4rem)', margin: '0.3rem 0 0.8rem' }}>
-              {resultado === 'paid' ? '¡Compra confirmada! 🎲' : 'Estado del pago'}
-            </h1>
-            {resultado === 'paid' ? (
-              <Alerta tipo="ok">Tu pago se acreditó y tu pedido quedó pagado. Te enviamos la confirmación por email.</Alerta>
-            ) : resultado === 'rejected' ? (
-              <Alerta tipo="error">El pago fue rechazado. Tu carrito se conservó: podés reintentar.</Alerta>
-            ) : (
-              <Alerta tipo="aviso">Tu pedido quedó en revisión. Te contactaremos.</Alerta>
-            )}
-            <div style={{ display: 'flex', gap: '0.7rem', marginTop: '1.2rem', flexWrap: 'wrap' }}>
-              <Link className="boton boton--primario" href="/cuenta">Ir a mi cuenta</Link>
-              <Link className="boton boton--fantasma" href="/catalogo">Seguir comprando</Link>
-            </div>
-          </>
-        ) : null}
+        </form>
       </main>
     </>
   );

@@ -847,9 +847,6 @@ export const api = {
     };
     contexto?: string;
   }) => pedir<{ pedido_id: string; init_point: string }>('POST', '/checkout', d),
-  // Demo del pago fake (Etapa 1): simula la notificación de MP. En prod es el webhook firmado.
-  confirmarPagoDemo: (paymentId: string) =>
-    pedir<{ resultado: string }>('POST', '/webhooks/mercadopago', { payment_id: paymentId }),
   listarPedidos: (filtro?: FiltroPedidos) => {
     const qs = new URLSearchParams();
     if (filtro?.estado) qs.set('estado', filtro.estado);
