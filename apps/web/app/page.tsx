@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { PistaTablero } from '@/components/pista-tablero';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
           Acalud
         </span>
         <div className="nav__acciones">
+          <ThemeToggle />
           <Link className="boton boton--fantasma" href="/catalogo">
             Catálogo
           </Link>
