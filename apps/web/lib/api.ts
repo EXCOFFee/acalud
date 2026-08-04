@@ -187,6 +187,7 @@ export interface OpcionEnvio {
 }
 
 export type EstadoPedido = 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'under_review';
+export type TipoOrden = 'b2c' | 'b2b';
 
 export interface OrdenHistorial {
   id: string;
@@ -195,6 +196,8 @@ export interface OrdenHistorial {
   total: number;
   estado: EstadoPedido;
   tracking_code: string | null;
+  order_type: TipoOrden;
+  institution_id: string | null;
 }
 
 export interface ResultadoPaginado<T> {
@@ -221,6 +224,9 @@ export interface DetalleOrdenHistorial {
   envio_costo: number;
   total: number;
   tracking_code: string | null;
+  order_type: TipoOrden;
+  institution_id: string | null;
+  billing_data: { razon_social: string; cuit: string } | null;
   domicilio: {
     calle: string | null;
     numero: string | null;
@@ -424,6 +430,7 @@ export interface DetalleDocenteAsignaciones {
 
 export interface FiltroPedidos {
   estado?: EstadoPedido | undefined;
+  order_type?: TipoOrden | undefined;
   orden_por?: 'created_at' | 'total_amount' | undefined;
   orden_dir?: 'asc' | 'desc' | undefined;
   pagina?: number | undefined;
@@ -957,6 +964,7 @@ export const api = {
   listarPedidos: (filtro?: FiltroPedidos) => {
     const qs = new URLSearchParams();
     if (filtro?.estado) qs.set('estado', filtro.estado);
+    if (filtro?.order_type) qs.set('order_type', filtro.order_type);
     if (filtro?.orden_por) qs.set('orden_por', filtro.orden_por);
     if (filtro?.orden_dir) qs.set('orden_dir', filtro.orden_dir);
     if (filtro?.pagina) qs.set('pagina', String(filtro.pagina));

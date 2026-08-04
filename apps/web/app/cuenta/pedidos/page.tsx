@@ -121,6 +121,12 @@ export default function PedidosPage() {
       render: (o) => <Insignia variante={ESTADO_PEDIDO[o.estado].variante}>{ESTADO_PEDIDO[o.estado].etiqueta}</Insignia>,
     },
     {
+      // CU-24 RN-009: distinguir el historial institucional del personal.
+      clave: 'tipo',
+      encabezado: 'Tipo',
+      render: (o) => (o.order_type === 'b2b' ? <Insignia variante="marca">Institucional</Insignia> : '—'),
+    },
+    {
       clave: 'tracking',
       encabezado: 'Tracking',
       render: (o) => (tieneTrackingVisible(o.estado) && o.tracking_code ? o.tracking_code : '—'),
@@ -163,6 +169,22 @@ export default function PedidosPage() {
                   {ESTADO_PEDIDO[e].etiqueta}
                 </option>
               ))}
+            </Selector>
+            <Selector
+              id="filtro-tipo"
+              etiqueta="Tipo"
+              value={filtro.order_type ?? ''}
+              onChange={(e) =>
+                setFiltro((f) => ({
+                  ...f,
+                  order_type: (e.target.value || undefined) as FiltroPedidos['order_type'],
+                  pagina: 1,
+                }))
+              }
+            >
+              <option value="">Todos</option>
+              <option value="b2c">Personales</option>
+              <option value="b2b">Institucionales</option>
             </Selector>
             <Selector
               id="filtro-orden"
@@ -278,6 +300,12 @@ export default function PedidosPage() {
                   <p style={{ marginTop: '0.9rem', fontSize: '0.9rem', color: 'var(--tinta-suave)' }}>
                     Envío a: {detalle.domicilio.calle} {detalle.domicilio.numero}, {detalle.domicilio.localidad},{' '}
                     {detalle.domicilio.provincia} ({detalle.domicilio.codigo_postal})
+                  </p>
+                ) : null}
+
+                {detalle.billing_data ? (
+                  <p style={{ marginTop: '0.4rem', fontSize: '0.9rem', color: 'var(--tinta-suave)' }}>
+                    Facturado a: {detalle.billing_data.razon_social} (CUIT {detalle.billing_data.cuit})
                   </p>
                 ) : null}
 
