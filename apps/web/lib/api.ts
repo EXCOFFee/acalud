@@ -682,6 +682,39 @@ export interface RecursoAdminInput {
   producto_id: string | null;
 }
 
+// CU-20 (F5, admin): ABM de encuestas. `nivel_educativo_id` no se pide en el form — mismo gap
+// que Bloque E (sin catálogo público de niveles para resolver nombres, ver
+// docs/claude/05-pendientes-post-frontend.md), siempre se manda null.
+export type EstadoEncuestaAdmin = 'draft' | 'active' | 'closed';
+
+export interface EncuestaAdminResumen {
+  id: string;
+  pregunta: string;
+  estado: EstadoEncuestaAdmin;
+  creada_en: string;
+  total_votos: number;
+}
+
+export interface OpcionEncuestaAdmin {
+  id: string;
+  texto: string;
+}
+
+export interface EncuestaAdminDetalle {
+  id: string;
+  pregunta: string;
+  estado: EstadoEncuestaAdmin;
+  nivel_educativo_id: string | null;
+  creada_en: string;
+  opciones: OpcionEncuestaAdmin[];
+}
+
+export interface EncuestaAdminInput {
+  pregunta: string;
+  nivel_educativo_id: string | null;
+  opciones: string[];
+}
+
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
@@ -939,4 +972,15 @@ export const api = {
   actualizarRecursoAdmin: (id: string, d: RecursoAdminInput) =>
     pedir<RecursoAdmin>('PUT', `/admin/resources/${id}`, d),
   eliminarRecursoAdmin: (id: string) => pedir<void>('DELETE', `/admin/resources/${id}`),
+  // CU-20 (admin): ABM de encuestas.
+  listarEncuestasAdmin: () => pedir<EncuestaAdminResumen[]>('GET', '/admin/polls'),
+  // CU-20 A2: detalle completo, para precargar el formulario de edición.
+  verEncuestaAdmin: (id: string) => pedir<EncuestaAdminDetalle>('GET', `/admin/polls/${id}`),
+  crearEncuestaAdmin: (d: EncuestaAdminInput) => pedir<EncuestaAdminDetalle>('POST', '/admin/polls', d),
+  actualizarEncuestaAdmin: (id: string, d: EncuestaAdminInput) =>
+    pedir<EncuestaAdminDetalle>('PUT', `/admin/polls/${id}`, d),
+  // CU-20 A1: solo alterna draft↔active — una encuesta 'closed' no tiene transición definida hoy.
+  alternarEstadoEncuestaAdmin: (id: string) => pedir<EncuestaAdminDetalle>('PATCH', `/admin/polls/${id}/toggle`),
+  // CU-20 A3: baja física con cascada a opciones y respuestas (RN-006).
+  eliminarEncuestaAdmin: (id: string) => pedir<void>('DELETE', `/admin/polls/${id}`),
 };
