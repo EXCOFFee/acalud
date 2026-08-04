@@ -269,17 +269,24 @@ export interface FavoritoResumen {
   creado_en: string;
 }
 
-export interface MiInstitucion {
-  institucion_id: string | null;
-  es_encargado: boolean;
-}
-
 export interface DomicilioInstitucion {
   calle: string;
   numero: string;
   localidad: string;
   provincia: string;
   codigo_postal: string;
+}
+
+export interface DatosFacturacionEnvio {
+  nombre_legal: string;
+  identificador_tributario: string;
+  domicilio: DomicilioInstitucion | null;
+}
+
+export interface MiInstitucion {
+  institucion_id: string | null;
+  es_encargado: boolean;
+  datos_facturacion_envio: DatosFacturacionEnvio | null;
 }
 
 export interface RegistrarInstitucionInput {

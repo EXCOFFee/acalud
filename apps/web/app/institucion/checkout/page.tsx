@@ -14,6 +14,7 @@ export default function CheckoutInstitucionalPage() {
   const [institucionId, setInstitucionId] = useState<string | null>(null);
   const [resolviendo, setResolviendo] = useState(true);
   const [sinPermiso, setSinPermiso] = useState(false);
+  const [facturacion, setFacturacion] = useState<{ nombreLegal: string; cuit: string } | null>(null);
 
   const [datos, setDatos] = useState({
     calle: '',
@@ -44,6 +45,21 @@ export default function CheckoutInstitucionalPage() {
           return;
         }
         setInstitucionId(mia.institucion_id);
+        // CU-24 A10/RN-002/RNF-004: precarga la dirección institucional si está configurada — los
+        // campos quedan igual de editables, el usuario puede corregir cualquiera antes de confirmar.
+        const datosFacturacion = mia.datos_facturacion_envio;
+        if (datosFacturacion) {
+          setFacturacion({ nombreLegal: datosFacturacion.nombre_legal, cuit: datosFacturacion.identificador_tributario });
+          if (datosFacturacion.domicilio) {
+            setDatos({
+              calle: datosFacturacion.domicilio.calle,
+              numero: datosFacturacion.domicilio.numero,
+              codigo_postal: datosFacturacion.domicilio.codigo_postal,
+              provincia: datosFacturacion.domicilio.provincia,
+              localidad: datosFacturacion.domicilio.localidad,
+            });
+          }
+        }
         setResolviendo(false);
       })
       .catch((err: unknown) => {
@@ -241,6 +257,12 @@ export default function CheckoutInstitucionalPage() {
                     ))}
                   </div>
                 </div>
+              ) : null}
+
+              {facturacion ? (
+                <Alerta tipo="aviso">
+                  Se facturará a nombre de <strong>{facturacion.nombreLegal}</strong> (CUIT {facturacion.cuit}).
+                </Alerta>
               ) : null}
 
               <button
