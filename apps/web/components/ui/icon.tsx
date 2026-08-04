@@ -250,6 +250,14 @@ export function IconoChip(props: IconoProps) {
   );
 }
 
+export function IconoMenu(props: IconoProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 6.5h16M4 12h16M4 17.5h16" />
+    </svg>
+  );
+}
+
 export function IconoCerrar(props: IconoProps) {
   return (
     <svg {...base(props)}>

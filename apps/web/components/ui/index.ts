@@ -21,6 +21,7 @@ export {
   IconoGraficoLinea,
   IconoLibro,
   IconoMapa,
+  IconoMenu,
   IconoMicroscopio,
   IconoNotas,
   IconoNumeros,

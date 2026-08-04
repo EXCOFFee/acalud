@@ -2,9 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Boton, Dialogo } from '@/components/ui';
+import { usePathname, useRouter } from 'next/navigation';
+import { Boton, Dialogo, IconoCerrar, IconoMenu } from '@/components/ui';
 import { api } from '@/lib/api';
+
+const LINKS = [
+  { href: '/catalogo', etiqueta: 'Catálogo' },
+  { href: '/editoriales', etiqueta: 'Editoriales' },
+  { href: '/encuestas', etiqueta: 'Encuestas' },
+  { href: '/propuestas', etiqueta: 'Proponer un juego' },
+  { href: '/carrito', etiqueta: 'Carrito' },
+];
 
 /**
  * Barra superior de toda la app (páginas públicas y autenticadas). Sabe si hay sesión iniciada
@@ -13,9 +21,11 @@ import { api } from '@/lib/api';
  */
 export function SiteNav() {
   const router = useRouter();
+  const pathname = usePathname();
   const [logueado, setLogueado] = useState<boolean | null>(null); // null = todavía no se sabe
   const [confirmando, setConfirmando] = useState(false);
   const [saliendo, setSaliendo] = useState(false);
+  const [movilAbierto, setMovilAbierto] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -28,6 +38,11 @@ export function SiteNav() {
     };
   }, []);
 
+  // El menú mobile se cierra al navegar — evita quedar abierto tapando la página siguiente.
+  useEffect(() => {
+    setMovilAbierto(false);
+  }, [pathname]);
+
   async function confirmarSalida(): Promise<void> {
     setSaliendo(true);
     try {
@@ -39,6 +54,21 @@ export function SiteNav() {
     }
   }
 
+  const accionSesion = logueado ? (
+    <>
+      <Link className="boton boton--fantasma" href="/cuenta">
+        Mi cuenta
+      </Link>
+      <Boton variante="primario" onClick={() => setConfirmando(true)}>
+        Cerrar sesión
+      </Boton>
+    </>
+  ) : logueado === false ? (
+    <Boton variante="primario" href="/login">
+      Ingresar
+    </Boton>
+  ) : null;
+
   return (
     <>
       <header className="nav">
@@ -46,38 +76,38 @@ export function SiteNav() {
           <span className="marca__ficha" aria-hidden="true" />
           Acalud
         </Link>
-        <div className="nav__acciones">
-          <Link className="boton boton--fantasma" href="/catalogo">
-            Catálogo
-          </Link>
-          <Link className="boton boton--fantasma" href="/editoriales">
-            Editoriales
-          </Link>
-          <Link className="boton boton--fantasma" href="/encuestas">
-            Encuestas
-          </Link>
-          <Link className="boton boton--fantasma" href="/propuestas">
-            Proponer un juego
-          </Link>
-          <Link className="boton boton--fantasma" href="/carrito">
-            Carrito
-          </Link>
-          {logueado ? (
-            <>
-              <Link className="boton boton--fantasma" href="/cuenta">
-                Mi cuenta
-              </Link>
-              <Boton variante="primario" onClick={() => setConfirmando(true)}>
-                Cerrar sesión
-              </Boton>
-            </>
-          ) : logueado === false ? (
-            <Boton variante="primario" href="/login">
-              Ingresar
-            </Boton>
-          ) : null}
-        </div>
+
+        <nav className="nav__acciones" aria-label="Principal">
+          {LINKS.map((l) => (
+            <Link key={l.href} className="boton boton--fantasma" href={l.href}>
+              {l.etiqueta}
+            </Link>
+          ))}
+          {accionSesion}
+        </nav>
+
+        <button
+          type="button"
+          className="nav__hamburguesa"
+          aria-expanded={movilAbierto}
+          aria-controls="nav-movil"
+          aria-label={movilAbierto ? 'Cerrar menú' : 'Abrir menú'}
+          onClick={() => setMovilAbierto((v) => !v)}
+        >
+          {movilAbierto ? <IconoCerrar /> : <IconoMenu />}
+        </button>
       </header>
+
+      {movilAbierto ? (
+        <nav id="nav-movil" className="nav__movil" aria-label="Principal (mobile)">
+          {LINKS.map((l) => (
+            <Link key={l.href} className="nav__movil-link" href={l.href}>
+              {l.etiqueta}
+            </Link>
+          ))}
+          <div className="nav__movil-sesion">{accionSesion}</div>
+        </nav>
+      ) : null}
 
       <Dialogo
         abierto={confirmando}

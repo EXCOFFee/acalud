@@ -156,6 +156,69 @@ a {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.nav__hamburguesa {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  border: 1px solid var(--borde);
+  border-radius: var(--r-sm);
+  background: var(--superficie);
+  color: var(--tinta);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.nav__hamburguesa:hover {
+  border-color: var(--marca);
+  color: var(--marca);
+}
+.nav__movil {
+  display: none;
+}
+
+/* Debajo de ~880px, 7 links + marca ya no entran en una fila: se colapsa a hamburguesa. */
+@media (max-width: 880px) {
+  .nav__acciones {
+    display: none;
+  }
+  .nav__hamburguesa {
+    display: inline-flex;
+  }
+  .nav__movil {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.5rem clamp(1rem, 4vw, 2.5rem) 1.1rem;
+    border-bottom: 1px solid var(--borde);
+    background: var(--superficie);
+  }
+  .nav__movil-link {
+    padding: 0.75rem 0.6rem;
+    border-radius: var(--r-sm);
+    color: var(--tinta);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .nav__movil-link:hover,
+  .nav__movil-link:focus-visible {
+    background: var(--superficie-2);
+  }
+  .nav__movil-sesion {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--borde);
+  }
+  .nav__movil-sesion .boton {
+    width: 100%;
+  }
 }
 
 /* ---------- Botones ---------- */
