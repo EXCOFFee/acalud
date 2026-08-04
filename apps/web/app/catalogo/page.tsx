@@ -3,7 +3,8 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Alerta } from '@/components/ui';
-import { emojiArea, precioARS, SiteNav } from '@/components/site-nav';
+import { precioARS, SiteNav } from '@/components/site-nav';
+import { TileProducto } from '@/components/tile-producto';
 import { api, type JuegoResumen } from '@/lib/api';
 
 const AREAS = ['Matemática', 'Lengua', 'Ciencias Naturales', 'Ciencias Sociales', 'Programación'];
@@ -94,8 +95,8 @@ export default function CatalogoPage() {
                     <img src={j.imagen_url} alt="" />
                   </div>
                 ) : (
-                  <div className="thumb" aria-hidden="true">
-                    {emojiArea(j.area)}
+                  <div className="thumb">
+                    <TileProducto semilla={j.id} />
                   </div>
                 )}
                 <div className="juego__cuerpo">

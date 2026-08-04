@@ -130,19 +130,6 @@ export function SiteNav() {
   );
 }
 
-const EMOJI_AREA: Record<string, string> = {
-  Matemática: '🔢',
-  Lengua: '📖',
-  'Ciencias Naturales': '🔬',
-  'Ciencias Sociales': '🗺️',
-  Programación: '🤖',
-};
-
-/** Emoji representativo del área (placeholder visual mientras no hay imágenes cargadas). */
-export function emojiArea(area: string | null): string {
-  return (area && EMOJI_AREA[area]) || '🎲';
-}
-
 /** Precio en pesos argentinos, sin centavos. */
 export function precioARS(valor: number): string {
   return valor.toLocaleString('es-AR', {

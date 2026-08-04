@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Alerta, Boton, Dialogo } from '@/components/ui';
+import { Alerta, Boton, Dialogo, IconoCandado, IconoEscuela } from '@/components/ui';
 import { BotonFavorito } from '@/components/favorito-boton';
-import { emojiArea, precioARS, SiteNav } from '@/components/site-nav';
+import { TileProducto } from '@/components/tile-producto';
+import { precioARS, SiteNav } from '@/components/site-nav';
 import { api, ApiError, type ContenidoDemo, type FavoritoResumen, type JuegoDetalle } from '@/lib/api';
 
 const FORMATO: Record<string, string> = { html5: 'interactiva', pdf: 'PDF', video: 'video' };
@@ -170,8 +171,8 @@ export default function FichaJuegoPage() {
                 <img src={juego.imagen_url} alt="" />
               </div>
             ) : (
-              <div className="thumb" aria-hidden="true">
-                {emojiArea(juego.area)}
+              <div className="thumb">
+                <TileProducto semilla={juego.id} />
               </div>
             )}
 
@@ -235,7 +236,7 @@ export default function FichaJuegoPage() {
                   </button>
                   {institucionId ? (
                     <Boton variante="fantasma" onClick={agregarAlCarritoInstitucional} cargando={agregandoInstitucional}>
-                      🏫 Agregar a compra institucional
+                      <IconoEscuela size={18} /> Agregar a compra institucional
                     </Boton>
                   ) : null}
                 </div>
@@ -324,7 +325,9 @@ export default function FichaJuegoPage() {
                               ⬇ Descargar
                             </Boton>
                           ) : (
-                            <span className="chip">🔒 Con compra</span>
+                            <span className="chip">
+                              <IconoCandado size={13} /> Con compra
+                            </span>
                           )}
                           <BotonFavorito
                             tipo="recurso"

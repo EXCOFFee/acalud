@@ -735,7 +735,6 @@ a {
 }
 .juego .thumb {
   aspect-ratio: 16 / 10;
-  font-size: 3rem;
 }
 .juego__cuerpo {
   padding: 0.85rem 1rem 1rem;
@@ -804,7 +803,6 @@ a {
 .ficha .thumb {
   aspect-ratio: 4 / 3;
   border-radius: var(--r-lg);
-  font-size: 5rem;
 }
 .ficha__precio {
   font-family: var(--font-utilitaria);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Alerta, Boton, EstadoCarga, EstadoError, EstadoVacio, Insignia } from '@/components/ui';
+import { Alerta, Boton, EstadoCarga, EstadoError, EstadoVacio, IconoCarrito, Insignia } from '@/components/ui';
 import { precioARS, SiteNav } from '@/components/site-nav';
 import { api, ApiError, type CarritoView } from '@/lib/api';
 
@@ -92,7 +92,7 @@ export default function CarritoInstitucionalPage() {
 
         {estado === 'ok' && carrito && carrito.lineas.length === 0 ? (
           <EstadoVacio
-            icono="🛒"
+            icono={<IconoCarrito size={40} />}
             titulo="El carrito institucional está vacío"
             accion={
               <Boton variante="primario" href="/catalogo">

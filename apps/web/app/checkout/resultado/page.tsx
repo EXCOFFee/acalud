@@ -78,7 +78,7 @@ export default function ResultadoCheckoutPage() {
       <main className="contenedor" style={{ paddingTop: '2.2rem', maxWidth: '640px' }}>
         <p className="eyebrow">Checkout</p>
         <h1 style={{ fontSize: 'clamp(1.7rem, 5vw, 2.4rem)', margin: '0.3rem 0 0.8rem' }}>
-          {vista === 'paid' ? '¡Compra confirmada! 🎲' : 'Confirmando tu pago'}
+          {vista === 'paid' ? '¡Compra confirmada!' : 'Confirmando tu pago'}
         </h1>
 
         {error ? <Alerta tipo="error">{error}</Alerta> : null}
