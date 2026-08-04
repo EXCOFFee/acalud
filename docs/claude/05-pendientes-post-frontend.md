@@ -130,20 +130,28 @@ facturación en `/cuenta/pedidos`.
   `nivel_educativo_id`, siempre manda `null`. Un solo endpoint de catálogo resolvería los tres
   casos (`/encuestas`, `/propuestas`, `/admin/encuestas`).
 
-## F2 — CU-19 ABM Productos / CU-22 Descuento mayorista (admin)
+## ~~F2 — CU-19 ABM Productos / CU-22 Descuento mayorista (admin)~~ (resuelto, commit `5d64dbe`)
 
-`ProductosAdminRepositoryPg.listar()` trae un comentario que dice "el admin necesita ver los
+~~`ProductosAdminRepositoryPg.listar()` trae un comentario que dice "el admin necesita ver los
 inactivos para poder reactivarlos vía edición" — pero `actualizar()` (el `UPDATE` que corre al
 guardar el form de edición) nunca toca la columna `is_active`. Es decir: el comentario describe
 un comportamiento que el código no implementa. Confirmado leyendo ambos directamente antes de
-construir el frontend de F2.
+construir el frontend de F2.~~
 
-**Falta:**
-- Forma de reactivar un producto desactivado — hoy `DELETE /admin/products/:id` (baja lógica)
+~~**Falta:**~~
+~~- Forma de reactivar un producto desactivado — hoy `DELETE /admin/products/:id` (baja lógica)
   no tiene contraparte. El frontend de F2 no ofrece un botón "reactivar" porque no hay ningún
   endpoint que lo haga (ni siquiera `PUT` toca `is_active`). Requiere decidir el contrato: ¿un
-  campo `activo` en el body de `PUT`, o un endpoint dedicado `POST .../reactivar`?
-- Corregir o borrar el comentario desactualizado en `productos-admin.repository.pg.ts`.
+  campo `activo` en el body de `PUT`, o un endpoint dedicado `POST .../reactivar`?~~
+~~- Corregir o borrar el comentario desactualizado en `productos-admin.repository.pg.ts`.~~
+
+Resuelto con un endpoint dedicado `POST /admin/products/:id/reactivar` (mismo patrón simétrico
+que el `DELETE` ya existente, `ProductosAdminRepository.desactivar` ⇄ nuevo `.reactivar`) en vez
+de un campo `activo` en el body de `PUT`: `PUT` reutiliza `productoAdminSchema` completo (CU-19
+A1.5, "mismo que pasos 10-14"), así que forzar a reenviar el formulario entero solo para cambiar
+un estado hubiera sido un contrato más pesado que la operación. Se corrigió el comentario
+desactualizado en `listar()`. Frontend: botón "Reactivar" (variante `primario`, acción directa
+sin modal de confirmación — a diferencia de "Desactivar", reactivar no es destructivo).
 
 ## Notas generales
 
