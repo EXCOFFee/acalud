@@ -636,6 +636,31 @@ export interface PaginaProductosAdmin {
   paginacion: { pagina: number; tamanio: number; total: number };
 }
 
+// CU-19 A8 (F3, admin): una demo por producto. `configuracion_json` es un blob libre en el
+// backend, pero solo tipo/formato/contenido_ref importan funcionalmente (ver lado de lectura
+// pública en CU-06/CU-07) — el form solo pide esos 3 + la URL opcional de Unity WebGL.
+export type TipoDemo = 'publica' | 'completa';
+export type FormatoDemo = 'html5' | 'pdf' | 'video';
+
+export interface DemoAdminDetalle {
+  asignada: boolean;
+  id: string | null;
+  producto_id: string;
+  configuracion_json: {
+    tipo?: TipoDemo;
+    formato?: FormatoDemo;
+    contenido_ref?: string;
+    unity_webgl_url?: string;
+  } | null;
+}
+
+export interface DemoAdminInput {
+  tipo: TipoDemo;
+  formato: FormatoDemo;
+  contenido_ref: string;
+  url_unity_webgl: string | null;
+}
+
 export const api = {
   registro: (d: { email: string; contrasena: string; nombre: string; apellido: string }) =>
     pedir<void>('POST', '/auth/registro', d),
@@ -876,4 +901,15 @@ export const api = {
     pedir<ProductoAdminDetalle>('PUT', `/admin/products/${id}`, d),
   // CU-19 A2: baja lógica (RNF-008) — nunca borra la fila.
   desactivarProductoAdmin: (id: string) => pedir<ProductoAdminDetalle>('DELETE', `/admin/products/${id}`),
+  // CU-19 A8 (admin): demo por producto — GET para precargar el form, PUT hace upsert.
+  verDemoAdmin: (productoId: string) => pedir<DemoAdminDetalle>('GET', `/admin/products/${productoId}/demo`),
+  asignarDemoAdmin: (productoId: string, d: DemoAdminInput) =>
+    pedir<{ id: string; producto_id: string; configuracion_json: Record<string, unknown> }>(
+      'PUT',
+      `/admin/products/${productoId}/demo`,
+      {
+        configuracion_json: { tipo: d.tipo, formato: d.formato, contenido_ref: d.contenido_ref },
+        url_unity_webgl: d.url_unity_webgl,
+      },
+    ),
 };

@@ -22,12 +22,21 @@ import {
   api,
   ApiError,
   type CategoriaAdmin,
+  type FormatoDemo,
   type ProductoAdminInput,
   type ProductoAdminResumen,
   type PaginaProductosAdmin,
+  type TipoDemo,
 } from '@/lib/api';
 
 const TAMANIO_PAGINA = 20;
+
+const FORM_DEMO_VACIO = {
+  tipo: 'publica' as TipoDemo,
+  formato: 'html5' as FormatoDemo,
+  contenidoRef: '',
+  urlUnityWebgl: '',
+};
 
 const FORM_VACIO = {
   titulo: '',
@@ -65,6 +74,13 @@ export default function AdminProductosPage() {
 
   const [aDesactivar, setADesactivar] = useState<ProductoAdminResumen | null>(null);
   const [desactivando, setDesactivando] = useState(false);
+
+  // CU-19 A8 (F3): configurar la demo del producto — un producto, a lo sumo una demo.
+  const [demoProducto, setDemoProducto] = useState<ProductoAdminResumen | null>(null);
+  const [formDemo, setFormDemo] = useState(FORM_DEMO_VACIO);
+  const [demoEstado, setDemoEstado] = useState<'cargando' | 'ok'>('ok');
+  const [demoError, setDemoError] = useState<string | null>(null);
+  const [guardandoDemo, setGuardandoDemo] = useState(false);
 
   function cargar(): void {
     setEstado('cargando');
@@ -216,6 +232,59 @@ export default function AdminProductosPage() {
     }
   }
 
+  async function abrirDemo(row: ProductoAdminResumen): Promise<void> {
+    setDemoProducto(row);
+    setDemoError(null);
+    setDemoEstado('cargando');
+    try {
+      const d = await api.verDemoAdmin(row.id);
+      setFormDemo({
+        tipo: d.configuracion_json?.tipo ?? 'publica',
+        formato: d.configuracion_json?.formato ?? 'html5',
+        contenidoRef: d.configuracion_json?.contenido_ref ?? '',
+        urlUnityWebgl: d.configuracion_json?.unity_webgl_url ?? '',
+      });
+      setDemoEstado('ok');
+    } catch {
+      setDemoError('No pudimos cargar la demo de este producto.');
+      setDemoEstado('ok');
+    }
+  }
+
+  async function guardarDemo(e: FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault();
+    if (!demoProducto) return;
+    setDemoError(null);
+    if (!formDemo.contenidoRef.trim()) {
+      setDemoError('La referencia de contenido (URL a embeber) es obligatoria.');
+      return;
+    }
+    setGuardandoDemo(true);
+    try {
+      await api.asignarDemoAdmin(demoProducto.id, {
+        tipo: formDemo.tipo,
+        formato: formDemo.formato,
+        contenido_ref: formDemo.contenidoRef.trim(),
+        url_unity_webgl: formDemo.urlUnityWebgl.trim() || null,
+      });
+      notificar('Demo guardada.', 'ok');
+      setDemoProducto(null);
+      cargar();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.replace('/login?volver=/admin/productos');
+        return;
+      }
+      if (err instanceof ApiError && (err.status === 422 || err.status === 404)) {
+        setDemoError(err.problema.detail ?? 'No pudimos guardar la demo.');
+      } else {
+        setDemoError('No pudimos conectar. Revisá tu conexión.');
+      }
+    } finally {
+      setGuardandoDemo(false);
+    }
+  }
+
   const columnas: ColumnaTabla<ProductoAdminResumen>[] = [
     { clave: 'titulo', encabezado: 'Título', render: (p) => p.titulo },
     { clave: 'precio', encabezado: 'Precio', alinear: 'derecha', render: (p) => precioARS(p.precio) },
@@ -239,6 +308,9 @@ export default function AdminProductosPage() {
       encabezado: '',
       render: (p) => (
         <span style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+          <Boton variante="fantasma" onClick={() => abrirDemo(p)}>
+            {p.tiene_demo ? 'Editar demo' : 'Configurar demo'}
+          </Boton>
           <Boton variante="fantasma" onClick={() => abrirEditar(p)}>
             Editar
           </Boton>
@@ -470,6 +542,68 @@ export default function AdminProductosPage() {
           lógica: las órdenes que ya lo incluyen no se ven afectadas, pero esta acción no se puede
           deshacer desde el panel.
         </p>
+      </Dialogo>
+
+      <Dialogo
+        abierto={demoProducto !== null}
+        onCerrar={() => setDemoProducto(null)}
+        titulo={`Demo — ${demoProducto?.titulo ?? ''}`}
+      >
+        {demoEstado === 'cargando' ? <EstadoCarga>Cargando…</EstadoCarga> : null}
+        {demoEstado === 'ok' ? (
+          <form onSubmit={guardarDemo} noValidate>
+            {demoError ? <Alerta tipo="error">{demoError}</Alerta> : null}
+            <p style={{ color: 'var(--tinta-suave)', marginTop: 0, fontSize: '0.85rem' }}>
+              Un producto tiene, como máximo, una demo configurada.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.9rem' }}>
+              <Selector
+                id="demo-tipo"
+                etiqueta="Tipo"
+                value={formDemo.tipo}
+                onChange={(e) => setFormDemo((f) => ({ ...f, tipo: e.target.value as TipoDemo }))}
+              >
+                <option value="publica">Pública (sin sesión, CU-06)</option>
+                <option value="completa">Completa (con sesión, CU-07)</option>
+              </Selector>
+              <Selector
+                id="demo-formato"
+                etiqueta="Formato"
+                value={formDemo.formato}
+                onChange={(e) => setFormDemo((f) => ({ ...f, formato: e.target.value as FormatoDemo }))}
+              >
+                <option value="html5">Interactiva (HTML5)</option>
+                <option value="pdf">PDF</option>
+                <option value="video">Video</option>
+              </Selector>
+            </div>
+            <Campo
+              id="demo-contenido-ref"
+              etiqueta="Referencia de contenido (URL a embeber)"
+              type="url"
+              required
+              placeholder="https://…"
+              value={formDemo.contenidoRef}
+              onChange={(e) => setFormDemo((f) => ({ ...f, contenidoRef: e.target.value }))}
+            />
+            <Campo
+              id="demo-unity-webgl"
+              etiqueta="URL de Unity WebGL (opcional)"
+              type="url"
+              placeholder="https://…"
+              value={formDemo.urlUnityWebgl}
+              onChange={(e) => setFormDemo((f) => ({ ...f, urlUnityWebgl: e.target.value }))}
+            />
+            <div className="dialogo__acciones">
+              <Boton variante="fantasma" type="button" onClick={() => setDemoProducto(null)} disabled={guardandoDemo}>
+                Cancelar
+              </Boton>
+              <Boton variante="primario" type="submit" cargando={guardandoDemo}>
+                Guardar
+              </Boton>
+            </div>
+          </form>
+        ) : null}
       </Dialogo>
     </>
   );
