@@ -291,6 +291,7 @@ a {
   padding: 0.72rem 1.15rem;
   border-radius: var(--r-sm);
   border: 1px solid transparent;
+  text-decoration: none;
   cursor: pointer;
   touch-action: manipulation; /* sin delay de doble-tap-para-zoom en mobile */
   transition:

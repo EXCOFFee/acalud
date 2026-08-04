@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { IconoAtras } from '@/components/ui';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 interface AuthShellProps {
   titulo: string;
@@ -26,7 +27,10 @@ const tokens: Array<{ left: string; bottom: string; color: string }> = [
 export function AuthShell({ titulo, bajada, children, pie }: AuthShellProps) {
   const router = useRouter();
   return (
-    <div className="auth">
+    <div className="auth" style={{ position: 'relative' }}>
+      <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', zIndex: 20 }}>
+        <ThemeToggle />
+      </div>
       <aside className="auth__panel">
         <div style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', zIndex: 10 }}>
           <button
