@@ -39,6 +39,15 @@ export function IconoDado(props: IconoProps) {
   );
 }
 
+export function IconoAtras(props: IconoProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M19 12H5" />
+      <path d="m12 19-7-7 7-7" />
+    </svg>
+  );
+}
+
 export function IconoCarpeta(props: IconoProps) {
   return (
     <svg {...base(props)}>

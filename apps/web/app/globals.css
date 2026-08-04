@@ -180,6 +180,9 @@ a {
 .nav__movil {
   display: none;
 }
+.nav__movil-solo {
+  display: none;
+}
 
 /* Debajo de ~880px, 7 links + marca ya no entran en una fila: se colapsa a hamburguesa. */
 @media (max-width: 880px) {
@@ -187,6 +190,9 @@ a {
     display: none;
   }
   .nav__hamburguesa {
+    display: inline-flex;
+  }
+  .nav__movil-solo {
     display: inline-flex;
   }
   .nav__movil {
@@ -352,6 +358,35 @@ a {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
+}
+.estado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4rem 1rem;
+  background: var(--superficie-2);
+  border-radius: var(--r-md);
+  margin: 1.5rem 0;
+  border: 1px dashed var(--borde);
+}
+
+.grilla-form-2-1 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 0.9rem;
+}
+.grilla-form-1-1 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+@media (max-width: 600px) {
+  .grilla-form-2-1,
+  .grilla-form-1-1 {
+    grid-template-columns: 1fr;
+  }
 }
 .subir-archivo {
   display: flex;

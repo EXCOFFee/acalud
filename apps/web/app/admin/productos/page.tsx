@@ -423,7 +423,7 @@ export default function AdminProductosPage() {
               </Alerta>
             ) : null}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.9rem' }}>
+            <div className="grilla-form-2-1">
               <Campo id="titulo" etiqueta="Título" required value={form.titulo} onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))} />
               <Campo id="precio" etiqueta="Precio" type="number" min={0} step="0.01" required value={form.precio} onChange={(e) => setForm((f) => ({ ...f, precio: e.target.value }))} />
             </div>
@@ -442,7 +442,7 @@ export default function AdminProductosPage() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.9rem' }}>
+            <div className="grilla-form-1-1">
               <Campo id="stock" etiqueta="Stock" type="number" min={0} required value={form.stock} onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))} />
               <Selector id="categoria" etiqueta="Categoría" value={form.categoriaId} onChange={(e) => setForm((f) => ({ ...f, categoriaId: e.target.value }))}>
                 <option value="">Sin categoría</option>
@@ -514,7 +514,7 @@ export default function AdminProductosPage() {
             </div>
 
             {form.configurarDescuento ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.9rem' }}>
+              <div className="grilla-form-1-1">
                 <Campo
                   id="umbral"
                   etiqueta="Umbral (unidades)"
@@ -583,7 +583,7 @@ export default function AdminProductosPage() {
             <p style={{ color: 'var(--tinta-suave)', marginTop: 0, fontSize: '0.85rem' }}>
               Un producto tiene, como máximo, una demo configurada.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.9rem' }}>
+            <div className="grilla-form-1-1">
               <Selector
                 id="demo-tipo"
                 etiqueta="Tipo"

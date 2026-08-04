@@ -37,6 +37,9 @@ export default function Home() {
           <Link className="boton boton--fantasma" href="/registro">
             Crear cuenta
           </Link>
+          <Link className="boton boton--fantasma nav__movil-solo" href="/login">
+            Ingresar
+          </Link>
         </div>
 
         <PistaTablero />

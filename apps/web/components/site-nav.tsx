@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Boton, Dialogo, IconoCerrar, IconoMenu } from '@/components/ui';
+import { Boton, Dialogo, IconoCerrar, IconoMenu, IconoAtras } from '@/components/ui';
 import { api } from '@/lib/api';
 
 const LINKS = [
@@ -72,10 +72,29 @@ export function SiteNav() {
   return (
     <>
       <header className="nav">
-        <Link className="marca" href="/" style={{ textDecoration: 'none' }}>
-          <span className="marca__ficha" aria-hidden="true" />
-          Acalud
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--tinta-suave)',
+              padding: '0.2rem',
+            }}
+            aria-label="Volver"
+          >
+            <IconoAtras size={22} />
+          </button>
+          <Link className="marca" href="/" style={{ textDecoration: 'none' }}>
+            <span className="marca__ficha" aria-hidden="true" />
+            Acalud
+          </Link>
+        </div>
 
         <nav className="nav__acciones" aria-label="Principal">
           {LINKS.map((l) => (

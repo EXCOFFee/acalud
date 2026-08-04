@@ -4,6 +4,7 @@ export { Boton } from './button';
 export {
   IconoAjustes,
   IconoAlerta,
+  IconoAtras,
   IconoBombilla,
   IconoBuscar,
   IconoBuzonVacio,

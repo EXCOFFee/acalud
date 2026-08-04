@@ -1,5 +1,9 @@
+'use client';
+
 import type { CSSProperties, ReactNode } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { IconoAtras } from '@/components/ui';
 
 interface AuthShellProps {
   titulo: string;
@@ -20,9 +24,28 @@ const tokens: Array<{ left: string; bottom: string; color: string }> = [
  * visual: grilla + fichas que marcan un camino) y el formulario a la derecha.
  */
 export function AuthShell({ titulo, bajada, children, pie }: AuthShellProps) {
+  const router = useRouter();
   return (
     <div className="auth">
       <aside className="auth__panel">
+        <div style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', zIndex: 10 }}>
+          <button
+            onClick={() => router.back()}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--superficie)',
+              cursor: 'pointer',
+              padding: '0.4rem',
+            }}
+            aria-label="Volver"
+          >
+            <IconoAtras size={24} />
+          </button>
+        </div>
         <div className="tablero" aria-hidden="true">
           {tokens.map((t, i) => (
             <span
