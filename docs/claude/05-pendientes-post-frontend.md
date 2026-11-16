@@ -211,6 +211,18 @@ documentan. El contrato los describe tal como se comportan HOY.
   500 en vez de 404. Sin verificar con test.
 - **U4 · Seguimiento con `SHIPPING_ADAPTER=tabla` (prod):** la tabla local no tiene tracking;
   un pedido despachado sin caché previa siempre responde 503.
+- **U5 · `GET /docentes/me/sesiones-juego` sin validación de query:** es el único listado sin
+  Zod — `pagina`/`limite` con `parseInt` (texto → NaN; `limite` sin tope, se puede pedir
+  1.000.000 de filas) y `producto_id` sin validar uuid. Pasar a un `ZodValidationPipe` como el
+  resto (limite ≤ 100). Tampoco se valida el uuid de `GET /docentes/me/sesiones-juego/:id`.
+- **U5 · `POST /docentes/me/sesiones-juego` con juego no asignado** responde **403** con
+  `title: "No encontrado"` (contradictorio y fuera de la convención "ajeno = 404").
+- **U5 · `GET /instituciones/mine`** devuelve `datos_facturacion_envio` (razón social, CUIT,
+  domicilio) a cualquier docente vinculado, no solo al encargado que lo usa en el checkout B2B.
+  No es PII, pero es más de lo necesario: evaluar devolverlo solo si `es_encargado`.
+- **U5 · Deuda técnica:** `ver-historial-sesiones.ts` conserva ~25 líneas de comentarios de
+  "pensar en voz alta" (dudas ya resueltas sobre membresías) — limpiar. `docentes.controller`
+  sigue en camelCase (sesiones) vs snake_case (asignaciones) en el mismo controller.
 - **U3 · Inconsistencias de códigos HTTP (para unificar en Fase 2, todas rompen clientes):**
   `DELETE /admin/products/:id` responde 200 con cuerpo (baja lógica) mientras categorías y
   recursos responden 204; varios `POST` sin `@HttpCode` responden 201 sin crear nada

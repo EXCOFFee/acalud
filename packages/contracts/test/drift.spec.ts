@@ -24,25 +24,6 @@ const DIR_API = join(RAIZ, 'apps', 'api', 'src');
 const CONTRATO = join(RAIZ, 'docs', '06-contratos', 'openapi.yaml');
 
 const PENDIENTES: readonly string[] = [
-  // U5 · institucional (instituciones, docentes)
-  'GET /instituciones/mine',
-  'POST /instituciones',
-  'GET /instituciones/{}/inventario',
-  'GET /instituciones/{}/inventario/{}',
-  'POST /instituciones/{}/asignaciones',
-  'POST /instituciones/{}/revocaciones',
-  'GET /instituciones/{}/docentes/asignaciones',
-  'GET /instituciones/{}/docentes/asignaciones/{}',
-  'GET /instituciones/{}/reportes/uso',
-  'GET /instituciones/{}/reportes/uso/producto/{}',
-  'GET /instituciones/{}/reportes/uso/docente/{}',
-  'GET /instituciones/{}/reportes/uso/exportar',
-  'GET /instituciones/{}/dashboard',
-  'GET /instituciones/{}/dashboard/exportar',
-  'GET /docentes/me/asignaciones',
-  'POST /docentes/me/sesiones-juego',
-  'GET /docentes/me/sesiones-juego',
-  'GET /docentes/me/sesiones-juego/{}',
   // U6 · comunidad (encuestas, propuestas, niveles/materias + sus admin)
   'GET /levels',
   'GET /subjects',

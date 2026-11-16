@@ -34,6 +34,12 @@ tags:
     description: >
       Carrito, cotización de envío, checkout con Mercado Pago, webhook de pago, historial y
       seguimiento (CU-05, CU-10..13, CU-24). El cliente NUNCA envía precios ni totales.
+  - name: institucional
+    description: >
+      Instituciones, inventario y licencias, docentes, sesiones de juego, reportes y
+      dashboard (CU-23, CU-25..33). Todas requieren sesión. Las rutas
+      `/instituciones/{institucion_id}/...` exigen ser el encargado ACTIVO de esa institución:
+      si no lo sos responde 404 (no 403), igual que con un recurso ajeno.
   - name: admin-catalogo
     description: >
       ABM de productos (+ descuento mayorista CU-22), categorías, demos y recursos (CU-19).
@@ -875,6 +881,518 @@ paths:
               schema: { $ref: '#/components/schemas/Problem' }
         '503': { $ref: '#/components/responses/Problem503' }
 
+  # ───────────────────────── INSTITUCIONAL ─────────────────────────
+  /instituciones/mine:
+    get:
+      tags: [institucional]
+      summary: A qué institución pertenezco
+      description: >
+        Siempre 200 con un objeto (nunca `null` crudo). `institucion_id = null` si el usuario no
+        está vinculado. `datos_facturacion_envio` (precarga del checkout B2B, CU-24) se
+        devuelve a CUALQUIER miembro vinculado, no solo al encargado; su `domicilio` es null si
+        la institución no lo cargó.
+      operationId: verMiInstitucion
+      responses:
+        '200':
+          description: Membresía del usuario
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MiInstitucion' }
+        '401': { $ref: '#/components/responses/Problem401' }
+
+  /instituciones:
+    post:
+      tags: [institucional]
+      summary: Registrar institución educativa (CU-23)
+      description: El usuario que la registra queda como su encargado (is_admin, activo).
+      operationId: registrarInstitucion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InstitucionInput' }
+      responses:
+        '201':
+          description: Institución registrada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [institucion_id]
+                properties:
+                  institucion_id: { type: string, format: uuid }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '409':
+          description: CUIT o email institucional ya registrados, o el usuario ya está vinculado a otra institución (A1/A2/A3)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: Entrada inválida (CUIT sin 11 dígitos, etc.) o nivel educativo inexistente
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /instituciones/{institucion_id}/inventario:
+    get:
+      tags: [institucional]
+      summary: Ver tenencia de licencias (CU-25)
+      operationId: verInventario
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - name: producto_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: orden
+          in: query
+          schema: { type: string, enum: [cantidad_adquirida, cantidad_asignada, cantidad_disponible, ultima_compra, nombre] }
+        - { $ref: '#/components/parameters/direccion' }
+      responses:
+        '200':
+          description: Resumen e ítems del inventario
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventarioInstitucional' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /instituciones/{institucion_id}/inventario/{producto_id}:
+    get:
+      tags: [institucional]
+      summary: Detalle de un producto del inventario (CU-25 A7)
+      operationId: verDetalleInventario
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { $ref: '#/components/parameters/producto_id' }
+      responses:
+        '200':
+          description: Historial de compras y docentes con licencia
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DetalleProductoInventario' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /instituciones/{institucion_id}/asignaciones:
+    post:
+      tags: [institucional]
+      summary: Asignar licencias a docentes (CU-26)
+      description: >
+        Una línea por docente (no se permite repetir docente en el mismo pedido). Todo o nada:
+        si no alcanzan las licencias disponibles, no se asigna ninguna.
+      operationId: asignarLicencias
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [producto_id, asignaciones]
+              properties:
+                producto_id: { type: string, format: uuid }
+                asignaciones:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [docente_id, cantidad]
+                    properties:
+                      docente_id: { type: string, format: uuid, description: 'Id de la membresía (institutional_teachers), no del usuario' }
+                      cantidad: { type: integer, minimum: 1 }
+                observaciones: { type: [string, 'null'], maxLength: 500 }
+      responses:
+        '201':
+          description: Licencias asignadas
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [producto_id, asignaciones, cantidad_disponible]
+                properties:
+                  producto_id: { type: string, format: uuid }
+                  asignaciones:
+                    type: array
+                    items:
+                      type: object
+                      required: [asignacion_id, docente_id, cantidad]
+                      properties:
+                        asignacion_id: { type: string, format: uuid }
+                        docente_id: { type: string, format: uuid }
+                        cantidad: { type: integer }
+                  cantidad_disponible: { type: integer, description: Ya actualizada }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404':
+          description: No sos encargado, o el producto no está en el inventario
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: Licencias insuficientes, docente no vinculado o entrada inválida
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /instituciones/{institucion_id}/revocaciones:
+    post:
+      tags: [institucional]
+      summary: Revocar licencias a un docente, parcial o total (CU-27)
+      description: >
+        Por (docente, producto, cantidad), consumiendo las asignaciones activas en orden FIFO.
+        Responde 200 (no crea un recurso nuevo: cambia el estado de asignaciones existentes).
+      operationId: revocarLicencias
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [docente_id, producto_id, cantidad_a_revocar]
+              properties:
+                docente_id: { type: string, format: uuid }
+                producto_id: { type: string, format: uuid }
+                cantidad_a_revocar: { type: integer, minimum: 1 }
+                observaciones: { type: [string, 'null'], maxLength: 500 }
+      responses:
+        '200':
+          description: Licencias revocadas
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [producto_id, docente_id, cantidad_revocada, cantidad_restante]
+                properties:
+                  producto_id: { type: string, format: uuid }
+                  docente_id: { type: string, format: uuid }
+                  cantidad_revocada: { type: integer }
+                  cantidad_restante: { type: integer, description: Lo que le queda asignado al docente }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404':
+          description: No sos encargado o no hay asignación activa de ese producto al docente
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: La cantidad supera lo asignado, o entrada inválida
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /instituciones/{institucion_id}/docentes/asignaciones:
+    get:
+      tags: [institucional]
+      summary: Docentes vinculados con sus licencias (CU-28)
+      description: Incluye docentes con 0 licencias (RN-002).
+      operationId: verDocentesAsignados
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - name: producto_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: buscar
+          in: query
+          description: Por nombre o email
+          schema: { type: string, maxLength: 200 }
+        - name: orden
+          in: query
+          schema: { type: string, enum: [total_licencias, nombre] }
+        - { $ref: '#/components/parameters/direccion' }
+      responses:
+        '200':
+          description: Resumen y docentes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListadoDocentesAsignados' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /instituciones/{institucion_id}/docentes/asignaciones/{docente_id}:
+    get:
+      tags: [institucional]
+      summary: Detalle de asignaciones de un docente, incluidas las revocadas (CU-28 A9)
+      operationId: verDetalleDocenteAsignaciones
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { $ref: '#/components/parameters/docente_id' }
+      responses:
+        '200':
+          description: Historial completo del docente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DetalleDocenteAsignaciones' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /instituciones/{institucion_id}/reportes/uso:
+    get:
+      tags: [institucional]
+      summary: Reporte de uso institucional (CU-31)
+      description: >
+        Agregado por juego o por docente, con KPIs, serie temporal y nube de palabras de los
+        aprendizajes clave (hasta 30 palabras).
+      operationId: verReporteUso
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - name: corte
+          in: query
+          schema: { type: string, enum: [juego, docente], default: juego }
+        - { $ref: '#/components/parameters/desde' }
+        - { $ref: '#/components/parameters/hasta' }
+        - { $ref: '#/components/parameters/filtro_producto_id' }
+        - { $ref: '#/components/parameters/filtro_docente_id' }
+      responses:
+        '200':
+          description: Reporte
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReporteInstitucional' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /instituciones/{institucion_id}/reportes/uso/producto/{producto_id}:
+    get:
+      tags: [institucional]
+      summary: Detalle del reporte para un juego (CU-31 A8)
+      operationId: verDetalleReporteJuego
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { $ref: '#/components/parameters/producto_id' }
+        - { $ref: '#/components/parameters/desde' }
+        - { $ref: '#/components/parameters/hasta' }
+        - { $ref: '#/components/parameters/filtro_docente_id' }
+      responses:
+        '200':
+          description: Detalle del juego
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DetalleReporteJuego' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /instituciones/{institucion_id}/reportes/uso/docente/{docente_id}:
+    get:
+      tags: [institucional]
+      summary: Detalle del reporte para un docente (CU-31 A9)
+      operationId: verDetalleReporteDocente
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { $ref: '#/components/parameters/docente_id' }
+        - { $ref: '#/components/parameters/desde' }
+        - { $ref: '#/components/parameters/hasta' }
+        - { $ref: '#/components/parameters/filtro_producto_id' }
+      responses:
+        '200':
+          description: Detalle del docente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DetalleReporteDocente' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /instituciones/{institucion_id}/reportes/uso/exportar:
+    get:
+      tags: [institucional]
+      summary: Exportar el reporte de uso a Excel o PDF (CU-32)
+      description: Siempre incluye juegos y docentes (no usa `corte`). Descarga como adjunto.
+      operationId: exportarReporteUso
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { $ref: '#/components/parameters/formato_export' }
+        - { $ref: '#/components/parameters/desde' }
+        - { $ref: '#/components/parameters/hasta' }
+        - { $ref: '#/components/parameters/filtro_producto_id' }
+        - { $ref: '#/components/parameters/filtro_docente_id' }
+      responses:
+        '200': { $ref: '#/components/responses/ArchivoExportado' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404':
+          description: No sos encargado, o no hay sesiones con esos filtros (A2)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '413':
+          description: El archivo generado supera 10 MB (RNF-002/A3)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: Más de 5000 filas (PI-04) o entrada inválida
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /instituciones/{institucion_id}/dashboard:
+    get:
+      tags: [institucional]
+      summary: Dashboard pedagógico (CU-33)
+      description: >
+        Sin fechas: últimos 30 días hasta ahora. Cada KPI trae su variación porcentual
+        (redondeada) contra el período anterior de igual duración. Si el anterior fue 0: 100
+        cuando el actual es mayor a 0, null cuando ambos son 0.
+      operationId: verDashboard
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { $ref: '#/components/parameters/desde' }
+        - { $ref: '#/components/parameters/hasta' }
+        - { $ref: '#/components/parameters/filtro_producto_id' }
+        - { $ref: '#/components/parameters/filtro_docente_id' }
+      responses:
+        '200':
+          description: Dashboard
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DashboardPedagogico' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /instituciones/{institucion_id}/dashboard/exportar:
+    get:
+      tags: [institucional]
+      summary: Exportar el dashboard a Excel o PDF (CU-33 A9)
+      operationId: exportarDashboard
+      parameters:
+        - { $ref: '#/components/parameters/institucion_id' }
+        - { $ref: '#/components/parameters/formato_export' }
+        - { $ref: '#/components/parameters/desde' }
+        - { $ref: '#/components/parameters/hasta' }
+        - { $ref: '#/components/parameters/filtro_producto_id' }
+        - { $ref: '#/components/parameters/filtro_docente_id' }
+      responses:
+        '200': { $ref: '#/components/responses/ArchivoExportado' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '413': { $ref: '#/components/responses/Problem413' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /docentes/me/asignaciones:
+    get:
+      tags: [institucional]
+      summary: Mis juegos asignados (CU-29 p2, CU-30)
+      description: Lista vacía si no estás vinculado o no tenés asignaciones activas (no es error).
+      operationId: verMisJuegosAsignados
+      responses:
+        '200':
+          description: Juegos asignados con mi conteo de sesiones
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [juegos]
+                properties:
+                  juegos:
+                    type: array
+                    items:
+                      type: object
+                      required: [producto_id, nombre_producto, cantidad, asignada_en, total_sesiones, ultima_sesion_en]
+                      properties:
+                        producto_id: { type: string, format: uuid }
+                        nombre_producto: { type: string }
+                        cantidad: { type: integer }
+                        asignada_en: { type: string, format: date-time }
+                        total_sesiones: { type: integer }
+                        ultima_sesion_en: { type: [string, 'null'], format: date-time }
+        '401': { $ref: '#/components/responses/Problem401' }
+
+  /docentes/me/sesiones-juego:
+    post:
+      tags: [institucional]
+      summary: Cargar una sesión de uso de un juego (CU-29)
+      operationId: cargarSesionJuego
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SesionJuegoInput' }
+      responses:
+        '201':
+          description: Sesión registrada (respuesta en camelCase)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessionId]
+                properties:
+                  sessionId: { type: string, format: uuid }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403':
+          description: >
+            El docente no tiene asignado ese juego (JuegoNoAsignado). OJO: responde 403 con
+            `title: "No encontrado"` — inconsistente con la convención "ajeno = 404".
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: Entrada inválida (fecha futura, aprendizajes < 20 caracteres, etc.) o docente no vinculado
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+    get:
+      tags: [institucional]
+      summary: Historial de mis sesiones (CU-30)
+      description: >
+        Respuesta en camelCase. Los query params NO pasan por Zod: `pagina`/`limite` se
+        parsean con parseInt sin validar (sin tope de `limite`) y `producto_id` no se valida
+        como uuid (ver backlog).
+      operationId: verMisSesiones
+      parameters:
+        - name: producto_id
+          in: query
+          schema: { type: string, format: uuid }
+        - { $ref: '#/components/parameters/pagina' }
+        - name: limite
+          in: query
+          schema: { type: integer, minimum: 1, default: 20 }
+      responses:
+        '200':
+          description: Página de sesiones
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, totalItems, totalPaginas, paginaActual]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/SesionJuegoResumen' }
+                  totalItems: { type: integer }
+                  totalPaginas: { type: integer }
+                  paginaActual: { type: integer }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '422':
+          description: El docente no está vinculado a ninguna institución
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /docentes/me/sesiones-juego/{sesion_id}:
+    get:
+      tags: [institucional]
+      summary: Detalle de una sesión propia (CU-30 A9)
+      description: Respuesta en camelCase. El id no se valida como uuid antes de consultar.
+      operationId: verDetalleSesion
+      parameters:
+        - name: sesion_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sesión completa
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SesionJuegoDetalle' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
   # ───────────────────────── ADMIN · CATÁLOGO (CU-19, CU-22) ─────────────────────────
   /admin/products:
     get:
@@ -1337,6 +1855,48 @@ components:
         Sin validación de formato en el controller: un valor que no es uuid probablemente
         termina en 500 (ver backlog).
       schema: { type: string, format: uuid }
+    institucion_id:
+      name: institucion_id
+      in: path
+      required: true
+      description: Un formato que no es uuid responde 404.
+      schema: { type: string, format: uuid }
+    producto_id:
+      name: producto_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    docente_id:
+      name: docente_id
+      in: path
+      required: true
+      description: Id de la membresía (institutional_teachers), no del usuario.
+      schema: { type: string, format: uuid }
+    direccion:
+      name: direccion
+      in: query
+      schema: { type: string, enum: [asc, desc] }
+    desde:
+      name: desde
+      in: query
+      description: Fecha (ISO 8601), inclusive
+      schema: { type: string, format: date }
+    hasta:
+      name: hasta
+      in: query
+      schema: { type: string, format: date }
+    filtro_producto_id:
+      name: producto_id
+      in: query
+      schema: { type: string, format: uuid }
+    filtro_docente_id:
+      name: docente_id
+      in: query
+      schema: { type: string, format: uuid }
+    formato_export:
+      name: formato
+      in: query
+      schema: { type: string, enum: [excel, pdf], default: excel }
     product_id:
       name: product_id
       in: path
@@ -1362,6 +1922,16 @@ components:
       schema: { type: string }
 
   responses:
+    ArchivoExportado:
+      description: Archivo para descargar (`Content-Disposition` attachment con nombre fechado)
+      headers:
+        Content-Disposition:
+          schema: { type: string, examples: ['attachment; filename="Reporte_Institucional_X_2026-11-16.xlsx"'] }
+      content:
+        application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+          schema: { type: string, format: binary }
+        application/pdf:
+          schema: { type: string, format: binary }
     Problem400:
       description: Falta un dato estructural (ej. el archivo en una subida multipart)
       content:
@@ -1743,6 +2313,428 @@ components:
         direccion_entrega: { type: [string, 'null'], description: Solo en respuesta fresca }
         ultima_actualizacion: { type: [string, 'null'], format: date-time }
         desde_cache: { type: boolean }
+
+    Domicilio:
+      type: object
+      required: [calle, numero, localidad, provincia, codigo_postal]
+      properties:
+        calle: { type: string, minLength: 1 }
+        numero: { type: string, minLength: 1 }
+        localidad: { type: string, minLength: 1 }
+        provincia: { type: string, minLength: 1 }
+        codigo_postal: { type: string, minLength: 1 }
+
+    MiInstitucion:
+      type: object
+      required: [institucion_id, es_encargado, datos_facturacion_envio]
+      properties:
+        institucion_id: { type: [string, 'null'], format: uuid }
+        es_encargado: { type: boolean }
+        datos_facturacion_envio:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [nombre_legal, identificador_tributario, domicilio]
+              properties:
+                nombre_legal: { type: string }
+                identificador_tributario: { type: string }
+                domicilio:
+                  oneOf:
+                    - type: 'null'
+                    - $ref: '#/components/schemas/Domicilio'
+
+    InstitucionInput:
+      type: object
+      required: [nombre_legal, identificador_tributario, email_institucional, domicilio]
+      properties:
+        nombre_legal: { type: string, minLength: 1, maxLength: 200 }
+        identificador_tributario: { type: string, description: 'CUIT: 11 dígitos, con o sin guiones' }
+        email_institucional: { type: string, format: email, maxLength: 255 }
+        domicilio: { $ref: '#/components/schemas/Domicilio' }
+        telefono: { type: [string, 'null'], maxLength: 30 }
+        nivel_educativo: { type: [string, 'null'], maxLength: 100, description: 'Nombre del nivel (ej. Primaria)' }
+        cantidad_alumnos: { type: [integer, 'null'], minimum: 1 }
+
+    InventarioInstitucional:
+      type: object
+      required: [institucion_id, resumen, items]
+      properties:
+        institucion_id: { type: string, format: uuid }
+        resumen:
+          type: object
+          required: [total_adquiridas, docentes_asignados, total_en_uso, total_disponibles]
+          properties:
+            total_adquiridas: { type: integer }
+            docentes_asignados: { type: integer }
+            total_en_uso: { type: integer }
+            total_disponibles: { type: integer }
+        items:
+          type: array
+          items:
+            type: object
+            required: [producto_id, nombre_producto, descripcion_producto, cantidad_adquirida, cantidad_asignada, cantidad_disponible, ultima_compra_en, total_gastado]
+            properties:
+              producto_id: { type: string, format: uuid }
+              nombre_producto: { type: string }
+              descripcion_producto: { type: [string, 'null'] }
+              cantidad_adquirida: { type: integer }
+              cantidad_asignada: { type: integer }
+              cantidad_disponible: { type: integer }
+              ultima_compra_en: { type: [string, 'null'], format: date-time }
+              total_gastado: { type: [number, 'null'], description: null si nunca se compró }
+
+    DetalleProductoInventario:
+      type: object
+      required: [producto_id, nombre_producto, descripcion_producto, precio, cantidad_adquirida, cantidad_asignada, cantidad_disponible, compras, docentes]
+      properties:
+        producto_id: { type: string, format: uuid }
+        nombre_producto: { type: string }
+        descripcion_producto: { type: [string, 'null'] }
+        precio: { type: number }
+        cantidad_adquirida: { type: integer }
+        cantidad_asignada: { type: integer }
+        cantidad_disponible: { type: integer }
+        compras:
+          type: array
+          items:
+            type: object
+            required: [orden_id, numero, fecha, cantidad, monto]
+            properties:
+              orden_id: { type: string, format: uuid }
+              numero: { type: string }
+              fecha: { type: string, format: date-time }
+              cantidad: { type: integer }
+              monto: { type: number }
+        docentes:
+          type: array
+          items:
+            type: object
+            required: [docente_id, nombre, cantidad, asignada_en, estado]
+            properties:
+              docente_id: { type: string, format: uuid }
+              nombre: { type: string }
+              cantidad: { type: integer }
+              asignada_en: { type: string, format: date-time }
+              estado: { type: string, enum: [active, revoked] }
+
+    AsignacionDeDocente:
+      type: object
+      required: [producto_id, nombre_producto, cantidad, asignada_en, asignada_por, estado]
+      properties:
+        producto_id: { type: string, format: uuid }
+        nombre_producto: { type: string }
+        cantidad: { type: integer }
+        asignada_en: { type: string, format: date-time }
+        asignada_por: { type: [string, 'null'] }
+        estado: { type: string, enum: [active, revoked] }
+
+    ListadoDocentesAsignados:
+      type: object
+      required: [institucion_id, resumen, docentes]
+      properties:
+        institucion_id: { type: string, format: uuid }
+        resumen:
+          type: object
+          required: [total_docentes_con_asignaciones, total_licencias_asignadas, productos_mas_asignados]
+          properties:
+            total_docentes_con_asignaciones: { type: integer }
+            total_licencias_asignadas: { type: integer }
+            productos_mas_asignados:
+              type: array
+              items:
+                type: object
+                required: [producto_id, nombre_producto, total]
+                properties:
+                  producto_id: { type: string, format: uuid }
+                  nombre_producto: { type: string }
+                  total: { type: integer }
+        docentes:
+          type: array
+          items:
+            type: object
+            required: [docente_id, nombre, email, total_licencias, ultima_asignacion_en, asignaciones]
+            properties:
+              docente_id: { type: string, format: uuid }
+              nombre: { type: string }
+              email: { type: string, format: email }
+              total_licencias: { type: integer }
+              ultima_asignacion_en: { type: [string, 'null'], format: date-time }
+              asignaciones:
+                type: array
+                items: { $ref: '#/components/schemas/AsignacionDeDocente' }
+
+    DetalleDocenteAsignaciones:
+      type: object
+      required: [docente_id, nombre, email, vinculado_en, asignaciones]
+      properties:
+        docente_id: { type: string, format: uuid }
+        nombre: { type: string }
+        email: { type: string, format: email }
+        vinculado_en: { type: [string, 'null'], format: date-time }
+        asignaciones:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/AsignacionDeDocente'
+              - type: object
+                required: [revocada_en, revocada_por, razon_revocacion]
+                properties:
+                  revocada_en: { type: [string, 'null'], format: date-time }
+                  revocada_por: { type: [string, 'null'] }
+                  razon_revocacion: { type: [string, 'null'] }
+
+    FilaReporteJuego:
+      type: object
+      required: [producto_id, nombre_producto, total_sesiones, docentes_distintos, alumnos_alcanzados, minutos_totales, ultima_sesion, satisfaccion_promedio, tasa_reutilizacion]
+      properties:
+        producto_id: { type: string, format: uuid }
+        nombre_producto: { type: string }
+        total_sesiones: { type: integer }
+        docentes_distintos: { type: integer }
+        alumnos_alcanzados: { type: integer }
+        minutos_totales: { type: integer }
+        ultima_sesion: { type: [string, 'null'] }
+        satisfaccion_promedio: { type: number }
+        tasa_reutilizacion: { type: number, description: '% de sesiones con "lo volvería a usar" (0-100)' }
+
+    FilaReporteDocente:
+      type: object
+      required: [docente_id, nombre_docente, total_sesiones, juegos_distintos, alumnos_alcanzados, minutos_totales, satisfaccion_promedio, tasa_reutilizacion]
+      properties:
+        docente_id: { type: string, format: uuid }
+        nombre_docente: { type: string }
+        total_sesiones: { type: integer }
+        juegos_distintos: { type: integer }
+        alumnos_alcanzados: { type: integer }
+        minutos_totales: { type: integer }
+        satisfaccion_promedio: { type: number }
+        tasa_reutilizacion: { type: number }
+
+    PalabraFrecuente:
+      type: object
+      required: [palabra, frecuencia]
+      properties:
+        palabra: { type: string }
+        frecuencia: { type: integer }
+
+    DistribucionSatisfaccion:
+      type: array
+      items:
+        type: object
+        required: [estrellas, cantidad]
+        properties:
+          estrellas: { type: integer, minimum: 1, maximum: 5 }
+          cantidad: { type: integer }
+
+    ReporteInstitucional:
+      type: object
+      required: [institucion_id, corte, filtros, datos, kpis, serie_temporal, nube_palabras]
+      properties:
+        institucion_id: { type: string, format: uuid }
+        corte: { type: string, enum: [juego, docente] }
+        filtros:
+          type: object
+          properties:
+            desde: { type: string }
+            hasta: { type: string }
+            producto_id: { type: string, format: uuid }
+            docente_id: { type: string, format: uuid }
+        datos:
+          description: Filas por juego o por docente según `corte`
+          oneOf:
+            - type: array
+              items: { $ref: '#/components/schemas/FilaReporteJuego' }
+            - type: array
+              items: { $ref: '#/components/schemas/FilaReporteDocente' }
+        kpis:
+          type: object
+          required: [total_sesiones, alumnos_alcanzados, satisfaccion_promedio, juegos_en_uso]
+          properties:
+            total_sesiones: { type: integer }
+            alumnos_alcanzados: { type: integer }
+            satisfaccion_promedio: { type: number }
+            juegos_en_uso: { type: integer }
+        serie_temporal:
+          type: array
+          items:
+            type: object
+            required: [periodo, sesiones]
+            properties:
+              periodo: { type: string }
+              sesiones: { type: integer }
+        nube_palabras:
+          type: array
+          items: { $ref: '#/components/schemas/PalabraFrecuente' }
+
+    DetalleReporteJuego:
+      type: object
+      required: [producto_id, nombre_producto, total_sesiones, alumnos_alcanzados, satisfaccion_promedio, distribucion_satisfaccion, sesiones, nube_palabras]
+      properties:
+        producto_id: { type: string, format: uuid }
+        nombre_producto: { type: string }
+        total_sesiones: { type: integer }
+        alumnos_alcanzados: { type: integer }
+        satisfaccion_promedio: { type: number }
+        distribucion_satisfaccion: { $ref: '#/components/schemas/DistribucionSatisfaccion' }
+        sesiones:
+          type: array
+          items:
+            type: object
+            required: [fecha, docente_id, nombre_docente, grupo, estudiantes, duracion_minutos, satisfaccion]
+            properties:
+              fecha: { type: string }
+              docente_id: { type: string, format: uuid }
+              nombre_docente: { type: string }
+              grupo: { type: string }
+              estudiantes: { type: integer }
+              duracion_minutos: { type: integer }
+              satisfaccion: { type: integer }
+        nube_palabras:
+          type: array
+          items: { $ref: '#/components/schemas/PalabraFrecuente' }
+
+    DetalleReporteDocente:
+      type: object
+      required: [docente_id, nombre_docente, email, total_sesiones, alumnos_alcanzados, distribucion_juegos, sesiones]
+      properties:
+        docente_id: { type: string, format: uuid }
+        nombre_docente: { type: string }
+        email: { type: string, format: email }
+        total_sesiones: { type: integer }
+        alumnos_alcanzados: { type: integer }
+        distribucion_juegos:
+          type: array
+          items:
+            type: object
+            required: [producto_id, nombre_producto, sesiones]
+            properties:
+              producto_id: { type: string, format: uuid }
+              nombre_producto: { type: string }
+              sesiones: { type: integer }
+        sesiones:
+          type: array
+          items:
+            type: object
+            required: [fecha, producto_id, nombre_producto, grupo, estudiantes, duracion_minutos, satisfaccion]
+            properties:
+              fecha: { type: string }
+              producto_id: { type: string, format: uuid }
+              nombre_producto: { type: string }
+              grupo: { type: string }
+              estudiantes: { type: integer }
+              duracion_minutos: { type: integer }
+              satisfaccion: { type: integer }
+
+    KPI:
+      type: object
+      required: [valor, variacion_porcentual]
+      properties:
+        valor: { type: number }
+        variacion_porcentual: { type: [number, 'null'], description: 'vs período anterior; null solo si ambos períodos valen 0' }
+
+    DashboardPedagogico:
+      type: object
+      required: [institucion_id, rango, filtros, kpis, serie_semanal, serie_mensual, distribucion_satisfaccion, distribucion_dia_semana, top_juegos, top_docentes, nube_palabras, dificultades_frecuentes]
+      properties:
+        institucion_id: { type: string, format: uuid }
+        rango:
+          type: object
+          required: [desde, hasta]
+          properties:
+            desde: { type: string }
+            hasta: { type: string }
+        filtros:
+          type: object
+          properties:
+            producto_id: { type: string, format: uuid }
+            docente_id: { type: string, format: uuid }
+        kpis:
+          type: object
+          required: [sesiones, docentes_activos, alumnos_alcanzados, minutos_de_juego, satisfaccion_promedio, tasa_reutilizacion]
+          properties:
+            sesiones: { $ref: '#/components/schemas/KPI' }
+            docentes_activos: { $ref: '#/components/schemas/KPI' }
+            alumnos_alcanzados: { $ref: '#/components/schemas/KPI' }
+            minutos_de_juego: { $ref: '#/components/schemas/KPI' }
+            satisfaccion_promedio: { $ref: '#/components/schemas/KPI' }
+            tasa_reutilizacion: { $ref: '#/components/schemas/KPI' }
+        serie_semanal:
+          type: array
+          items:
+            type: object
+            required: [semana, sesiones]
+            properties:
+              semana: { type: string }
+              sesiones: { type: integer }
+        serie_mensual:
+          type: array
+          items:
+            type: object
+            required: [periodo, sesiones, satisfaccion_promedio]
+            properties:
+              periodo: { type: string }
+              sesiones: { type: integer }
+              satisfaccion_promedio: { type: number }
+        distribucion_satisfaccion: { $ref: '#/components/schemas/DistribucionSatisfaccion' }
+        distribucion_dia_semana:
+          type: array
+          items:
+            type: object
+            required: [dia_semana, sesiones]
+            properties:
+              dia_semana: { type: integer, minimum: 1, maximum: 7, description: ISO (1 = lunes) }
+              sesiones: { type: integer }
+        top_juegos:
+          type: array
+          items: { $ref: '#/components/schemas/FilaReporteJuego' }
+        top_docentes:
+          type: array
+          items: { $ref: '#/components/schemas/FilaReporteDocente' }
+        nube_palabras:
+          type: array
+          items: { $ref: '#/components/schemas/PalabraFrecuente' }
+        dificultades_frecuentes:
+          type: array
+          items: { $ref: '#/components/schemas/PalabraFrecuente' }
+
+    SesionJuegoInput:
+      type: object
+      required: [producto_id, fecha_uso, grupo, cantidad_estudiantes, duracion_minutos, satisfaccion_docente, aprendizajes_clave, reutilizaria]
+      properties:
+        producto_id: { type: string, format: uuid }
+        fecha_uso: { type: string, format: date, description: No puede ser futura (RN-002) }
+        grupo: { type: string, minLength: 1 }
+        cantidad_estudiantes: { type: integer, minimum: 1 }
+        duracion_minutos: { type: integer, minimum: 1 }
+        satisfaccion_docente: { type: integer, minimum: 1, maximum: 5 }
+        aprendizajes_clave: { type: string, minLength: 20 }
+        dificultades: { type: [string, 'null'] }
+        reutilizaria: { type: boolean }
+
+    SesionJuegoResumen:
+      type: object
+      description: camelCase (inconsistente con el resto de la API; ver Fase 2)
+      required: [id, fecha, productoId, nombreProducto, grupo, estudiantes, duracionMinutos, satisfaccion, aprendizajes]
+      properties:
+        id: { type: string, format: uuid }
+        fecha: { type: string, format: date-time }
+        productoId: { type: string, format: uuid }
+        nombreProducto: { type: string }
+        grupo: { type: string }
+        estudiantes: { type: integer }
+        duracionMinutos: { type: integer }
+        satisfaccion: { type: integer }
+        aprendizajes: { type: string }
+
+    SesionJuegoDetalle:
+      allOf:
+        - $ref: '#/components/schemas/SesionJuegoResumen'
+        - type: object
+          required: [dificultades, reutilizaria, registradaEn]
+          properties:
+            dificultades: { type: [string, 'null'] }
+            reutilizaria: { type: boolean }
+            registradaEn: { type: string, format: date-time }
 
     ProductoAdminInput:
       type: object
