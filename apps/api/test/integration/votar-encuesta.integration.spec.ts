@@ -32,7 +32,7 @@ describe('CU-14 · Votar Encuesta', () => {
     opcionAId = opA.rows[0].id;
     opcionBId = opB.rows[0].id;
 
-    const cerrada = await ctx.pg.query(`INSERT INTO polls (question, status) VALUES ('Encuesta cerrada', 'closed') RETURNING id`);
+    const cerrada = await ctx.pg.query(`INSERT INTO polls (question, status, closed_at) VALUES ('Encuesta cerrada', 'closed', now()) RETURNING id`);
     pollCerradaId = cerrada.rows[0].id;
     const opC = await ctx.pg.query(`INSERT INTO poll_options (poll_id, text) VALUES ($1, 'X') RETURNING id`, [pollCerradaId]);
     opcionCerradaId = opC.rows[0].id;

@@ -49,7 +49,7 @@ describe('CU-16 · Resultados de Encuestas (público)', () => {
     await ctx.pg.query(`INSERT INTO poll_responses (poll_id, option_id, user_id) VALUES ($1,$2,$3)`, [pollActivaId, opcionAId, otro2.rows[0].id]);
     await ctx.pg.query(`INSERT INTO poll_responses (poll_id, option_id, user_id) VALUES ($1,$2,$3)`, [pollActivaId, opcionBId, userId]);
 
-    const cerrada = await ctx.pg.query(`INSERT INTO polls (question, status) VALUES ('Encuesta finalizada', 'closed') RETURNING id`);
+    const cerrada = await ctx.pg.query(`INSERT INTO polls (question, status, closed_at) VALUES ('Encuesta finalizada', 'closed', now()) RETURNING id`);
     pollCerradaId = cerrada.rows[0].id;
     await ctx.pg.query(`INSERT INTO poll_options (poll_id, text) VALUES ($1, 'A'), ($1, 'B')`, [pollCerradaId]);
 

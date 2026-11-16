@@ -295,3 +295,22 @@ describe('Append-only por trigger (NFR-S6)', () => {
     );
   });
 });
+
+describe('polls · ck_polls_closed_at_coherente (migración 0021, decisión D5)', () => {
+  it('una encuesta finalizada sin fecha de cierre es rechazada por la base', async () => {
+    await expect(
+      db.query(`INSERT INTO polls (question, status) VALUES ('X', 'closed')`),
+    ).rejects.toThrow(/ck_polls_closed_at_coherente/);
+  });
+
+  it('una encuesta activa con fecha de cierre es rechazada por la base', async () => {
+    await expect(
+      db.query(`INSERT INTO polls (question, status, closed_at) VALUES ('X', 'active', now())`),
+    ).rejects.toThrow(/ck_polls_closed_at_coherente/);
+  });
+
+  it('finalizada CON fecha y borrador SIN fecha se aceptan', async () => {
+    await db.query(`INSERT INTO polls (question, status, closed_at) VALUES ('X', 'closed', now())`);
+    await db.query(`INSERT INTO polls (question, status) VALUES ('Y', 'draft')`);
+  });
+});

@@ -90,7 +90,7 @@ modifican. `Destino` es el nombre en inglés cuando el renombre está pendiente.
 | Tabla | Propietario | Lectores | Estado |
 |---|---|---|---|
 | `proposals` | CU-15 | CU-21 | Correcta |
-| `polls` | CU-20 | CU-14, CU-16 | Correcta |
+| `polls` | CU-20 | CU-14, CU-16 | Correcta — `closed_at` desde 0021 (CU-16 *"closed_at (si está finalizada)"*, decisión D5) con CHECK de coherencia con `status`; `description`/`valid_from`/`valid_until` retiradas en 0021 (D6) |
 | `poll_options` | CU-20 | CU-14, CU-16 | Correcta |
 | `poll_responses` | CU-14 | CU-16 | Correcta |
 | `notifications` | CU-26 | CU-15, CU-21, CU-27 | Creada en 1e |
@@ -291,7 +291,7 @@ se tradujeron al inglés y siguen en la base, esperando decisión:
 | Cotas de `game_sessions` (1-100 alumnos, 5-240 min) | Citan PI-05, no un CU. CU-29 RN-003 sólo pide *"mayores a 0"*: las cotas lo cumplen con creces, pero son más estrictas que lo documentado |
 | `proposals.number` | Ningún CU lo menciona ni define quién lo genera. Dejó de ser obligatorio para no bloquear CU-15 |
 | `proposals.attachment_ref` | CU-15 no pide adjunto |
-| `polls.description`, `polls.valid_from`, `polls.valid_until` | CU-20 gobierna la visibilidad con el estado (`draft`/`active`/`closed`), no con fechas |
+| ~~`polls.description`, `polls.valid_from`, `polls.valid_until`~~ | ~~CU-20 gobierna la visibilidad con el estado, no con fechas~~ — **retiradas en la migración 0021 (2026-11-16, decisión D6)**: el cierre es manual (D2), no por fecha |
 | `audit_log.ip` | No está en el esquema objetivo, pero el registro de auditoría de RNF-SIS-016 pierde valor forense sin ella |
 
 **Sin respaldo y además sin lugar para ir:** las *palabras clave o etiquetas* que CU-15 ofrece en
@@ -319,6 +319,7 @@ comentario de la migración), para que nada exista "porque sí".
 | 0017 | `resources.product_id` admite nulo | CU-19 A9: *"Producto relacionado (selector desplegable - opcional)"*; DER D-19 |
 | 0018 | `orders.payment_preference_id`, `orders.payment_id_mp` + índice único parcial | CU-12 poscondiciones: *"Se genera una preferencia de pago en Mercado Pago…"* y *"se guarda el payment_id_mp"* |
 | 0019 | `orders.billing_data jsonb` | CU-24: *"billing_data: datos de facturación institucional (JSON)"* y RN-007 *"Las facturas deben emitirse a nombre de la institución"* |
+| 0021 | `polls.closed_at` + CHECK de coherencia con `status`; retiro de `description`, `valid_from`, `valid_until` | CU-16: *"closed_at (si está finalizada)"*. Decisiones D5/D6 aceptadas por el usuario el 2026-11-16 (documento de decisiones de encuestas) |
 | 0020 | Rol `acalud_app` (permisos mínimos; sin UPDATE/DELETE en `audit_log` y `stock_movements`) | Vigente: RNF-SIS-016 (auditoría) en `docs/03-requisitos/F3-Requerimientos.md`. El mecanismo concreto ("append-only sin UPDATE/DELETE por permisos de BD") lo describe NFR-S6 de `docs/_archivo-v1/01-requisitos/1.2-nfr-cuantificados.md`, que es histórico y no vinculante: se cita como origen del diseño, no como respaldo |
 
 ### Estado verificado contra producción (2026-11-16)
