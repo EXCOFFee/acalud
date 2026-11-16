@@ -232,7 +232,7 @@ describe('GET /instituciones/mine', () => {
     expect(res.body.datos_facturacion_envio).toBeNull();
   });
 
-  it('un docente vinculado pero sin ser encargado recibe es_encargado=false', async () => {
+  it('un docente vinculado pero sin ser encargado recibe es_encargado=false y SIN datos de facturación', async () => {
     const encargado = await docente();
     const alta = await registrar(encargado.token, cuerpo());
     const institucionId = alta.body.institucion_id as string;
@@ -248,6 +248,9 @@ describe('GET /instituciones/mine', () => {
     expect(res.status).toBe(200);
     expect(res.body.institucion_id).toBe(institucionId);
     expect(res.body.es_encargado).toBe(false);
+    // Mínimo privilegio: razón social, CUIT y domicilio solo los usa el encargado (checkout B2B,
+    // CU-24). Un docente común no los necesita para nada.
+    expect(res.body.datos_facturacion_envio).toBeNull();
   });
 
   it('sin sesión responde 401', async () => {

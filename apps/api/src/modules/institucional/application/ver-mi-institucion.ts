@@ -38,7 +38,11 @@ export class VerMiInstitucion {
       if (membresia === null) {
         return { institucion_id: null, es_encargado: false, datos_facturacion_envio: null };
       }
-      const datos = await repos.instituciones.buscarDatosFacturacionEnvio(membresia.institucionId);
+      // Mínimo privilegio: razón social, CUIT y domicilio solo los necesita el encargado (precarga
+      // del checkout B2B, CU-24). A un docente común no se le devuelven, ni se consultan.
+      const datos = membresia.esEncargado
+        ? await repos.instituciones.buscarDatosFacturacionEnvio(membresia.institucionId)
+        : null;
       return {
         institucion_id: membresia.institucionId,
         es_encargado: membresia.esEncargado,

@@ -893,9 +893,9 @@ paths:
       summary: A qué institución pertenezco
       description: >
         Siempre 200 con un objeto (nunca `null` crudo). `institucion_id = null` si el usuario no
-        está vinculado. `datos_facturacion_envio` (precarga del checkout B2B, CU-24) se
-        devuelve a CUALQUIER miembro vinculado, no solo al encargado; su `domicilio` es null si
-        la institución no lo cargó.
+        está vinculado. `datos_facturacion_envio` (precarga del checkout B2B, CU-24) solo se
+        devuelve al ENCARGADO; para un docente común es null. Su `domicilio` es null si la
+        institución no lo cargó.
       operationId: verMiInstitucion
       responses:
         '200':

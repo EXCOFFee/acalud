@@ -233,9 +233,10 @@ documentan. El contrato los describe tal como se comportan HOY.
   (el CU le gana a la convención "ajeno = 404": el juego existe, falta la asignación), así que
   el código se mantuvo y solo se corrigió el `title` → "No tenés asignado este producto" (A7.3);
   `detail` ya era el mensaje de A7.4. El test que congelaba el título equivocado se corrigió.
-- **U5 · `GET /instituciones/mine`** devuelve `datos_facturacion_envio` (razón social, CUIT,
-  domicilio) a cualquier docente vinculado, no solo al encargado que lo usa en el checkout B2B.
-  No es PII, pero es más de lo necesario: evaluar devolverlo solo si `es_encargado`.
+- ~~**U5 · `GET /instituciones/mine`** devuelve `datos_facturacion_envio` a cualquier docente
+  vinculado~~ — **resuelto (2026-11-16)**: `VerMiInstitucion` solo lo consulta y devuelve si
+  `esEncargado`; para un docente común es null. Test escrito antes del arreglo (falló mostrando
+  el dato expuesto). Sin cambios de frontend: el checkout B2B ya cortaba antes si no es encargado.
 - **U5 · Deuda técnica:** `ver-historial-sesiones.ts` conserva ~25 líneas de comentarios de
   "pensar en voz alta" (dudas ya resueltas sobre membresías) — limpiar. `docentes.controller`
   sigue en camelCase (sesiones) vs snake_case (asignaciones) en el mismo controller.
