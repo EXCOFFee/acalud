@@ -39,9 +39,16 @@ export async function levantarApp(): Promise<CtxApp> {
   const migrador = new Client({ connectionString: uri });
   await migrador.connect();
   await aplicarMigraciones(migrador, MIGRACIONES_DIR);
+  // NFR-S6 / migración 0020: igual que en producción, las migraciones corren como dueño y la
+  // APP se conecta con el rol de permisos mínimos. Así toda la suite prueba que la app funciona
+  // sin DDL ni ownership. (La contraseña de test es local al contenedor efímero.)
+  await migrador.query(`ALTER ROLE acalud_app LOGIN PASSWORD 'acalud_app_test'`);
   await migrador.end();
+  const uriApp = new URL(uri);
+  uriApp.username = 'acalud_app';
+  uriApp.password = 'acalud_app_test';
 
-  process.env.DATABASE_URL = uri; // lo lee el PgModule al instanciar el pool
+  process.env.DATABASE_URL = uriApp.toString(); // lo lee el PgModule al instanciar el pool
   const { STORAGE_PROVIDER } = await import('../../../src/platform/storage/storage-provider.port');
   const storageMock = new Map<string, Buffer>();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
