@@ -4,7 +4,14 @@ import { ZodValidationPipe } from '../../../../platform/http/zod-validation.pipe
 import { CargarSesionJuego } from '../../application/cargar-sesion-juego';
 import { VerHistorialSesiones } from '../../application/ver-historial-sesiones';
 import { VerMisJuegosAsignados } from '../../application/ver-mis-juegos-asignados';
-import { CargarSesionBody, cargarSesionSchema } from './docentes.esquemas';
+import {
+  CargarSesionBody,
+  cargarSesionSchema,
+  type ListadoSesionesQuery,
+  listadoSesionesQuerySchema,
+} from './docentes.esquemas';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import type { RequestAutenticada } from '../../../../platform/auth/autenticado';
 import { DocenteNoVinculado, JuegoNoAsignado, SesionNoEncontrada } from '../../domain/errores';
 
@@ -67,19 +74,14 @@ export class DocentesController {
   @UseGuards(AuthGuard)
   async listarSesiones(
     @Req() req: RequestAutenticada,
-    @Query('producto_id') productoId?: string,
-    @Query('pagina') paginaStr?: string,
-    @Query('limite') limiteStr?: string
+    @Query(new ZodValidationPipe(listadoSesionesQuerySchema)) query: ListadoSesionesQuery,
   ) {
     if (!req.autenticado) throw new UnauthorizedException();
     try {
-      const pagina = paginaStr ? parseInt(paginaStr, 10) : 1;
-      const limite = limiteStr ? parseInt(limiteStr, 10) : 20;
-
       return await this.verHistorialSesiones.ejecutar(req.autenticado.id, {
-        ...(productoId !== undefined && { productoId }),
-        pagina,
-        limite
+        ...(query.producto_id !== undefined && { productoId: query.producto_id }),
+        pagina: query.pagina,
+        limite: query.limite,
       });
     } catch (error) {
       mapearErrorLocal(error);
@@ -92,6 +94,8 @@ export class DocentesController {
   async verDetalleSesion(@Req() req: RequestAutenticada, @Param('id') sesionId: string) {
     if (!req.autenticado) throw new UnauthorizedException();
     try {
+      // Un id que no es uuid es una sesión inexistente (404), no un error de PostgreSQL (500).
+      if (!UUID_RE.test(sesionId)) throw new SesionNoEncontrada();
       return await this.verHistorialSesiones.detalle(req.autenticado.id, sesionId);
     } catch (error) {
       mapearErrorLocal(error);

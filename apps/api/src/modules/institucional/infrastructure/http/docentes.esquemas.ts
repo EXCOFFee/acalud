@@ -21,3 +21,17 @@ export const cargarSesionSchema = z.object({
 });
 
 export type CargarSesionBody = z.infer<typeof cargarSesionSchema>;
+
+/**
+ * Query de GET /docentes/me/sesiones-juego (CU-30). Mismo criterio que el resto de los listados
+ * (ej. FiltroHistorialSchema de compras): enteros validados, `limite` con tope (sin él se podía
+ * pedir cualquier cantidad de filas de una vez) y `producto_id` uuid (antes llegaba crudo a
+ * PostgreSQL y un valor inválido terminaba en 500).
+ */
+export const listadoSesionesQuerySchema = z.object({
+  producto_id: z.string().uuid().optional(),
+  pagina: z.coerce.number().int().min(1).default(1),
+  limite: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export type ListadoSesionesQuery = z.infer<typeof listadoSesionesQuerySchema>;

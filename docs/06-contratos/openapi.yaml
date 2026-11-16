@@ -1344,9 +1344,8 @@ paths:
       tags: [institucional]
       summary: Historial de mis sesiones (CU-30)
       description: >
-        Respuesta en camelCase. Los query params NO pasan por Zod: `pagina`/`limite` se
-        parsean con parseInt sin validar (sin tope de `limite`) y `producto_id` no se valida
-        como uuid (ver backlog).
+        Respuesta en camelCase. Query validada con Zod: `producto_id` uuid, `pagina` entero ≥ 1,
+        `limite` entero entre 1 y 100. Fuera de rango o no numérico → 422.
       operationId: verMisSesiones
       parameters:
         - name: producto_id
@@ -1355,7 +1354,7 @@ paths:
         - { $ref: '#/components/parameters/pagina' }
         - name: limite
           in: query
-          schema: { type: integer, minimum: 1, default: 20 }
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
       responses:
         '200':
           description: Página de sesiones
@@ -1373,7 +1372,7 @@ paths:
                   paginaActual: { type: integer }
         '401': { $ref: '#/components/responses/Problem401' }
         '422':
-          description: El docente no está vinculado a ninguna institución
+          description: Query inválida, o el docente no está vinculado a ninguna institución
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -1382,7 +1381,7 @@ paths:
     get:
       tags: [institucional]
       summary: Detalle de una sesión propia (CU-30 A9)
-      description: Respuesta en camelCase. El id no se valida como uuid antes de consultar.
+      description: Respuesta en camelCase. Un id que no es uuid responde 404.
       operationId: verDetalleSesion
       parameters:
         - name: sesion_id

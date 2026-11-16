@@ -220,10 +220,14 @@ documentan. El contrato los describe tal como se comportan HOY.
   está finalizada)"*) y CU-20, y las tres opciones: matriz F6 §5.6.
 - **U6 · Nombres de query params mezclados:** comunidad usa inglés (`status`, `search`,
   `order`, `level_id`) y compras/institucional español (`estado`, `orden`). Fase 2.
-- **U5 · `GET /docentes/me/sesiones-juego` sin validación de query:** es el único listado sin
-  Zod — `pagina`/`limite` con `parseInt` (texto → NaN; `limite` sin tope, se puede pedir
-  1.000.000 de filas) y `producto_id` sin validar uuid. Pasar a un `ZodValidationPipe` como el
-  resto (limite ≤ 100). Tampoco se valida el uuid de `GET /docentes/me/sesiones-juego/:id`.
+- ~~**U5 · `GET /docentes/me/sesiones-juego` sin validación de query**~~ — **resuelto
+  (2026-11-16)**: `listadoSesionesQuerySchema` (Zod: `producto_id` uuid, `pagina` ≥ 1, `limite`
+  1-100) + uuid del detalle → 404. Tests escritos ANTES del arreglo, vistos fallar: el
+  comportamiento real era `producto_id` inválido → **500**, `limite=1000000` → 200 sin tope, y
+  detalle con id inválido → **500**. Corrección a lo anotado acá: `pagina=abc` NO rompía (el
+  repositorio caía en silencio a la página 1), ahora responde 422. Detalle original: era el
+  único listado sin Zod — `pagina`/`limite` con `parseInt`, `limite` sin tope y `producto_id`
+  sin validar uuid; tampoco se validaba el uuid de `GET /docentes/me/sesiones-juego/:id`.
 - **U5 · `POST /docentes/me/sesiones-juego` con juego no asignado** responde **403** con
   `title: "No encontrado"` (contradictorio y fuera de la convención "ajeno = 404").
 - **U5 · `GET /instituciones/mine`** devuelve `datos_facturacion_envio` (razón social, CUIT,

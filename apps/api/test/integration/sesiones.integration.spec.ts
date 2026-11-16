@@ -285,3 +285,45 @@ describe('CU-029 paso 2 / CU-030 · GET /docentes/me/asignaciones', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('CU-030 · validación de entrada del historial (borde HTTP)', () => {
+  async function profeVinculado(): Promise<string> {
+    const encargado = await docente('Directora Validación');
+    const institucionId = await institucionDe(encargado.token);
+    return (await docenteVinculado(institucionId, 'Profe Validación')).token;
+  }
+  const listar = (token: string, qs: string) =>
+    ctx.request.get(`/api/v1/docentes/me/sesiones-juego?${qs}`).set(bearer(token));
+
+  it('producto_id que no es uuid → 422 (no 500)', async () => {
+    const token = await profeVinculado();
+    expect((await listar(token, 'producto_id=no-es-un-uuid')).status).toBe(422);
+  });
+
+  it('limite por encima de 100 → 422 (sin tope se podía pedir cualquier cantidad de filas)', async () => {
+    const token = await profeVinculado();
+    expect((await listar(token, 'limite=1000000')).status).toBe(422);
+    expect((await listar(token, 'limite=0')).status).toBe(422);
+  });
+
+  it('pagina o limite no numéricos → 422 (antes caían en silencio al valor por defecto)', async () => {
+    const token = await profeVinculado();
+    expect((await listar(token, 'pagina=abc')).status).toBe(422);
+    expect((await listar(token, 'limite=muchos')).status).toBe(422);
+  });
+
+  it('valores válidos siguen funcionando, con los defaults de siempre', async () => {
+    const token = await profeVinculado();
+    const res = await listar(token, 'pagina=1&limite=100');
+    expect(res.status).toBe(200);
+    expect(res.body.paginaActual).toBe(1);
+    const sinParams = await listar(token, '');
+    expect(sinParams.status).toBe(200);
+    expect(sinParams.body.paginaActual).toBe(1);
+  });
+
+  it('detalle con un id que no es uuid → 404 (no 500)', async () => {
+    const token = await profeVinculado();
+    expect((await detalleSesion(token, 'no-es-un-uuid')).status).toBe(404);
+  });
+});
