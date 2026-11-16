@@ -12,8 +12,9 @@
 - **Regla:** NO tomes decisiones de arquitectura nuevas. Si algo no está decidido, PREGUNTA.
 
 ## Contratos OpenAPI
-- Ruta interina (v1, español): `docs/_archivo-v1/02-arquitectura/2.4-contratos/openapi.yaml`
-- Tras Fase 2 del refactor: `docs/06-contratos/openapi.yaml` (inglés, regenerado).
+- Vigente (desde 2026-11): `docs/06-contratos/openapi.yaml` — describe la API REAL, con los nombres tal como existen hoy (mezcla español/inglés). En la Fase 2 se pasa a inglés en el mismo archivo.
+- Histórico (no vinculante): `docs/_archivo-v1/02-arquitectura/2.4-contratos/openapi.yaml` (diseño v1, coincidía en 32/84 rutas).
+- Sincronía: `packages/contracts/test/drift.spec.ts` compara contrato ↔ controllers y falla en CI si se desfasan.
 - **Regla:** Todo cambio de comportamiento de un endpoint exige actualizar el contrato EN EL MISMO COMMIT.
 
 ## Infraestructura documentada (Addendum del esquema)

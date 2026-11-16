@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: Acalud API
+  version: 1.0.0
+  description: >
+    Contrato de la API REAL del monolito modular (ADR-002), reescrito desde el código
+    (2026-11). Reemplaza al contrato v1 de `docs/_archivo-v1/.../openapi.yaml`, que describía
+    un diseño previo y quedó como material histórico.
+
+    Convenciones: errores en RFC 9457 (`application/problem+json`, con `trace_id`); validación
+    de entrada con Zod → 422; recurso ajeno → 404 (nunca 403, salvo rol admin); autenticación
+    dual (ADR-004): cookie httpOnly `acalud_sesion` (web) o `Authorization: Bearer` (APK).
+
+    Nombres: las rutas y campos se documentan TAL COMO EXISTEN hoy (mezcla español/inglés).
+    Unificarlos al inglés es la Fase 2 (docs/claude/04-workflow.md).
+
+    Sincronía: `packages/contracts/test/drift.spec.ts` compara este archivo contra los
+    controllers de `apps/api` y falla en CI si se desfasan.
+servers:
+  - url: /api/v1
+
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+
+tags:
+  - name: sistema
+    description: Salud del servicio (monitor de uptime / keep-alive, ADR-005).
+
+paths:
+  /health:
+    get:
+      tags: [sistema]
+      summary: Liveness — el proceso responde
+      operationId: health
+      security: []
+      responses:
+        '200':
+          description: Proceso vivo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [ok] }
+
+  /ready:
+    get:
+      tags: [sistema]
+      summary: Readiness — el proceso y la base responden (`SELECT 1`, timeout 5 s)
+      operationId: ready
+      security: []
+      responses:
+        '200':
+          description: Listo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Readiness' }
+        '503':
+          description: La base no responde
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Readiness' }
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: acalud_sesion
+      description: Token opaco de sesión (web). httpOnly, Secure, SameSite=Lax.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: El mismo token opaco, enviado por la APK (Capacitor).
+
+  responses:
+    Problem401:
+      description: No autenticado (sin sesión o sesión vencida)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Problem403:
+      description: Autenticado pero sin el rol requerido (solo rutas /admin)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Problem404:
+      description: No existe o no es tuyo (autorización por propiedad, IDOR-safe)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Problem409:
+      description: Conflicto con el estado actual (duplicado, transición inválida)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Problem422:
+      description: Entrada inválida (Zod) o regla de negocio incumplida
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Problem503:
+      description: Proveedor externo no disponible (pago, envíos)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457 Problem Details (platform/http/problem-details.filter.ts)
+      required: [type, title, status, instance, trace_id]
+      properties:
+        type: { type: string, examples: ['about:blank'] }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, description: URL original del request }
+        trace_id: { type: string, format: uuid }
+
+    Readiness:
+      type: object
+      required: [status, dependencias]
+      properties:
+        status: { type: string, enum: [ok, down] }
+        dependencias:
+          type: object
+          properties:
+            db: { type: string, enum: [ok, down] }
