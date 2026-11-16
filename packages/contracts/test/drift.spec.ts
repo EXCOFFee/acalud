@@ -24,16 +24,6 @@ const DIR_API = join(RAIZ, 'apps', 'api', 'src');
 const CONTRATO = join(RAIZ, 'docs', '06-contratos', 'openapi.yaml');
 
 const PENDIENTES: readonly string[] = [
-  // U4 · compras (carrito, checkout, envío, historial)
-  'GET /carrito',
-  'PUT /carrito/lineas/{}',
-  'DELETE /carrito/lineas/{}',
-  'POST /checkout',
-  'POST /webhooks/mercadopago',
-  'POST /shipping/calculate',
-  'GET /pedidos',
-  'GET /pedidos/{}',
-  'GET /pedidos/{}/tracking',
   // U5 · institucional (instituciones, docentes)
   'GET /instituciones/mine',
   'POST /instituciones',

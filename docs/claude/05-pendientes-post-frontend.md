@@ -194,6 +194,18 @@ documentan. El contrato los describe tal como se comportan HOY.
   (`recursos-autorizacion.pg.ts`: orden paid/shipped/delivered o asignación activa).
   Arreglo probable: `OpcionalAuthGuard` en la ficha + reutilizar ese mismo chequeo. Visto por
   lectura de código, no probado en navegador.
+- **U4 · ⚠️ PRIORITARIO · el envío que se muestra NO es el que se cobra (CU-11 ↔ CU-12):**
+  `/checkout` (`iniciar-checkout.ts`) cobra `ENVIO_FAKE` fijo (home_delivery 3000,
+  branch_pickup 1500), mientras la pantalla muestra la cotización de `POST /shipping/calculate`
+  (en prod `SHIPPING_ADAPTER=tabla` → 700 + 300/kg, igual para ambas modalidades). Un juego de
+  800 g se muestra a $1000 y se cobra a $3000. La decisión de "no tocar el checkout" (CU-11,
+  2026-08) era razonable mientras la cotización no se mostraba; dejó de serlo al conectarla
+  al checkout del frontend (B1). Visto por lectura de código.
+- **U4 · `GET /pedidos/:id` y `/pedidos/:id/tracking`** no validan formato uuid (a diferencia
+  del resto de controllers): un id malformado probablemente llega a PostgreSQL y termina en
+  500 en vez de 404. Sin verificar con test.
+- **U4 · Seguimiento con `SHIPPING_ADAPTER=tabla` (prod):** la tabla local no tiene tracking;
+  un pedido despachado sin caché previa siempre responde 503.
 - **U3 · Inconsistencias de códigos HTTP (para unificar en Fase 2, todas rompen clientes):**
   `DELETE /admin/products/:id` responde 200 con cuerpo (baja lógica) mientras categorías y
   recursos responden 204; varios `POST` sin `@HttpCode` responden 201 sin crear nada

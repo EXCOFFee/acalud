@@ -30,6 +30,10 @@ tags:
     description: Cuentas, sesión y perfil (BC Identidad · CU-01..04, CU-34, CU-E01, CU-E02).
   - name: catalogo
     description: Catálogo público, demos, descargas, editoriales y favoritos (CU-06..09, CU-17, CU-18).
+  - name: compras
+    description: >
+      Carrito, cotización de envío, checkout con Mercado Pago, webhook de pago, historial y
+      seguimiento (CU-05, CU-10..13, CU-24). El cliente NUNCA envía precios ni totales.
   - name: admin-catalogo
     description: >
       ABM de productos (+ descuento mayorista CU-22), categorías, demos y recursos (CU-19).
@@ -553,6 +557,321 @@ paths:
         '401': { $ref: '#/components/responses/Problem401' }
         '404': { $ref: '#/components/responses/Problem404' }
 
+  # ───────────────────────── COMPRAS ─────────────────────────
+  /carrito:
+    get:
+      tags: [compras]
+      summary: Ver carrito (CU-10; institucional con `contexto`, CU-24)
+      description: >
+        Un carrito por (cuenta, contexto). Precios y descuentos por cantidad calculados en el
+        servidor al momento de leer.
+      operationId: verCarrito
+      parameters:
+        - { $ref: '#/components/parameters/contexto' }
+      responses:
+        '200':
+          description: Carrito (vacío si no existe)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CarritoView' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404':
+          description: '`contexto` de una institución de la que no sos encargado activo'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /carrito/lineas/{juego_id}:
+    put:
+      tags: [compras]
+      summary: Poner un juego en el carrito con una cantidad, upsert (CU-10)
+      description: Fija la cantidad (no la suma). El cliente manda SOLO la cantidad.
+      operationId: ponerLineaCarrito
+      parameters:
+        - { $ref: '#/components/parameters/juego_id' }
+        - { $ref: '#/components/parameters/contexto' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cantidad]
+              properties:
+                cantidad: { type: integer, minimum: 1, maximum: 99 }
+      responses:
+        '200':
+          description: Carrito actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CarritoView' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404':
+          description: Juego inexistente/inactivo, o `contexto` institucional ajeno
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/Problem422' }
+    delete:
+      tags: [compras]
+      summary: Quitar un juego del carrito (CU-10)
+      operationId: quitarLineaCarrito
+      parameters:
+        - { $ref: '#/components/parameters/juego_id' }
+        - { $ref: '#/components/parameters/contexto' }
+      responses:
+        '200':
+          description: Carrito actualizado (idempotente si el juego no estaba)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CarritoView' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404':
+          description: '`contexto` institucional ajeno'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /shipping/calculate:
+    post:
+      tags: [compras]
+      summary: Cotizar envío (CU-11)
+      description: >
+        Sin sesión (A8: sirve también a un carrito anónimo). Cotiza contra el
+        `ShippingProvider` configurado (`SHIPPING_ADAPTER`; en producción hoy `tabla`:
+        700 + 300 por kg iniciado, igual para ambas modalidades). Peso por producto con
+        fallback a un peso por defecto (A5). Opciones ordenadas de menor a mayor costo. No
+        persiste nada. ⚠️ Hoy NO es el costo que cobra `POST /checkout` (ver backlog).
+      operationId: calcularEnvio
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [codigo_postal, items]
+              properties:
+                codigo_postal: { type: string, pattern: '^\d{4}$', examples: ['1900'] }
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [product_id, quantity]
+                    properties:
+                      product_id: { type: string, format: uuid }
+                      quantity: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Opciones de envío
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [opciones]
+                properties:
+                  opciones:
+                    type: array
+                    items: { $ref: '#/components/schemas/OpcionEnvio' }
+        '422': { $ref: '#/components/responses/Problem422' }
+        '503': { $ref: '#/components/responses/Problem503' }
+
+  /checkout:
+    post:
+      tags: [compras]
+      summary: Iniciar checkout y crear la preferencia de Mercado Pago (CU-12 p1-3, CU-24)
+      description: >
+        En una transacción: calcula precios en el servidor, verifica stock y crea el pedido
+        `pending` con snapshot de precios (y `billing_data` si es B2B). Fuera de la
+        transacción crea la preferencia de Checkout Pro y devuelve su `init_point` para
+        redirigir. Un solo pedido pendiente por carrito (índice único). Costo de envío: tabla
+        fija interna (home_delivery 3000, branch_pickup 1500), NO la cotización de CU-11.
+      operationId: iniciarCheckout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [modalidad_envio, codigo_postal, domicilio]
+              properties:
+                contexto: { type: string, format: uuid, description: institution_id (CU-24); ausente = personal }
+                modalidad_envio: { $ref: '#/components/schemas/ModalidadEnvio' }
+                codigo_postal: { type: string, minLength: 1 }
+                domicilio:
+                  type: object
+                  required: [calle, numero, codigo_postal, provincia, localidad]
+                  properties:
+                    calle: { type: string, minLength: 1 }
+                    numero: { type: string, minLength: 1 }
+                    codigo_postal: { type: string, minLength: 1 }
+                    provincia: { type: string, minLength: 1 }
+                    localidad: { type: string, minLength: 1 }
+      responses:
+        '201':
+          description: Pedido creado; redirigir al usuario a `init_point`
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pedido_id, init_point]
+                properties:
+                  pedido_id: { type: string, format: uuid }
+                  init_point: { type: string, format: uri, description: URL de Checkout Pro }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404':
+          description: '`contexto` institucional ajeno'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          description: Ya hay un pago en curso para este carrito
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: Entrada inválida, carrito vacío o sin stock suficiente
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503':
+          description: Mercado Pago no disponible (sin fallback, ADR-006)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /webhooks/mercadopago:
+    post:
+      tags: [compras]
+      summary: Notificación de pago de Mercado Pago (CU-12 p4-6)
+      description: >
+        Lo llama Mercado Pago, no el frontend. Autenticación por firma, no por sesión:
+        `x-signature: ts=<epoch>,v1=<hmac>` = HMAC-SHA256 con `MP_WEBHOOK_SECRET` sobre
+        `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`. La firma NO cubre el body, por eso
+        el servidor no lo lee: reconcilia consultando el pago a Mercado Pago. Procesamiento
+        idempotente (`payment_id` UNIQUE) en una sola transacción: estado del pedido con guard
+        `WHERE status = 'pending'`, descuento condicional de stock, inventario institucional
+        (B2B), vaciado de carrito, email por outbox y auditoría. Responde 200 ante cualquier
+        resultado de negocio para que Mercado Pago no reintente.
+      operationId: webhookMercadoPago
+      security: []
+      parameters:
+        - name: data.id
+          in: query
+          required: true
+          description: payment_id de Mercado Pago
+          schema: { type: string, minLength: 1 }
+        - name: x-signature
+          in: header
+          required: true
+          schema: { type: string, examples: ['ts=1700000000,v1=3f2a...'] }
+        - name: x-request-id
+          in: header
+          schema: { type: string }
+      responses:
+        '200':
+          description: Notificación procesada (o ya procesada)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resultado]
+                properties:
+                  resultado:
+                    type: string
+                    enum: [paid, rejected, under_review, already_processed, order_not_found]
+        '401':
+          description: Firma inválida o ausente; se descarta sin tocar ningún pedido (A7)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /pedidos:
+    get:
+      tags: [compras]
+      summary: Historial de compras propio (CU-05, CU-24 RN-009)
+      operationId: verHistorialPedidos
+      parameters:
+        - name: estado
+          in: query
+          schema: { $ref: '#/components/schemas/EstadoPedido' }
+        - name: order_type
+          in: query
+          schema: { type: string, enum: [b2c, b2b] }
+        - name: orden_por
+          in: query
+          schema: { type: string, enum: [created_at, total_amount], default: created_at }
+        - name: orden_dir
+          in: query
+          schema: { type: string, enum: [asc, desc], default: desc }
+        - { $ref: '#/components/parameters/pagina' }
+        - name: limite
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Página de pedidos del usuario
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total_items, total_paginas, pagina_actual]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrdenHistorial' }
+                  total_items: { type: integer }
+                  total_paginas: { type: integer }
+                  pagina_actual: { type: integer }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /pedidos/{pedido_id}:
+    get:
+      tags: [compras]
+      summary: Detalle de un pedido propio (CU-05)
+      operationId: verDetallePedido
+      parameters:
+        - { $ref: '#/components/parameters/pedido_id' }
+      responses:
+        '200':
+          description: Detalle con líneas, domicilio y facturación
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DetallePedido' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /pedidos/{pedido_id}/tracking:
+    get:
+      tags: [compras]
+      summary: Seguimiento logístico de un pedido propio (CU-13)
+      description: >
+        El código de tracking se resuelve en el servidor (no viaja en la URL, RNF-009). Caché
+        de 5 min en `order_tracking_events` (RN-003); si el proveedor falla se devuelve el
+        último estado conocido (`desde_cache = true`, RNF-007). Con el adapter `tabla` no hay
+        proveedor de tracking: sin caché previa responde 503.
+      operationId: verSeguimientoPedido
+      parameters:
+        - { $ref: '#/components/parameters/pedido_id' }
+      responses:
+        '200':
+          description: Estado y eventos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SeguimientoPedido' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '409':
+          description: El pedido no tiene código de tracking o todavía no se despachó (A1/A4)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Problem503' }
+
   # ───────────────────────── ADMIN · CATÁLOGO (CU-19, CU-22) ─────────────────────────
   /admin/products:
     get:
@@ -1002,6 +1321,19 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    contexto:
+      name: contexto
+      in: query
+      description: institution_id para el carrito institucional (CU-24). Ausente = personal.
+      schema: { type: string, format: uuid }
+    pedido_id:
+      name: pedido_id
+      in: path
+      required: true
+      description: >
+        Sin validación de formato en el controller: un valor que no es uuid probablemente
+        termina en 500 (ver backlog).
+      schema: { type: string, format: uuid }
     product_id:
       name: product_id
       in: path
@@ -1292,6 +1624,122 @@ components:
         item_id: { type: string, format: uuid }
         titulo: { type: string }
         creado_en: { type: string, format: date-time }
+
+    ModalidadEnvio:
+      type: string
+      enum: [home_delivery, branch_pickup]
+
+    EstadoPedido:
+      type: string
+      enum: [pending, paid, shipped, delivered, cancelled, under_review]
+
+    CarritoView:
+      type: object
+      required: [lineas, total, ahorro_total, contexto]
+      properties:
+        lineas:
+          type: array
+          items:
+            type: object
+            required: [juego_id, nombre, cantidad, precio_lista, descuento_pct, precio_unitario, subtotal, disponible]
+            properties:
+              juego_id: { type: string, format: uuid }
+              nombre: { type: string }
+              cantidad: { type: integer }
+              precio_lista: { type: number }
+              descuento_pct: { type: number }
+              precio_unitario: { type: number, description: precio_lista con el descuento por cantidad aplicado }
+              subtotal: { type: number }
+              disponible: { type: boolean, description: false si no hay stock suficiente }
+        total: { type: number, description: Sin envío }
+        ahorro_total: { type: number }
+        contexto: { type: [string, 'null'], format: uuid }
+
+    OpcionEnvio:
+      type: object
+      required: [modalidad, nombre_servicio, costo, plazo_estimado_dias, tracking_disponible]
+      properties:
+        modalidad: { $ref: '#/components/schemas/ModalidadEnvio' }
+        nombre_servicio: { type: string }
+        costo: { type: number }
+        plazo_estimado_dias: { type: integer }
+        tracking_disponible: { type: boolean, description: Solo con MiCorreo }
+
+    OrdenHistorial:
+      type: object
+      required: [id, numero, fecha, total, estado, tracking_code, order_type, institution_id]
+      properties:
+        id: { type: string, format: uuid }
+        numero: { type: string }
+        fecha: { type: string, format: date-time }
+        total: { type: number }
+        estado: { $ref: '#/components/schemas/EstadoPedido' }
+        tracking_code: { type: [string, 'null'] }
+        order_type: { type: string, enum: [b2c, b2b] }
+        institution_id: { type: [string, 'null'], format: uuid }
+
+    DetallePedido:
+      type: object
+      required: [id, numero, fecha, estado, subtotal, envio_costo, total, tracking_code, order_type, institution_id, billing_data, domicilio, lineas]
+      properties:
+        id: { type: string, format: uuid }
+        numero: { type: string }
+        fecha: { type: string, format: date-time }
+        estado: { $ref: '#/components/schemas/EstadoPedido' }
+        subtotal: { type: number }
+        envio_costo: { type: number }
+        total: { type: number }
+        tracking_code: { type: [string, 'null'] }
+        order_type: { type: string, enum: [b2c, b2b] }
+        institution_id: { type: [string, 'null'], format: uuid }
+        billing_data:
+          description: Solo en B2B (CU-24 RN-007); armado en el servidor desde la institución
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [razon_social, cuit]
+              properties:
+                razon_social: { type: string }
+                cuit: { type: string }
+        domicilio:
+          type: object
+          properties:
+            calle: { type: [string, 'null'] }
+            numero: { type: [string, 'null'] }
+            localidad: { type: [string, 'null'] }
+            provincia: { type: [string, 'null'] }
+            codigo_postal: { type: [string, 'null'] }
+        lineas:
+          type: array
+          items:
+            type: object
+            required: [juego_id, nombre, cantidad, precio_unitario, descuento_pct]
+            properties:
+              juego_id: { type: string, format: uuid }
+              nombre: { type: string, description: Snapshot del nombre al comprar }
+              cantidad: { type: integer }
+              precio_unitario: { type: number, description: Snapshot del precio al comprar }
+              descuento_pct: { type: number }
+
+    SeguimientoPedido:
+      type: object
+      required: [estado_actual, eventos, fecha_estimada_entrega, direccion_entrega, ultima_actualizacion, desde_cache]
+      properties:
+        estado_actual: { type: string }
+        eventos:
+          type: array
+          items:
+            type: object
+            required: [estado, ubicacion, descripcion, fecha]
+            properties:
+              estado: { type: string }
+              ubicacion: { type: [string, 'null'] }
+              descripcion: { type: string }
+              fecha: { type: [string, 'null'], format: date-time }
+        fecha_estimada_entrega: { type: [string, 'null'], description: Solo en respuesta fresca }
+        direccion_entrega: { type: [string, 'null'], description: Solo en respuesta fresca }
+        ultima_actualizacion: { type: [string, 'null'], format: date-time }
+        desde_cache: { type: boolean }
 
     ProductoAdminInput:
       type: object
