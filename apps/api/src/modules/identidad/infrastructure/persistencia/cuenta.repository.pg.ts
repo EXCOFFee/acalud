@@ -139,4 +139,14 @@ export class CuentaRepositoryPg implements CuentaRepository {
       institucion: fila.school_name ?? null,
     };
   }
+
+  async existeNivel(nombre: string): Promise<boolean> {
+    const r = await this.db.query(`SELECT 1 FROM levels WHERE lower(name) = lower($1)`, [nombre]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  async existeMateria(nombre: string): Promise<boolean> {
+    const r = await this.db.query(`SELECT 1 FROM subjects WHERE lower(name) = lower($1)`, [nombre]);
+    return (r.rowCount ?? 0) > 0;
+  }
 }

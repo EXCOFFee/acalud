@@ -198,6 +198,47 @@ describe('CU-004 · Actualizar perfil', () => {
     );
     expect(perfil.rows[0]?.school_name).toBe('Escuela San Martín');
   });
+
+  describe('validación de nivel y materia (antes se guardaban como null EN SILENCIO)', () => {
+    async function tokenNuevo(): Promise<string> {
+      const email = emailNuevo();
+      await registrar(email);
+      return (await login(email)).body.token as string;
+    }
+    const actualizar = (token: string, cambios: Record<string, unknown>) =>
+      ctx.request
+        .put('/api/v1/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ nombre: 'María', apellido: 'Pérez', ...cambios });
+
+    it('una materia que no existe en el catálogo → 422 (antes: 200 y la materia se perdía)', async () => {
+      const res = await actualizar(await tokenNuevo(), { materia: 'Matemáticas Avanzadas' });
+      expect(res.status).toBe(422);
+    });
+
+    it('un nivel educativo que no existe → 422', async () => {
+      const res = await actualizar(await tokenNuevo(), { nivel_educativo: 'Universitario' });
+      expect(res.status).toBe(422);
+    });
+
+    it('el nombre del catálogo se acepta sin distinguir mayúsculas', async () => {
+      const res = await actualizar(await tokenNuevo(), { nivel_educativo: 'primaria', materia: 'LENGUA' });
+      expect(res.status).toBe(200);
+      expect(res.body.nivel_educativo).toBe('Primaria');
+      expect(res.body.materia).toBe('Lengua');
+    });
+
+    it('null o ausente sigue siendo válido (los dos campos son opcionales)', async () => {
+      const res = await actualizar(await tokenNuevo(), { nivel_educativo: null, materia: null });
+      expect(res.status).toBe(200);
+      expect(res.body.materia).toBeNull();
+    });
+
+    it('un nombre de solo espacios → 422 (antes: 500)', async () => {
+      const res = await actualizar(await tokenNuevo(), { nombre: '   ' });
+      expect(res.status).toBe(422);
+    });
+  });
 });
 
 describe('CU-023 · Registrar institución', () => {

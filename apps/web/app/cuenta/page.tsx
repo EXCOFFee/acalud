@@ -16,7 +16,7 @@ import {
   IconoPaquete,
 } from '@/components/ui';
 import { SiteNav } from '@/components/site-nav';
-import { api, ApiError, type PerfilPropio } from '@/lib/api';
+import { api, ApiError, type Materia, type PerfilPropio } from '@/lib/api';
 import { NIVELES_EDUCATIVOS } from '@/lib/institucion';
 
 export default function CuentaPage() {
@@ -33,6 +33,11 @@ export default function CuentaPage() {
   });
 
   const [cambioAbierto, setCambioAbierto] = useState(false);
+  // CU-04: la materia sale del catálogo (GET /subjects). Antes era texto libre y, si no coincidía
+  // exacto con el catálogo, el backend la guardaba vacía sin avisar.
+  const [materias, setMaterias] = useState<Materia[]>([]);
+  const [perfilError, setPerfilError] = useState<string | null>(null);
+  const [perfilGuardado, setPerfilGuardado] = useState(false);
   const [cambioForm, setCambioForm] = useState({ nuevo_email: '', contrasena: '' });
   const [cambioError, setCambioError] = useState<string | null>(null);
   const [cambioEnviando, setCambioEnviando] = useState(false);
@@ -58,6 +63,13 @@ export default function CuentaPage() {
         if (err instanceof ApiError && err.status === 401) router.replace('/login');
         else if (vivo) setEstado('error');
       });
+    // Si el catálogo no carga, el selector igual conserva la materia actual (ver opciones abajo).
+    api
+      .listarMaterias()
+      .then((m) => {
+        if (vivo) setMaterias(m);
+      })
+      .catch(() => undefined);
     return () => {
       vivo = false;
     };
@@ -66,6 +78,8 @@ export default function CuentaPage() {
   async function guardarPerfil(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setGuardando(true);
+    setPerfilError(null);
+    setPerfilGuardado(false);
     try {
       const actualizado = await api.actualizarPerfil({
         nombre: form.nombre.trim(),
@@ -82,6 +96,18 @@ export default function CuentaPage() {
         materia: actualizado.materia ?? '',
         institucion: actualizado.institucion ?? '',
       });
+      setPerfilGuardado(true);
+    } catch (err: unknown) {
+      // Antes no había catch: un error del backend no se le mostraba al docente.
+      if (err instanceof ApiError && err.status === 401) {
+        router.replace('/login');
+        return;
+      }
+      setPerfilError(
+        err instanceof ApiError
+          ? (err.problema.detail ?? 'No pudimos guardar tu perfil.')
+          : 'Error de conexión. No pudimos guardar tu perfil. Intentá nuevamente.',
+      );
     } finally {
       setGuardando(false);
     }
@@ -223,12 +249,23 @@ export default function CuentaPage() {
                 <label className="dato__k" htmlFor="materia">
                   Materia
                 </label>
-                <input
+                <select
                   id="materia"
-                  className="campo__input"
+                  className="campo__select"
                   value={form.materia}
                   onChange={(e) => setForm((prev) => ({ ...prev, materia: e.target.value }))}
-                />
+                >
+                  <option value="">Sin especificar</option>
+                  {materias.map((m) => (
+                    <option key={m.id} value={m.nombre}>
+                      {m.nombre}
+                    </option>
+                  ))}
+                  {/* Si el catálogo no cargó, la materia actual sigue elegible y no se pierde. */}
+                  {form.materia && !materias.some((m) => m.nombre === form.materia) ? (
+                    <option value={form.materia}>{form.materia}</option>
+                  ) : null}
+                </select>
               </div>
               <div className="dato">
                 <label className="dato__k" htmlFor="institucion_docente">
@@ -241,6 +278,9 @@ export default function CuentaPage() {
                   onChange={(e) => setForm((prev) => ({ ...prev, institucion: e.target.value }))}
                 />
               </div>
+              {/* role="alert"/"status" (Alerta): el resultado se anuncia también por lector de pantalla. */}
+              {perfilError ? <Alerta tipo="error">{perfilError}</Alerta> : null}
+              {perfilGuardado ? <Alerta tipo="ok">Perfil actualizado.</Alerta> : null}
               <button className="boton boton--primario" type="submit" disabled={guardando}>
                 {guardando ? 'Guardando…' : 'Guardar cambios'}
               </button>

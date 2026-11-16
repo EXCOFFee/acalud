@@ -279,9 +279,10 @@ paths:
       tags: [identidad]
       summary: Actualizar perfil propio (CU-04)
       description: >
-        Reemplaza nombre, apellido y datos docentes. `nivel_educativo` y `materia` se buscan
-        por nombre (sin distinguir mayúsculas) en `levels`/`subjects`; si no coinciden con
-        ninguno, se guardan como `null` sin error.
+        Reemplaza nombre, apellido y datos docentes. `nivel_educativo` y `materia` deben ser
+        nombres existentes en `GET /levels` / `GET /subjects` (sin distinguir mayúsculas);
+        `null` o ausente los deja vacíos. Un nombre inexistente → 422 (antes se guardaba null
+        en silencio). Nombre/apellido de solo espacios → 422.
       operationId: actualizarPerfil
       requestBody:
         required: true
@@ -2505,8 +2506,8 @@ components:
       properties:
         nombre: { type: string, minLength: 1 }
         apellido: { type: string, minLength: 1 }
-        nivel_educativo: { type: [string, 'null'], description: Nombre del nivel (ej. Primaria) }
-        materia: { type: [string, 'null'], description: Nombre de la materia }
+        nivel_educativo: { type: [string, 'null'], description: 'Nombre de un nivel de GET /levels (ej. Primaria)' }
+        materia: { type: [string, 'null'], description: 'Nombre de una materia de GET /subjects' }
         institucion: { type: [string, 'null'] }
 
     Paginacion:

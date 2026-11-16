@@ -46,8 +46,9 @@ export const confirmarCambioEmailSchema = z.object({
 export type ConfirmarCambioEmailInput = z.infer<typeof confirmarCambioEmailSchema>;
 
 export const perfilSchema = z.object({
-  nombre: z.string().min(1),
-  apellido: z.string().min(1),
+  // trim antes de medir: "   " no es un nombre (antes pasaba Zod y explotaba en 500 más adentro).
+  nombre: z.string().trim().min(1),
+  apellido: z.string().trim().min(1),
   nivel_educativo: z.string().nullable().optional(),
   materia: z.string().nullable().optional(),
   institucion: z.string().nullable().optional(),

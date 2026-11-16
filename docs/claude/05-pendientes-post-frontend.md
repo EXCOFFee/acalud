@@ -171,9 +171,12 @@ sin modal de confirmación — a diferencia de "Desactivar", reactivar no es des
 Detectados leyendo el código para documentarlo; no se corrigieron porque esas unidades solo
 documentan. El contrato los describe tal como se comportan HOY.
 
-- **U1 · `PUT /me` (CU-04):** `nivel_educativo`/`materia` se resuelven por nombre contra
-  `levels`/`subjects` con una subconsulta; si el texto no coincide se guarda `NULL` **sin
-  error**. Debería responder 422 (o recibir el uuid de `GET /levels`/`GET /subjects`).
+- ~~**U1 · `PUT /me` (CU-04):** nivel/materia inexistentes se guardaban `NULL` sin error~~ —
+  **resuelto (2026-11-16)**: `ActualizarPerfil` verifica contra los catálogos y responde 422
+  (`NivelEducativoInvalido`/`MateriaInvalida`); de paso, nombre/apellido de solo espacios daba
+  500 y ahora 422 (`trim()` en Zod). Frontend `/cuenta`: la materia pasó de texto libre a
+  selector desde `GET /subjects`, y `guardarPerfil` ganó el `catch` que no tenía (un error del
+  backend no se mostraba) con `Alerta` (role alert/status). Tests escritos antes del arreglo.
 - ~~**U1 · `GET /me`/`PUT /me`:** devuelven `membresias: []` fijo~~ — **resuelto
   (2026-11-16)**: campo quitado (no lo usaba la web ni ningún test). Se eligió quitarlo y no
   llenarlo para no duplicar la fuente de la membresía, que es `GET /instituciones/mine`.

@@ -17,7 +17,13 @@ import { ZodValidationPipe } from '../../../../platform/http/zod-validation.pipe
 import { ActualizarPerfil } from '../../application/actualizar-perfil';
 import { SolicitarCambioEmail } from '../../application/solicitar-cambio-email';
 import { CUENTA_REPOSITORY, type CuentaRepository } from '../../domain/ports/cuenta.repository';
-import { ContrasenaIncorrecta, EmailIgualAlActual, EmailYaRegistrado } from '../../domain/errores';
+import {
+  ContrasenaIncorrecta,
+  EmailIgualAlActual,
+  EmailYaRegistrado,
+  MateriaInvalida,
+  NivelEducativoInvalido,
+} from '../../domain/errores';
 import { type CambioEmailInput, cambioEmailSchema, type PerfilInput, perfilSchema } from './esquemas';
 
 function mapearError(error: unknown): never {
@@ -29,6 +35,9 @@ function mapearError(error: unknown): never {
   }
   if (error instanceof EmailIgualAlActual) {
     throw new HttpException({ title: 'Correo inválido', detail: error.message }, 422);
+  }
+  if (error instanceof NivelEducativoInvalido || error instanceof MateriaInvalida) {
+    throw new HttpException({ title: 'Dato inválido', detail: error.message }, 422);
   }
   throw error;
 }
@@ -80,14 +89,19 @@ export class MeController {
     const cuenta = req.autenticado;
     if (cuenta === undefined) throw new UnauthorizedException();
 
-    const perfil = await this.actualizarPerfil.ejecutar({
-      id: cuenta.id,
-      nombre: input.nombre,
-      apellido: input.apellido,
-      nivelEducativo: input.nivel_educativo ?? null,
-      materia: input.materia ?? null,
-      institucion: input.institucion ?? null,
-    });
+    let perfil;
+    try {
+      perfil = await this.actualizarPerfil.ejecutar({
+        id: cuenta.id,
+        nombre: input.nombre,
+        apellido: input.apellido,
+        nivelEducativo: input.nivel_educativo ?? null,
+        materia: input.materia ?? null,
+        institucion: input.institucion ?? null,
+      });
+    } catch (error) {
+      mapearError(error);
+    }
 
     return {
       ...perfil,

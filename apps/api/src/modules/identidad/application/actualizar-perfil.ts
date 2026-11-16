@@ -1,4 +1,5 @@
 import type { PerfilCuenta } from '../domain/cuenta';
+import { MateriaInvalida, NivelEducativoInvalido } from '../domain/errores';
 import type { UnidadDeTrabajo } from '../domain/ports/unidad-de-trabajo';
 
 export interface ActualizarPerfilInput {
@@ -20,12 +21,24 @@ export class ActualizarPerfil {
       throw new Error('El nombre y el apellido son obligatorios');
     }
 
+    const nivelEducativo = input.nivelEducativo?.trim() || null;
+    const materia = input.materia?.trim() || null;
+
     return this.uow.transaccion(async (repos) => {
+      // CU-04: nivel y materia se resuelven por nombre contra los catálogos. Un nombre que no
+      // existe se rechaza: antes el UPDATE lo convertía en null y el dato se perdía en silencio.
+      if (nivelEducativo !== null && !(await repos.cuentas.existeNivel(nivelEducativo))) {
+        throw new NivelEducativoInvalido();
+      }
+      if (materia !== null && !(await repos.cuentas.existeMateria(materia))) {
+        throw new MateriaInvalida();
+      }
+
       await repos.cuentas.actualizarPerfil(input.id, {
         nombre,
         apellido,
-        nivelEducativo: input.nivelEducativo?.trim() || null,
-        materia: input.materia?.trim() || null,
+        nivelEducativo,
+        materia,
         institucion: input.institucion?.trim() || null,
       });
 
@@ -37,8 +50,8 @@ export class ActualizarPerfil {
         datos: {
           nombre,
           apellido,
-          nivelEducativo: input.nivelEducativo?.trim() || null,
-          materia: input.materia?.trim() || null,
+          nivelEducativo,
+          materia,
           institucion: input.institucion?.trim() || null,
         },
       });

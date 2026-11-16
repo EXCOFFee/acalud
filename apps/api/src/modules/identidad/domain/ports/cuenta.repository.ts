@@ -38,6 +38,10 @@ export interface CuentaRepository {
   actualizarPerfil(id: string, datos: DatosPerfilCuenta): Promise<void>;
   /** Devuelve los datos pedagógicos persistidos del docente, si existen. */
   buscarPerfil(id: string): Promise<PerfilDocentePersistido | null>;
+  /** ¿Existe un nivel con ese nombre en `levels`? (sin distinguir mayúsculas) */
+  existeNivel(nombre: string): Promise<boolean>;
+  /** ¿Existe una materia con ese nombre en `subjects`? (sin distinguir mayúsculas) */
+  existeMateria(nombre: string): Promise<boolean>;
 }
 
 export const CUENTA_REPOSITORY = Symbol('CuentaRepository');

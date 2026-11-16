@@ -49,6 +49,22 @@ export class EmailYaRegistrado extends ErrorDeDominio {
   }
 }
 
+/** CU-04: el nivel educativo no existe en el catálogo `levels`. → 422 (antes se guardaba null). */
+export class NivelEducativoInvalido extends ErrorDeDominio {
+  readonly clase = 'VALIDATION' as const;
+  constructor() {
+    super('El nivel educativo seleccionado no es válido');
+  }
+}
+
+/** CU-04: la materia no existe en el catálogo `subjects`. → 422 (antes se guardaba null). */
+export class MateriaInvalida extends ErrorDeDominio {
+  readonly clase = 'VALIDATION' as const;
+  constructor() {
+    super('La materia seleccionada no es válida');
+  }
+}
+
 /** El nuevo correo es idéntico al actual (CU-34 A3). → 422 */
 export class EmailIgualAlActual extends ErrorDeDominio {
   readonly clase = 'VALIDATION' as const;
