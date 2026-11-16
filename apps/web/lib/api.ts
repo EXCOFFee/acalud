@@ -689,6 +689,8 @@ export interface EncuestaResumen {
   nivel_educativo_id: string | null;
   total_votos: number;
   creada_en: string;
+  /** CU-16: fecha de cierre; null salvo estado 'closed'. */
+  finalizada_en: string | null;
 }
 
 export interface OpcionResultado {
@@ -702,6 +704,7 @@ export interface ResultadosEncuesta {
   poll_id: string;
   pregunta: string;
   estado: EstadoEncuesta;
+  finalizada_en: string | null;
   total_votos: number;
   opciones: OpcionResultado[];
   ya_voto: boolean;

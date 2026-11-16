@@ -1,6 +1,7 @@
 'use client';
 
 import { type FormEvent, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Alerta,
@@ -70,6 +71,17 @@ export default function EncuestasPage() {
   const [opcionElegida, setOpcionElegida] = useState('');
   const [votando, setVotando] = useState(false);
   const [errorVoto, setErrorVoto] = useState<string | null>(null);
+  // CU-14 A7 / CU-16 A5: los resultados se pueden ver sin votar, y el anónimo los ve con un aviso
+  // para iniciar sesión en vez del formulario. `null` mientras no se sabe si hay sesión.
+  const [logueado, setLogueado] = useState<boolean | null>(null);
+  const [vista, setVista] = useState<'votar' | 'resultados'>('resultados');
+
+  useEffect(() => {
+    api
+      .me()
+      .then(() => setLogueado(true))
+      .catch(() => setLogueado(false));
+  }, []);
 
   function cargar(): void {
     setEstado('cargando');
@@ -99,6 +111,8 @@ export default function EncuestasPage() {
     try {
       const r = await api.verResultadosEncuesta(id);
       setResultados(r);
+      // Arranca en el formulario solo si de verdad puede votar; si no, en los resultados.
+      setVista(r.estado === 'active' && !r.ya_voto && logueado === true ? 'votar' : 'resultados');
       setDetalleEstado('ok');
     } catch {
       setDetalleEstado('error');
@@ -113,6 +127,7 @@ export default function EncuestasPage() {
     try {
       const r = await api.votarEncuesta(pollId, opcionElegida);
       setResultados(r);
+      setVista('resultados');
       notificar('¡Voto registrado! Gracias por participar.', 'ok');
       cargar(); // refleja el nuevo total_votos en la lista
     } catch (err) {
@@ -125,6 +140,7 @@ export default function EncuestasPage() {
         notificar('Ya habías votado en esta encuesta.', 'info');
         const r = await api.verResultadosEncuesta(pollId).catch(() => null);
         if (r) setResultados(r);
+        setVista('resultados');
       } else if (err instanceof ApiError && err.status === 422) {
         setErrorVoto(err.problema.detail ?? 'No pudimos registrar tu voto.');
       } else {
@@ -151,7 +167,7 @@ export default function EncuestasPage() {
           >
             <option value="">Todas</option>
             <option value="active">Activas</option>
-            <option value="closed">Cerradas</option>
+            <option value="closed">Finalizadas</option>
           </Selector>
           <Selector
             id="filtro-nivel"
@@ -202,7 +218,7 @@ export default function EncuestasPage() {
                   <p style={{ margin: '0 0 0.3rem', fontWeight: 600 }}>{enc.pregunta}</p>
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--tinta-suave)' }}>
                     <Insignia variante={enc.estado === 'active' ? 'ok' : 'off'}>
-                      {enc.estado === 'active' ? 'Activa' : 'Cerrada'}
+                      {enc.estado === 'active' ? 'Activa' : 'Finalizada'}
                     </Insignia>{' '}
                     {enc.nivel_educativo_id ? (
                       <>
@@ -211,7 +227,10 @@ export default function EncuestasPage() {
                         </Insignia>{' '}
                       </>
                     ) : null}
-                    {enc.total_votos} voto{enc.total_votos === 1 ? '' : 's'} · {fechaCorta(enc.creada_en)}
+                    {enc.total_votos} voto{enc.total_votos === 1 ? '' : 's'} ·{' '}
+                    {enc.finalizada_en
+                      ? `finalizada el ${fechaCorta(enc.finalizada_en)}`
+                      : fechaCorta(enc.creada_en)}
                   </p>
                 </div>
                 <Boton variante="fantasma" onClick={() => abrirEncuesta(enc.id)}>
@@ -229,21 +248,46 @@ export default function EncuestasPage() {
           <EstadoError titulo="La encuesta que buscás no está disponible" />
         ) : null}
 
-        {detalleEstado === 'ok' && resultados && (resultados.ya_voto || resultados.estado === 'closed') ? (
+        {detalleEstado === 'ok' && resultados && vista === 'resultados' ? (
           <div>
+            {resultados.estado === 'closed' ? (
+              // CU-16 RN-004: indicador "Finalizada" (con su fecha).
+              <p style={{ margin: '0 0 0.8rem' }}>
+                <Insignia variante="off">Finalizada</Insignia>
+                {resultados.finalizada_en ? (
+                  <span style={{ marginLeft: '0.4rem', fontSize: '0.85rem', color: 'var(--tinta-suave)' }}>
+                    el {fechaCorta(resultados.finalizada_en)} · resultados definitivos
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
             <ul style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
               {resultados.opciones.map((o) => (
                 <BarraOpcion key={o.id} opcion={o} votada={o.id === resultados.opcion_votada_id} />
               ))}
             </ul>
             <p style={{ marginTop: '0.9rem', fontSize: '0.85rem', color: 'var(--tinta-suave)' }}>
-              {resultados.total_votos} voto{resultados.total_votos === 1 ? '' : 's'} en total.
-              {resultados.estado === 'closed' ? ' Esta encuesta ya está cerrada.' : ''}
+              {resultados.total_votos === 0
+                ? 'Sin votos aún.' // CU-16 RN-007
+                : `${resultados.total_votos} voto${resultados.total_votos === 1 ? '' : 's'} en total.`}
             </p>
+            {resultados.estado === 'active' && !resultados.ya_voto && logueado === false ? (
+              // CU-16 A5 / RN-008: el anónimo ve resultados pero no vota.
+              <Alerta tipo="aviso">
+                Para votar, <Link href="/login?volver=/encuestas">iniciá sesión</Link>.
+              </Alerta>
+            ) : null}
+            {resultados.estado === 'active' && !resultados.ya_voto && logueado === true ? (
+              <div className="dialogo__acciones">
+                <Boton variante="primario" type="button" onClick={() => setVista('votar')}>
+                  Participar
+                </Boton>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
-        {detalleEstado === 'ok' && resultados && !resultados.ya_voto && resultados.estado === 'active' ? (
+        {detalleEstado === 'ok' && resultados && vista === 'votar' ? (
           <form onSubmit={votar} noValidate>
             {errorVoto ? <Alerta tipo="error">{errorVoto}</Alerta> : null}
             <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
@@ -266,8 +310,9 @@ export default function EncuestasPage() {
               </div>
             </fieldset>
             <div className="dialogo__acciones">
-              <Boton variante="fantasma" type="button" onClick={() => setPollId(null)} disabled={votando}>
-                Cancelar
+              {/* CU-14 A7: ver los resultados sin participar (no registra voto). */}
+              <Boton variante="fantasma" type="button" onClick={() => setVista('resultados')} disabled={votando}>
+                Ver resultados
               </Boton>
               <Boton variante="primario" type="submit" cargando={votando} disabled={!opcionElegida}>
                 Votar
