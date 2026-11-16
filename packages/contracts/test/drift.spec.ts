@@ -8,9 +8,9 @@
  * `*.controller.ts` de apps/api y los `paths` del contrato, normaliza los parámetros
  * (`:id` y `{id}` → `{}`) y compara los dos conjuntos.
  *
- * `PENDIENTES` es un "trinquete": rutas que existen en el código y todavía no se documentaron.
- * Solo puede achicarse: si documentás una, el test exige que la saques de la lista. Cuando
- * quede vacía, cualquier endpoint nuevo sin contrato rompe el CI.
+ * `PENDIENTES` fue un "trinquete" durante la reescritura (82 rutas, U1..U6): solo podía
+ * achicarse. Quedó VACÍA (2026-11): desde ahora, un endpoint nuevo sin su entrada en el
+ * contrato rompe el CI. No agregues rutas acá para "destrabar" un build: documentalas.
  *
  * Limitación conocida (parser deliberadamente simple, sin dependencia de YAML): asume que
  * los paths están a 2 espacios de indentación y los métodos a 4, como en el contrato.
@@ -23,25 +23,7 @@ const RAIZ = join(__dirname, '..', '..', '..');
 const DIR_API = join(RAIZ, 'apps', 'api', 'src');
 const CONTRATO = join(RAIZ, 'docs', '06-contratos', 'openapi.yaml');
 
-const PENDIENTES: readonly string[] = [
-  // U6 · comunidad (encuestas, propuestas, niveles/materias + sus admin)
-  'GET /levels',
-  'GET /subjects',
-  'GET /polls',
-  'GET /polls/{}/results',
-  'POST /polls/{}/responses',
-  'GET /proposals',
-  'POST /proposals',
-  'GET /admin/polls',
-  'GET /admin/polls/{}',
-  'POST /admin/polls',
-  'PUT /admin/polls/{}',
-  'PATCH /admin/polls/{}/toggle',
-  'DELETE /admin/polls/{}',
-  'GET /admin/proposals',
-  'GET /admin/proposals/{}',
-  'PUT /admin/proposals/{}',
-];
+const PENDIENTES: readonly string[] = [];
 
 function normalizar(ruta: string): string {
   return (

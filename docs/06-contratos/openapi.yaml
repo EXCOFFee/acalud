@@ -40,6 +40,11 @@ tags:
       dashboard (CU-23, CU-25..33). Todas requieren sesión. Las rutas
       `/instituciones/{institucion_id}/...` exigen ser el encargado ACTIVO de esa institución:
       si no lo sos responde 404 (no 403), igual que con un recurso ajeno.
+  - name: comunidad
+    description: >
+      Encuestas, propuestas de docentes y catálogo de niveles/materias (CU-14..16, CU-20,
+      CU-21). OJO: acá los query params están en inglés (`status`, `search`, `order`,
+      `level_id`), a diferencia de otros módulos (Fase 2).
   - name: admin-catalogo
     description: >
       ABM de productos (+ descuento mayorista CU-22), categorías, demos y recursos (CU-19).
@@ -1393,6 +1398,447 @@ paths:
         '401': { $ref: '#/components/responses/Problem401' }
         '404': { $ref: '#/components/responses/Problem404' }
 
+  # ───────────────────────── COMUNIDAD ─────────────────────────
+  /levels:
+    get:
+      tags: [comunidad]
+      summary: Catálogo de niveles educativos (público)
+      description: Para armar selectores; los formularios mandan el `id`.
+      operationId: listarNiveles
+      security: []
+      responses:
+        '200':
+          description: Niveles
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ItemCatalogo' }
+
+  /subjects:
+    get:
+      tags: [comunidad]
+      summary: Catálogo de materias (público)
+      operationId: listarMaterias
+      security: []
+      responses:
+        '200':
+          description: Materias
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ItemCatalogo' }
+
+  /polls:
+    get:
+      tags: [comunidad]
+      summary: Listar encuestas públicas (CU-14, CU-16)
+      description: >
+        Nunca incluye borradores (`draft`). Nota: hoy ninguna operación lleva una encuesta a
+        `closed` (ver backlog), así que `status=closed` siempre devuelve una lista vacía.
+      operationId: listarEncuestas
+      security: []
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, closed] }
+        - name: level_id
+          in: query
+          description: Filtro por nivel educativo (id de GET /levels)
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Encuestas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, pregunta, estado, nivel_educativo_id, total_votos, creada_en]
+                  properties:
+                    id: { type: string, format: uuid }
+                    pregunta: { type: string }
+                    estado: { type: string, enum: [active, closed] }
+                    nivel_educativo_id: { type: [string, 'null'], format: uuid }
+                    total_votos: { type: integer }
+                    creada_en: { type: string, format: date-time }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /polls/{poll_id}/results:
+    get:
+      tags: [comunidad]
+      summary: Ver resultados de una encuesta (CU-16)
+      description: >
+        Sesión opcional: con sesión, `ya_voto` y `opcion_votada_id` reflejan el voto propio.
+        Votos contados en el momento (sin columna de conteo).
+      operationId: verResultadosEncuesta
+      security:
+        - {}
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - { $ref: '#/components/parameters/poll_id' }
+      responses:
+        '200':
+          description: Resultados
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResultadosEncuesta' }
+        '404':
+          description: No existe o es un borrador
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /polls/{poll_id}/responses:
+    post:
+      tags: [comunidad]
+      summary: Votar en una encuesta (CU-14)
+      description: >
+        Requiere sesión (RN-006). Un solo voto por usuario y encuesta (UNIQUE poll_id+user_id).
+        Devuelve los resultados actualizados. Responde 201 (default de NestJS para POST).
+      operationId: votarEncuesta
+      parameters:
+        - { $ref: '#/components/parameters/poll_id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [opcion_id]
+              properties:
+                opcion_id: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Voto registrado; resultados actualizados
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResultadosEncuesta' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404':
+          description: La encuesta no existe o no está activa
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          description: Ya votaste en esta encuesta
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: La opción no pertenece a la encuesta, o entrada inválida
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /proposals:
+    get:
+      tags: [comunidad]
+      summary: Mis propuestas enviadas (CU-15)
+      operationId: verMisPropuestas
+      responses:
+        '200':
+          description: Propuestas del usuario con su estado de moderación
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, titulo, estado, creada_en, actualizada_en]
+                  properties:
+                    id: { type: string, format: uuid }
+                    titulo: { type: string }
+                    estado: { $ref: '#/components/schemas/EstadoPropuesta' }
+                    creada_en: { type: string, format: date-time }
+                    actualizada_en: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Problem401' }
+    post:
+      tags: [comunidad]
+      summary: Enviar propuesta de juego (CU-15)
+      description: >
+        Notifica a TODOS los usuarios admin (tablero + email por outbox, RN-005). Duplicado
+        (A3/D-51): mismo usuario y mismo título exacto dentro de las últimas 24 h → 409.
+      operationId: enviarPropuesta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [titulo, descripcion]
+              properties:
+                titulo: { type: string, minLength: 1 }
+                descripcion: { type: string, minLength: 50 }
+                materia_id: { type: [string, 'null'], format: uuid, description: Id de GET /subjects }
+                nivel_educativo_id: { type: [string, 'null'], format: uuid, description: Id de GET /levels }
+      responses:
+        '201':
+          description: Propuesta enviada (estado `pending`)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, titulo, descripcion, materia_id, nivel_educativo_id, estado, creada_en]
+                properties:
+                  id: { type: string, format: uuid }
+                  titulo: { type: string }
+                  descripcion: { type: string }
+                  materia_id: { type: [string, 'null'], format: uuid }
+                  nivel_educativo_id: { type: [string, 'null'], format: uuid }
+                  estado: { $ref: '#/components/schemas/EstadoPropuesta' }
+                  creada_en: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '409':
+          description: Propuesta duplicada (mismo título en 24 h)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: Entrada inválida, o materia/nivel inexistentes
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /admin/polls:
+    get:
+      tags: [comunidad]
+      summary: Listar encuestas, incluidos borradores (CU-20)
+      operationId: listarEncuestasAdmin
+      responses:
+        '200':
+          description: Encuestas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, pregunta, estado, nivel_educativo_id, creada_en, total_votos]
+                  properties:
+                    id: { type: string, format: uuid }
+                    pregunta: { type: string }
+                    estado: { $ref: '#/components/schemas/EstadoEncuesta' }
+                    nivel_educativo_id: { type: [string, 'null'], format: uuid }
+                    creada_en: { type: string, format: date-time }
+                    total_votos: { type: integer }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+    post:
+      tags: [comunidad]
+      summary: Crear encuesta (CU-20)
+      description: Se crea en `draft` (RN-004); se publica con el toggle.
+      operationId: crearEncuesta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EncuestaInput' }
+      responses:
+        '201':
+          description: Encuesta creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EncuestaAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '422':
+          description: Entrada inválida (2-10 opciones, sin vacías ni duplicadas) o nivel inexistente
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /admin/polls/{poll_id}:
+    get:
+      tags: [comunidad]
+      summary: Ver encuesta con sus opciones, para precargar la edición (CU-20 A2)
+      operationId: verEncuestaAdmin
+      parameters:
+        - { $ref: '#/components/parameters/poll_id' }
+      responses:
+        '200':
+          description: Encuesta
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EncuestaAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+    put:
+      tags: [comunidad]
+      summary: Editar encuesta (CU-20 A2)
+      description: Reemplaza pregunta, nivel y opciones. Una encuesta `active` no se puede editar (409).
+      operationId: actualizarEncuesta
+      parameters:
+        - { $ref: '#/components/parameters/poll_id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EncuestaInput' }
+      responses:
+        '200':
+          description: Encuesta actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EncuestaAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '409':
+          description: La encuesta está activa
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/Problem422' }
+    delete:
+      tags: [comunidad]
+      summary: Eliminar encuesta, baja FÍSICA con sus opciones y votos (CU-20)
+      operationId: eliminarEncuesta
+      parameters:
+        - { $ref: '#/components/parameters/poll_id' }
+      responses:
+        '204': { description: Eliminada }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /admin/polls/{poll_id}/toggle:
+    patch:
+      tags: [comunidad]
+      summary: Activar o desactivar encuesta (CU-20)
+      description: Solo alterna `draft` ↔ `active`. No existe transición hacia ni desde `closed`.
+      operationId: alternarEstadoEncuesta
+      parameters:
+        - { $ref: '#/components/parameters/poll_id' }
+      responses:
+        '200':
+          description: Encuesta con el estado nuevo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EncuestaAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /admin/proposals:
+    get:
+      tags: [comunidad]
+      summary: Listar propuestas recibidas (CU-21)
+      operationId: listarPropuestasAdmin
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/EstadoPropuesta' }
+        - name: search
+          in: query
+          description: Búsqueda por título
+          schema: { type: string, minLength: 1 }
+        - name: order
+          in: query
+          description: Por fecha de creación
+          schema: { type: string, enum: [asc, desc] }
+      responses:
+        '200':
+          description: Propuestas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, titulo, autor, estado, creada_en]
+                  properties:
+                    id: { type: string, format: uuid }
+                    titulo: { type: string }
+                    autor: { type: string, description: Nombre del docente }
+                    estado: { $ref: '#/components/schemas/EstadoPropuesta' }
+                    creada_en: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /admin/proposals/{proposal_id}:
+    get:
+      tags: [comunidad]
+      summary: Ver propuesta completa (CU-21)
+      operationId: verPropuestaAdmin
+      parameters:
+        - { $ref: '#/components/parameters/proposal_id' }
+      responses:
+        '200':
+          description: Propuesta con su autor
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, titulo, descripcion, autor, materia_id, nivel_educativo_id, estado, feedback_admin, creada_en, actualizada_en]
+                properties:
+                  id: { type: string, format: uuid }
+                  titulo: { type: string }
+                  descripcion: { type: string }
+                  autor:
+                    type: object
+                    required: [id, nombre, email]
+                    properties:
+                      id: { type: string, format: uuid }
+                      nombre: { type: string }
+                      email: { type: string, format: email }
+                  materia_id: { type: [string, 'null'], format: uuid }
+                  nivel_educativo_id: { type: [string, 'null'], format: uuid }
+                  estado: { $ref: '#/components/schemas/EstadoPropuesta' }
+                  feedback_admin: { type: [string, 'null'] }
+                  creada_en: { type: string, format: date-time }
+                  actualizada_en: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+    put:
+      tags: [comunidad]
+      summary: Revisar propuesta, cambia estado y feedback (CU-21)
+      description: >
+        Notifica al autor (tablero + email). 409 si se intenta volver a `pending` una propuesta
+        aprobada/rechazada (RN-008), o si no cambia NI el estado NI el feedback.
+      operationId: revisarPropuesta
+      parameters:
+        - { $ref: '#/components/parameters/proposal_id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estado]
+              properties:
+                estado: { $ref: '#/components/schemas/EstadoPropuesta' }
+                feedback: { type: [string, 'null'], maxLength: 2000 }
+      responses:
+        '200':
+          description: Propuesta revisada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, titulo, estado, feedback_admin, actualizada_en]
+                properties:
+                  id: { type: string, format: uuid }
+                  titulo: { type: string }
+                  estado: { $ref: '#/components/schemas/EstadoPropuesta' }
+                  feedback_admin: { type: [string, 'null'] }
+                  actualizada_en: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '409':
+          description: Transición inválida o revisión sin cambios
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
   # ───────────────────────── ADMIN · CATÁLOGO (CU-19, CU-22) ─────────────────────────
   /admin/products:
     get:
@@ -1855,6 +2301,17 @@ components:
         Sin validación de formato en el controller: un valor que no es uuid probablemente
         termina en 500 (ver backlog).
       schema: { type: string, format: uuid }
+    poll_id:
+      name: poll_id
+      in: path
+      required: true
+      description: Un formato que no es uuid responde 404.
+      schema: { type: string, format: uuid }
+    proposal_id:
+      name: proposal_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     institucion_id:
       name: institucion_id
       in: path
@@ -1954,11 +2411,6 @@ components:
           schema: { $ref: '#/components/schemas/Problem' }
     Problem404:
       description: No existe o no es tuyo (autorización por propiedad, IDOR-safe)
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-    Problem409:
-      description: Conflicto con el estado actual (duplicado, transición inválida)
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
@@ -2313,6 +2765,74 @@ components:
         direccion_entrega: { type: [string, 'null'], description: Solo en respuesta fresca }
         ultima_actualizacion: { type: [string, 'null'], format: date-time }
         desde_cache: { type: boolean }
+
+    ItemCatalogo:
+      type: object
+      required: [id, nombre]
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string }
+
+    EstadoEncuesta:
+      type: string
+      enum: [draft, active, closed]
+      description: '`closed` existe en la base pero hoy ninguna operación la alcanza'
+
+    EstadoPropuesta:
+      type: string
+      enum: [pending, reviewed, approved, rejected]
+
+    ResultadosEncuesta:
+      type: object
+      required: [poll_id, pregunta, estado, total_votos, opciones, ya_voto, opcion_votada_id]
+      properties:
+        poll_id: { type: string, format: uuid }
+        pregunta: { type: string }
+        estado: { type: string, enum: [active, closed] }
+        total_votos: { type: integer }
+        opciones:
+          type: array
+          items:
+            type: object
+            required: [id, texto, votos, porcentaje]
+            properties:
+              id: { type: string, format: uuid }
+              texto: { type: string }
+              votos: { type: integer }
+              porcentaje: { type: number }
+        ya_voto: { type: boolean, description: Siempre false sin sesión }
+        opcion_votada_id: { type: [string, 'null'], format: uuid }
+
+    EncuestaInput:
+      type: object
+      required: [pregunta, opciones]
+      properties:
+        pregunta: { type: string, minLength: 1 }
+        nivel_educativo_id: { type: [string, 'null'], format: uuid, description: Id de GET /levels }
+        opciones:
+          type: array
+          minItems: 2
+          maxItems: 10
+          description: Sin textos vacíos ni duplicados (sin distinguir mayúsculas)
+          items: { type: string, minLength: 1 }
+
+    EncuestaAdmin:
+      type: object
+      required: [id, pregunta, estado, nivel_educativo_id, creada_en, opciones]
+      properties:
+        id: { type: string, format: uuid }
+        pregunta: { type: string }
+        estado: { $ref: '#/components/schemas/EstadoEncuesta' }
+        nivel_educativo_id: { type: [string, 'null'], format: uuid }
+        creada_en: { type: string, format: date-time }
+        opciones:
+          type: array
+          items:
+            type: object
+            required: [id, texto]
+            properties:
+              id: { type: string, format: uuid }
+              texto: { type: string }
 
     Domicilio:
       type: object

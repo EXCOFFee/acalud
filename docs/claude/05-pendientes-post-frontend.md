@@ -211,6 +211,14 @@ documentan. El contrato los describe tal como se comportan HOY.
   500 en vez de 404. Sin verificar con test.
 - **U4 · Seguimiento con `SHIPPING_ADAPTER=tabla` (prod):** la tabla local no tiene tracking;
   un pedido despachado sin caché previa siempre responde 503.
+- **U6 · ⚠️ DECISIÓN PENDIENTE (hueco de especificación, no bug de código) · las encuestas
+  nunca se cierran:** `polls.status` admite `closed` y CU-16 habla de ver resultados de
+  encuestas finalizadas, pero ninguna operación escribe `closed` (el toggle de CU-20 solo hace
+  draft ↔ active, y no hay fecha de cierre ni job). El filtro "Cerradas" de `/encuestas`
+  siempre está vacío. Definir con el CU cómo se cierra una encuesta (botón "Cerrar" del admin,
+  fecha de fin, ambos) antes de implementar.
+- **U6 · Nombres de query params mezclados:** comunidad usa inglés (`status`, `search`,
+  `order`, `level_id`) y compras/institucional español (`estado`, `orden`). Fase 2.
 - **U5 · `GET /docentes/me/sesiones-juego` sin validación de query:** es el único listado sin
   Zod — `pagina`/`limite` con `parseInt` (texto → NaN; `limite` sin tope, se puede pedir
   1.000.000 de filas) y `producto_id` sin validar uuid. Pasar a un `ZodValidationPipe` como el
