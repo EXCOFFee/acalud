@@ -210,7 +210,22 @@ No son errores del esquema. Son puntos donde el CU mismo conviene revisar.
    es un booleano. Si las notificaciones van a tener vía *dashboard* además de correo (CU-26, CU-27),
    un booleano de correo no alcanza para expresar la preferencia.
 
-6. **CU-16 presupone encuestas "finalizadas" que CU-20 nunca produce** (agregado 2026-11-16).
+6. ~~**CU-16 presupone encuestas "finalizadas" que CU-20 nunca produce**~~ — **RESUELTO
+   (2026-11-16).** El usuario aceptó todas las recomendaciones del documento "Encuestas:
+   decisiones pendientes" (PDF fuera del repo, `Documentos\Acalud`):
+   D1 tres estados (`draft`/`active`/`closed`, se mantiene D-45) · D2 botón **"Finalizar"**
+   explícito (`POST /admin/polls/:id/finalizar`) · D3 finalizar es definitivo (no se reabre ni
+   edita) · D4 con votos no se edita ni vuelve a borrador · D5 `closed_at` (migración 0021) ·
+   D6 se retiran `description`/`valid_from`/`valid_until`. Commits `5ae9a95` (D4 + no eliminar
+   activas, que además corrigió un bug verificado: editar borraba los votos en cascada),
+   `0fdd100` (0021), `f06bc8b` (finalizar), `5a47479` (panel admin), `1ef3188` (pantalla
+   pública: ver resultados sin votar, anónimos, indicador "Finalizada").
+   **Pendiente del dueño de los CU:** pasar a los `.docx` el texto propuesto en ese documento
+   (§7: nuevo CU-20 A11 "Finalizar encuesta", reglas de estados, y CU-16 A6.3 por estado en
+   lugar de `is_active`). Hasta entonces, el código sigue la decisión registrada acá.
+
+   Texto original del cuestionamiento:
+   **CU-16 presupone encuestas "finalizadas" que CU-20 nunca produce** (agregado 2026-11-16).
    CU-16 ofrece el filtro *"Activas / Finalizadas"* y muestra *"closed_at (si está finalizada)"*.
    CU-20 solo define *activar / desactivar*, y ningún flujo finaliza una encuesta. La base tiene el
    valor `closed` en `poll_status`, pero ninguna operación lo escribe, y **no existe `closed_at`**
@@ -334,7 +349,7 @@ comentario de la migración), para que nada exista "porque sí".
 
 | Tema | Dónde | Tipo |
 |---|---|---|
-| Encuestas que nunca se finalizan (CU-16 vs CU-20) | §5.6 | Decisión de CU |
+| ~~Encuestas que nunca se finalizan (CU-16 vs CU-20)~~ | §5.6 | **Resuelto** 2026-11-16; falta actualizar el texto de los `.docx` |
 | Invitación pendiente de docentes (CU-23 A12) | §2 | Funcionalidad ausente |
 | Seis enumeraciones huérfanas | §7 | Decisión de retiro |
 | Elementos conservados sin respaldo | §8 | Decisión pendiente |
