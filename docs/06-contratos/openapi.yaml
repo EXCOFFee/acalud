@@ -26,6 +26,8 @@ security:
 tags:
   - name: sistema
     description: Salud del servicio (monitor de uptime / keep-alive, ADR-005).
+  - name: identidad
+    description: Cuentas, sesión y perfil (BC Identidad · CU-01..04, CU-34, CU-E01, CU-E02).
 
 paths:
   /health:
@@ -63,6 +65,251 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Readiness' }
 
+  # ───────────────────────── IDENTIDAD ─────────────────────────
+  /auth/registro:
+    post:
+      tags: [identidad]
+      summary: Registrar docente (CU-01)
+      description: >
+        Crea la cuenta (`no_verificada`) y encola el email de verificación. La respuesta es
+        idéntica exista o no el email (anti-enumeración). La cuenta queda operativa desde el
+        registro, con capacidades limitadas hasta verificar.
+      operationId: registrarDocente
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegistroInput' }
+      responses:
+        '201':
+          description: Registro aceptado (mismo mensaje exista o no el email)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Mensaje' }
+        '422':
+          description: Entrada inválida o contraseña en lista de filtradas (PA-01)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /auth/verificacion:
+    post:
+      tags: [identidad]
+      summary: Verificar email con el token del enlace (CU-E02)
+      description: Activa la cuenta e inicia sesión (setea la cookie y devuelve el token).
+      operationId: verificarEmail
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TokenInput' }
+      responses:
+        '200':
+          description: Cuenta verificada y sesión iniciada
+          headers:
+            Set-Cookie: { $ref: '#/components/headers/SetCookieSesion' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SesionIniciada' }
+        '410': { $ref: '#/components/responses/Problem410' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /auth/recuperacion:
+    post:
+      tags: [identidad]
+      summary: Solicitar recuperación de contraseña (CU-E01)
+      description: Respuesta idéntica exista o no el email (anti-enumeración).
+      operationId: solicitarRecuperacion
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202':
+          description: Solicitud aceptada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Mensaje' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /auth/recuperacion/restablecer:
+    post:
+      tags: [identidad]
+      summary: Fijar contraseña nueva con el token (CU-E01)
+      description: Invalida TODAS las sesiones activas de la cuenta.
+      operationId: restablecerContrasena
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, contrasena_nueva]
+              properties:
+                token: { type: string, minLength: 1 }
+                contrasena_nueva: { type: string, minLength: 12, maxLength: 128 }
+      responses:
+        '200':
+          description: Contraseña actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Mensaje' }
+        '410': { $ref: '#/components/responses/Problem410' }
+        '422':
+          description: Entrada inválida o contraseña en lista de filtradas
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /auth/cambio-correo/confirmar:
+    post:
+      tags: [identidad]
+      summary: Confirmar cambio de correo con el token enviado al correo nuevo (CU-34)
+      description: >
+        Efectiviza el cambio, marca el email como verificado y notifica a ambas direcciones.
+        No cierra la sesión activa (RN-004).
+      operationId: confirmarCambioCorreo
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TokenInput' }
+      responses:
+        '200':
+          description: Correo actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Mensaje' }
+        '410': { $ref: '#/components/responses/Problem410' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /auth/sesion:
+    post:
+      tags: [identidad]
+      summary: Iniciar sesión (CU-02)
+      description: >
+        Sesión opaca server-side (ADR-004), transporte dual: el token sale en la cookie
+        httpOnly (web) y en el cuerpo (APK → Bearer). Vigencia 7 días deslizante. Bloqueo por
+        fuerza bruta: 3 fallos en 15 minutos (RN-007). Mensajes genéricos y tiempo constante
+        (anti-enumeración).
+      operationId: iniciarSesion
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, contrasena]
+              properties:
+                email: { type: string, format: email }
+                contrasena: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: Sesión iniciada
+          headers:
+            Set-Cookie: { $ref: '#/components/headers/SetCookieSesion' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SesionIniciada' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '422': { $ref: '#/components/responses/Problem422' }
+        '423':
+          description: Cuenta temporalmente bloqueada por intentos fallidos
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+    delete:
+      tags: [identidad]
+      summary: Cerrar sesión (CU-03)
+      description: >
+        Borra la sesión del store (revocación inmediata) y limpia la cookie. Idempotente:
+        responde 204 aunque no haya sesión.
+      operationId: cerrarSesion
+      security: []
+      responses:
+        '204':
+          description: Sesión cerrada (o no había)
+
+  /me:
+    get:
+      tags: [identidad]
+      summary: Ver perfil propio (CU-04)
+      operationId: verPerfil
+      responses:
+        '200':
+          description: Perfil de la cuenta autenticada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PerfilPropio' }
+        '401': { $ref: '#/components/responses/Problem401' }
+    put:
+      tags: [identidad]
+      summary: Actualizar perfil propio (CU-04)
+      description: >
+        Reemplaza nombre, apellido y datos docentes. `nivel_educativo` y `materia` se buscan
+        por nombre (sin distinguir mayúsculas) en `levels`/`subjects`; si no coinciden con
+        ninguno, se guardan como `null` sin error.
+      operationId: actualizarPerfil
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PerfilInput' }
+      responses:
+        '200':
+          description: Perfil actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PerfilPropio' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /me/cambio-correo:
+    post:
+      tags: [identidad]
+      summary: Solicitar cambio de correo (CU-34)
+      description: >
+        No cambia el correo todavía: valida la contraseña vigente y envía un enlace (24 h) al
+        correo NUEVO. El cambio se efectiviza con `POST /auth/cambio-correo/confirmar`.
+      operationId: solicitarCambioCorreo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nuevo_email, contrasena]
+              properties:
+                nuevo_email: { type: string, format: email }
+                contrasena: { type: string, minLength: 1 }
+      responses:
+        '202':
+          description: Enlace de verificación enviado al correo nuevo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Mensaje' }
+        '401':
+          description: No autenticado, o contraseña vigente incorrecta
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: Entrada inválida, correo ya registrado o igual al actual
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
 components:
   securitySchemes:
     cookieAuth:
@@ -74,6 +321,13 @@ components:
       type: http
       scheme: bearer
       description: El mismo token opaco, enviado por la APK (Capacitor).
+
+  headers:
+    SetCookieSesion:
+      description: >
+        `acalud_sesion=<token>; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`
+        (+ `Secure` en producción).
+      schema: { type: string }
 
   responses:
     Problem401:
@@ -93,6 +347,11 @@ components:
           schema: { $ref: '#/components/schemas/Problem' }
     Problem409:
       description: Conflicto con el estado actual (duplicado, transición inválida)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Problem410:
+      description: Enlace/token inválido, vencido o ya usado
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
@@ -119,6 +378,77 @@ components:
         detail: { type: string }
         instance: { type: string, description: URL original del request }
         trace_id: { type: string, format: uuid }
+
+    Mensaje:
+      type: object
+      required: [mensaje]
+      properties:
+        mensaje: { type: string, description: Texto listo para mostrar al usuario }
+
+    TokenInput:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, minLength: 1, description: Token opaco recibido por email }
+
+    RegistroInput:
+      type: object
+      required: [email, contrasena, nombre, apellido]
+      properties:
+        email: { type: string, format: email }
+        contrasena: { type: string, minLength: 12, maxLength: 128, description: 'PA-01: sin reglas de composición' }
+        nombre: { type: string, minLength: 1 }
+        apellido: { type: string, minLength: 1 }
+
+    EstadoCuenta:
+      type: string
+      enum: [no_verificada, verificada]
+
+    Cuenta:
+      type: object
+      description: Identidad mínima de la cuenta
+      required: [id, email, nombre, apellido, estado, es_admin]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        nombre: { type: string }
+        apellido: { type: string }
+        estado: { $ref: '#/components/schemas/EstadoCuenta' }
+        es_admin: { type: boolean, description: Rol global de plataforma (no el encargado institucional) }
+
+    SesionIniciada:
+      type: object
+      required: [token, cuenta, capacidades_limitadas]
+      properties:
+        token: { type: string, description: Token opaco; la APK lo envía como Bearer. La web usa la cookie. }
+        cuenta: { $ref: '#/components/schemas/Cuenta' }
+        capacidades_limitadas: { type: boolean, description: true mientras el email no esté verificado }
+
+    PerfilPropio:
+      allOf:
+        - $ref: '#/components/schemas/Cuenta'
+        - type: object
+          required: [capacidades_limitadas, nivel_educativo, materia, institucion, membresias]
+          properties:
+            capacidades_limitadas: { type: boolean }
+            nivel_educativo: { type: [string, 'null'] }
+            materia: { type: [string, 'null'] }
+            institucion: { type: [string, 'null'], description: Nombre de escuela de texto libre (no la institución registrada) }
+            membresias:
+              type: array
+              maxItems: 0
+              description: Siempre vacío hoy (resto sin limpiar); la membresía real se consulta en GET /instituciones/mine.
+              items: {}
+
+    PerfilInput:
+      type: object
+      required: [nombre, apellido]
+      properties:
+        nombre: { type: string, minLength: 1 }
+        apellido: { type: string, minLength: 1 }
+        nivel_educativo: { type: [string, 'null'], description: Nombre del nivel (ej. Primaria) }
+        materia: { type: [string, 'null'], description: Nombre de la materia }
+        institucion: { type: [string, 'null'] }
 
     Readiness:
       type: object

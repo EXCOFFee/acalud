@@ -24,17 +24,6 @@ const DIR_API = join(RAIZ, 'apps', 'api', 'src');
 const CONTRATO = join(RAIZ, 'docs', '06-contratos', 'openapi.yaml');
 
 const PENDIENTES: readonly string[] = [
-  // U1 · identidad (auth.controller, me.controller)
-  'POST /auth/registro',
-  'POST /auth/verificacion',
-  'POST /auth/recuperacion',
-  'POST /auth/recuperacion/restablecer',
-  'POST /auth/cambio-correo/confirmar',
-  'POST /auth/sesion',
-  'DELETE /auth/sesion',
-  'GET /me',
-  'PUT /me',
-  'POST /me/cambio-correo',
   // U2 · catálogo público (catalogo, editoriales, favoritos)
   'GET /catalogo/juegos',
   'GET /catalogo/juegos/{}',

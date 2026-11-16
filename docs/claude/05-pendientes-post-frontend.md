@@ -166,6 +166,22 @@ un estado hubiera sido un contrato más pesado que la operación. Se corrigió e
 desactualizado en `listar()`. Frontend: botón "Reactivar" (variante `primario`, acción directa
 sin modal de confirmación — a diferencia de "Desactivar", reactivar no es destructivo).
 
+## Hallazgos al reescribir el contrato OpenAPI (2026-11, `docs/06-contratos/`)
+
+Detectados leyendo el código para documentarlo; no se corrigieron porque esas unidades solo
+documentan. El contrato los describe tal como se comportan HOY.
+
+- **U1 · `PUT /me` (CU-04):** `nivel_educativo`/`materia` se resuelven por nombre contra
+  `levels`/`subjects` con una subconsulta; si el texto no coincide se guarda `NULL` **sin
+  error**. Debería responder 422 (o recibir el uuid de `GET /levels`/`GET /subjects`).
+- **U1 · `GET /me`/`PUT /me`:** devuelven `membresias: []` fijo, con un comentario
+  desactualizado ("BC7 Institucional aún no implementado"). La membresía real está en
+  `GET /instituciones/mine`. Quitar el campo o llenarlo.
+- **U1 · `POST /auth/cambio-correo/confirmar` (CU-34):** el mapeo de errores del controller
+  no contempla que el correo nuevo haya sido tomado por otra cuenta entre la solicitud y la
+  confirmación (violación de unicidad → probable 500). **Sin verificar con un test**:
+  confirmar antes de corregir.
+
 ## Notas generales
 
 - Ninguno de estos ítems bloqueaba el resto del plan de frontend — se priorizó cubrir los 34
