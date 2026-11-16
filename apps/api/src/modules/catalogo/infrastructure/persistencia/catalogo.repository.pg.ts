@@ -89,7 +89,7 @@ export class CatalogoRepositoryPg implements CatalogoRepository {
       id: r.id,
       nombre: r.title,
       tipo: r.is_licensed ? 'licenciado' : 'libre',
-      desbloqueado: !r.is_licensed, // el derecho real (CU-09) llega en la Etapa 2
+      desbloqueado: !r.is_licensed, // base anónima; VerJuego desbloquea los licenciados si hay derecho (CU-09)
     }));
 
     // Δ2 · un solo tramo de descuento, en columnas del producto (CU-10/CU-22).

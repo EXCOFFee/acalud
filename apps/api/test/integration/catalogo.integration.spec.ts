@@ -84,7 +84,7 @@ describe('CU-006 · Catálogo (ficha)', () => {
     expect(res.body.stock_disponible).toBe(true);
     expect(res.body.demos).toHaveLength(1);
     expect(res.body.tramos).toEqual([{ cantidad_minima: 5, descuento_pct: 10 }]);
-    // Recurso libre desbloqueado; licenciado bloqueado (derecho real = Etapa 2).
+    // Anónimo: libre desbloqueado; licenciado bloqueado (con derecho, ver bloque CU-09 abajo).
     const libre = res.body.recursos.find((r: { tipo: string }) => r.tipo === 'libre');
     const lic = res.body.recursos.find((r: { tipo: string }) => r.tipo === 'licenciado');
     expect(libre.desbloqueado).toBe(true);
@@ -105,6 +105,90 @@ describe('CU-006 · Catálogo (ficha)', () => {
   it('un id inexistente o mal formado responde 404 (no 500)', async () => {
     expect((await ctx.request.get('/api/v1/catalogo/juegos/dddddddd-dddd-4ddd-8ddd-dddddddddddd')).status).toBe(404);
     expect((await ctx.request.get('/api/v1/catalogo/juegos/no-es-uuid')).status).toBe(404);
+  });
+});
+
+describe('CU-09 · desbloqueo de recursos licenciados en la ficha según el derecho del usuario', () => {
+  const PW = 'Password123!';
+
+  /** Registra, verifica e inicia sesión. Devuelve el token y el id del usuario. */
+  async function sesionDe(email: string): Promise<{ token: string; userId: string }> {
+    await ctx.request
+      .post('/api/v1/auth/registro')
+      .send({ email, contrasena: PW, nombre: 'Test', apellido: 'Docente' });
+    await ctx.pg.query(`UPDATE users SET email_verified = true WHERE email = $1`, [email]);
+    const login = await ctx.request.post('/api/v1/auth/sesion').send({ email, contrasena: PW });
+    const userId = (await ctx.pg.query(`SELECT id FROM users WHERE email = $1`, [email])).rows[0]
+      .id as string;
+    return { token: login.body.token as string, userId };
+  }
+
+  async function pedidoDe(userId: string, estado: 'paid' | 'pending'): Promise<void> {
+    const orden = await ctx.pg.query(
+      `INSERT INTO orders (order_number, order_type, user_id, status, shipping_method, total_amount)
+       VALUES ($1, 'b2c', $2, $3::order_status, 'home_delivery', 12500) RETURNING id`,
+      [`ACA-CU09-${userId.slice(0, 8)}-${estado}`, userId, estado],
+    );
+    await ctx.pg.query(
+      `INSERT INTO order_items (order_id, product_id, product_name_snapshot, quantity, unit_price)
+       VALUES ($1, $2, 'Fracciones Test', 1, 12500)`,
+      [orden.rows[0].id, A],
+    );
+  }
+
+  function licenciado(body: { recursos: { tipo: string; desbloqueado: boolean }[] }) {
+    return body.recursos.find((r) => r.tipo === 'licenciado');
+  }
+
+  it('con sesión pero sin compra: el licenciado sigue bloqueado', async () => {
+    const { token } = await sesionDe('ficha-sin-compra@test.com');
+    const res = await ctx.request
+      .get(`/api/v1/catalogo/juegos/${A}`)
+      .set('Cookie', `acalud_sesion=${token}`);
+    expect(res.status).toBe(200);
+    expect(licenciado(res.body)?.desbloqueado).toBe(false);
+  });
+
+  it('con un pedido PENDIENTE (no pagado): el licenciado sigue bloqueado', async () => {
+    const { token, userId } = await sesionDe('ficha-pendiente@test.com');
+    await pedidoDe(userId, 'pending');
+    const res = await ctx.request
+      .get(`/api/v1/catalogo/juegos/${A}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(licenciado(res.body)?.desbloqueado).toBe(false);
+  });
+
+  it('con el juego COMPRADO (pedido pagado): el licenciado se desbloquea (cookie y Bearer)', async () => {
+    const { token, userId } = await sesionDe('ficha-comprador@test.com');
+    await pedidoDe(userId, 'paid');
+
+    const web = await ctx.request
+      .get(`/api/v1/catalogo/juegos/${A}`)
+      .set('Cookie', `acalud_sesion=${token}`);
+    expect(web.status).toBe(200);
+    expect(web.body.recursos.every((r: { desbloqueado: boolean }) => r.desbloqueado)).toBe(true);
+
+    const apk = await ctx.request
+      .get(`/api/v1/catalogo/juegos/${A}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(licenciado(apk.body)?.desbloqueado).toBe(true);
+
+    // Coherencia ficha ↔ descarga: lo que la ficha desbloquea, la descarga lo autoriza.
+    const recursoLic = (
+      await ctx.pg.query(`SELECT id FROM resources WHERE product_id = $1 AND is_licensed`, [A])
+    ).rows[0].id as string;
+    const descarga = await ctx.request
+      .post(`/api/v1/catalogo/recursos/${recursoLic}/descarga`)
+      .set('Cookie', `acalud_sesion=${token}`);
+    expect(descarga.status).toBe(201);
+  });
+
+  it('una sesión inválida no rompe la ficha pública: responde 200 como anónimo', async () => {
+    const res = await ctx.request
+      .get(`/api/v1/catalogo/juegos/${A}`)
+      .set('Cookie', 'acalud_sesion=token-que-no-existe');
+    expect(res.status).toBe(200);
+    expect(licenciado(res.body)?.desbloqueado).toBe(false);
   });
 });
 

@@ -12,7 +12,10 @@ import { CatalogoRepositoryPg } from './persistencia/catalogo.repository.pg';
 import { DemosRepositoryPg } from './persistencia/demos.repository.pg';
 import { RECURSOS_REPOSITORY } from '../domain/ports/recursos.repository';
 import { DESCARGAS_REPOSITORY } from '../domain/ports/descargas.repository';
-import { RECURSOS_AUTORIZACION_PORT } from '../domain/ports/recursos-autorizacion.port';
+import {
+  RECURSOS_AUTORIZACION_PORT,
+  type RecursosAutorizacionPort,
+} from '../domain/ports/recursos-autorizacion.port';
 import { RecursosRepositoryPg } from './persistencia/recursos.repository.pg';
 import { DescargasRepositoryPg } from './persistencia/descargas.repository.pg';
 import { RecursosAutorizacionPg } from './persistencia/recursos-autorizacion.pg';
@@ -84,8 +87,9 @@ import { FavoritosController } from './http/favoritos.controller';
     },
     {
       provide: VerJuego,
-      useFactory: (repo: CatalogoRepository): VerJuego => new VerJuego(repo),
-      inject: [CATALOGO_REPOSITORY],
+      useFactory: (repo: CatalogoRepository, autorizacion: RecursosAutorizacionPort): VerJuego =>
+        new VerJuego(repo, autorizacion),
+      inject: [CATALOGO_REPOSITORY, RECURSOS_AUTORIZACION_PORT],
     },
     {
       provide: DEMOS_REPOSITORY,

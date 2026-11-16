@@ -181,7 +181,11 @@ documentan. El contrato los describe tal como se comportan HOY.
   no contempla que el correo nuevo haya sido tomado por otra cuenta entre la solicitud y la
   confirmación (violación de unicidad → probable 500). **Sin verificar con un test**:
   confirmar antes de corregir.
-- **U2 · ⚠️ PRIORITARIO · CU-09 inutilizable desde la UI:** `GET /catalogo/juegos/:id` calcula
+- ~~**U2 · ⚠️ PRIORITARIO · CU-09 inutilizable desde la UI**~~ — **resuelto**: la ficha usa
+  `OpcionalAuthGuard` y `VerJuego` reutiliza `RecursosAutorizacionPort` (una consulta por
+  ficha); tests unitarios + integración (anónimo, sin compra, pedido pendiente, pagado
+  cookie/Bearer, coherencia con la descarga, sesión inválida). Sin cambios de frontend.
+  Detalle original: `GET /catalogo/juegos/:id` calcula
   `recursos[].desbloqueado = !is_licensed` (`catalogo.repository.pg.ts`, comentario "el derecho
   real llega en la Etapa 2", nunca hecho) y el endpoint es público, sin mirar al usuario. La
   ficha (`app/catalogo/juego/page.tsx`) solo muestra "Descargar" si `desbloqueado` → un docente

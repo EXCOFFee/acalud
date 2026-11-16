@@ -339,10 +339,16 @@ paths:
       tags: [catalogo]
       summary: Ver ficha de un juego (CU-06)
       description: >
-        Endpoint público (sin sesión). `recursos[].desbloqueado` vale `true` solo si el recurso
-        es libre: hoy NO contempla si el usuario compró el juego (ver backlog).
+        Público, con sesión opcional. `recursos[].desbloqueado`: los libres siempre; los
+        licenciados solo si hay sesión y el usuario tiene derecho al juego (compra
+        paid/shipped/delivered o licencia institucional asignada) — la misma regla que
+        autoriza `POST /catalogo/recursos/{recurso_id}/descarga`. Una sesión inválida se
+        trata como anónima (200, no 401).
       operationId: verJuego
-      security: []
+      security:
+        - {}
+        - cookieAuth: []
+        - bearerAuth: []
       parameters:
         - { $ref: '#/components/parameters/juego_id' }
       responses:
@@ -763,7 +769,7 @@ components:
                   tipo: { type: string, enum: [libre, licenciado] }
                   desbloqueado:
                     type: boolean
-                    description: Hoy equivale a `tipo == libre` (no mira compras del usuario).
+                    description: Libre → true. Licenciado → true solo si el usuario autenticado tiene derecho al juego.
             tramos:
               type: array
               description: Descuentos por cantidad (CU-22)

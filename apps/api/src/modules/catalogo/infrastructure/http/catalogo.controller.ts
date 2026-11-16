@@ -38,12 +38,17 @@ export class CatalogoController {
     });
   }
 
+  /** Público; con sesión, `desbloqueado` refleja el derecho del usuario a los recursos (CU-09). */
   @Get('juegos/:juego_id')
-  async verJuego(@Param('juego_id') juegoId: string): Promise<JuegoDetalle> {
+  @UseGuards(OpcionalAuthGuard)
+  async verJuego(
+    @Param('juego_id') juegoId: string,
+    @Req() req: RequestAutenticada,
+  ): Promise<JuegoDetalle> {
     try {
       // Un id con formato inválido es un recurso inexistente, no un 500.
       if (!UUID_RE.test(juegoId)) throw new JuegoNoEncontrado();
-      return await this.ver.ejecutar(juegoId);
+      return await this.ver.ejecutar(juegoId, req.autenticado?.id ?? null);
     } catch (error) {
       if (error instanceof JuegoNoEncontrado) {
         throw new HttpException({ title: 'No encontrado', detail: error.message }, 404);
