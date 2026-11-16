@@ -30,6 +30,11 @@ tags:
     description: Cuentas, sesión y perfil (BC Identidad · CU-01..04, CU-34, CU-E01, CU-E02).
   - name: catalogo
     description: Catálogo público, demos, descargas, editoriales y favoritos (CU-06..09, CU-17, CU-18).
+  - name: admin-catalogo
+    description: >
+      ABM de productos (+ descuento mayorista CU-22), categorías, demos y recursos (CU-19).
+      Todas requieren sesión de un usuario con `role = admin` (AuthGuard + AdminGuard → 403) y
+      quedan auditadas en `audit_log`.
 
 paths:
   /health:
@@ -548,6 +553,422 @@ paths:
         '401': { $ref: '#/components/responses/Problem401' }
         '404': { $ref: '#/components/responses/Problem404' }
 
+  # ───────────────────────── ADMIN · CATÁLOGO (CU-19, CU-22) ─────────────────────────
+  /admin/products:
+    get:
+      tags: [admin-catalogo]
+      summary: Listar productos, incluidos los inactivos (CU-19 p4)
+      operationId: listarProductosAdmin
+      parameters:
+        - { name: q, in: query, description: Búsqueda por título, schema: { type: string, minLength: 1 } }
+        - { $ref: '#/components/parameters/pagina' }
+        - name: tamanio
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Página de productos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [datos, paginacion]
+                properties:
+                  datos:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProductoAdminFila' }
+                  paginacion: { $ref: '#/components/schemas/Paginacion' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '422': { $ref: '#/components/responses/Problem422' }
+    post:
+      tags: [admin-catalogo]
+      summary: Crear producto (CU-19 p6)
+      operationId: crearProducto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductoAdminInput' }
+      responses:
+        '201':
+          description: Producto creado (activo)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductoAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '422':
+          description: Entrada inválida (incluye reglas cruzadas RN-003/004/005) o categoría inexistente
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /admin/products/imagen:
+    post:
+      tags: [admin-catalogo]
+      summary: Subir imagen de producto (CU-19)
+      description: >
+        Se sube ANTES de guardar el formulario; la URL pública devuelta se usa como
+        `imagen_url` del producto. PNG, JPEG o WEBP, hasta 5 MB.
+      operationId: subirImagenProducto
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [archivo]
+              properties:
+                archivo: { type: string, format: binary }
+      responses:
+        '201':
+          description: Imagen subida al bucket público de productos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [imagen_url]
+                properties:
+                  imagen_url: { type: string, format: uri }
+        '400': { $ref: '#/components/responses/Problem400' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '413': { $ref: '#/components/responses/Problem413' }
+        '422':
+          description: Tipo de archivo no permitido
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /admin/products/{product_id}:
+    get:
+      tags: [admin-catalogo]
+      summary: Ver producto completo, para precargar la edición (CU-19 A1)
+      operationId: verProductoAdmin
+      parameters:
+        - { $ref: '#/components/parameters/product_id' }
+      responses:
+        '200':
+          description: Producto
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductoAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+    put:
+      tags: [admin-catalogo]
+      summary: Editar producto, incluido el descuento mayorista (CU-19 A1, CU-22)
+      description: >
+        Reemplazo completo: se reenvía el formulario entero (mismo schema que el alta). No
+        cambia `activo` (para eso, DELETE / reactivar). Las órdenes existentes no se ven
+        afectadas: guardan un snapshot del precio y del descuento (CU-22 RN-007).
+      operationId: actualizarProducto
+      parameters:
+        - { $ref: '#/components/parameters/product_id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductoAdminInput' }
+      responses:
+        '200':
+          description: Producto actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductoAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '422': { $ref: '#/components/responses/Problem422' }
+    delete:
+      tags: [admin-catalogo]
+      summary: Desactivar producto, baja LÓGICA (CU-19 A2, RNF-008)
+      description: >
+        No borra: pone `activo = false` y lo saca del catálogo público. Responde 200 con el
+        producto (a diferencia de categorías y recursos, cuya baja física responde 204).
+      operationId: desactivarProducto
+      parameters:
+        - { $ref: '#/components/parameters/product_id' }
+      responses:
+        '200':
+          description: Producto desactivado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductoAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /admin/products/{product_id}/reactivar:
+    post:
+      tags: [admin-catalogo]
+      summary: Reactivar un producto desactivado
+      description: Inverso de DELETE. Responde 201 (default de NestJS para POST) aunque no crea nada.
+      operationId: reactivarProducto
+      parameters:
+        - { $ref: '#/components/parameters/product_id' }
+      responses:
+        '201':
+          description: Producto reactivado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductoAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /admin/products/{product_id}/demo:
+    get:
+      tags: [admin-catalogo]
+      summary: Ver la demo del producto, para precargar la edición (CU-19 A8)
+      description: Si el producto no tiene demo responde 200 con `asignada = false` (no 404).
+      operationId: verDemoAdmin
+      parameters:
+        - { $ref: '#/components/parameters/product_id' }
+      responses:
+        '200':
+          description: Demo (o su ausencia)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DemoAdminVista' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404':
+          description: El producto no existe
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+    put:
+      tags: [admin-catalogo]
+      summary: Asignar o reemplazar la demo del producto, upsert (CU-19 A8)
+      description: >
+        Un producto tiene como máximo UNA demo (UNIQUE product_id). Del JSON libre, el
+        catálogo público solo usa `tipo`, `formato` y `contenido_ref`. `url_unity_webgl` se
+        guarda dentro del JSON como `unity_webgl_url`. No hay endpoint para borrar la demo.
+      operationId: asignarDemo
+      parameters:
+        - { $ref: '#/components/parameters/product_id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [configuracion_json]
+              properties:
+                configuracion_json: { $ref: '#/components/schemas/ConfiguracionDemo' }
+                url_unity_webgl: { type: [string, 'null'], format: uri }
+      responses:
+        '200':
+          description: Demo guardada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, producto_id, configuracion_json]
+                properties:
+                  id: { type: string, format: uuid }
+                  producto_id: { type: string, format: uuid }
+                  configuracion_json: { $ref: '#/components/schemas/ConfiguracionDemo' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /admin/categories:
+    get:
+      tags: [admin-catalogo]
+      summary: Listar categorías (CU-19 A7)
+      operationId: listarCategoriasAdmin
+      responses:
+        '200':
+          description: Todas las categorías
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Categoria' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+    post:
+      tags: [admin-catalogo]
+      summary: Crear categoría (CU-19 A7)
+      operationId: crearCategoria
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoriaInput' }
+      responses:
+        '201':
+          description: Categoría creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Categoria' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '409':
+          description: Ya existe una categoría con ese nombre
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /admin/categories/{category_id}:
+    put:
+      tags: [admin-catalogo]
+      summary: Renombrar categoría (CU-19 A7)
+      operationId: actualizarCategoria
+      parameters:
+        - { $ref: '#/components/parameters/category_id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoriaInput' }
+      responses:
+        '200':
+          description: Categoría actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Categoria' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '409':
+          description: Ya existe una categoría con ese nombre
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/Problem422' }
+    delete:
+      tags: [admin-catalogo]
+      summary: Eliminar categoría, baja FÍSICA (CU-19 A7)
+      description: Los productos que la usaban quedan con `categoria_id = null` (no bloquea).
+      operationId: eliminarCategoria
+      parameters:
+        - { $ref: '#/components/parameters/category_id' }
+      responses:
+        '204': { description: Eliminada }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /admin/resources:
+    get:
+      tags: [admin-catalogo]
+      summary: Listar recursos (CU-19 A9)
+      operationId: listarRecursosAdmin
+      responses:
+        '200':
+          description: Todos los recursos
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RecursoAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+    post:
+      tags: [admin-catalogo]
+      summary: Crear recurso (CU-19 A9)
+      description: >
+        `producto_id` es opcional (D-19). Ojo: un recurso `licenciado` SIN producto nunca puede
+        descargarse (no hay contra qué verificar compra ni asignación).
+      operationId: crearRecurso
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecursoAdminInput' }
+      responses:
+        '201':
+          description: Recurso creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecursoAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '422':
+          description: Entrada inválida o producto relacionado inexistente
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /admin/resources/pdf:
+    post:
+      tags: [admin-catalogo]
+      summary: Subir PDF de recurso (CU-19 A9)
+      description: >
+        Se sube ANTES de guardar el formulario al bucket PRIVADO `recursos`; el path devuelto
+        se usa como `url` del recurso (tipo `pdf`). Solo PDF, hasta 20 MB. La descarga luego
+        se sirve con URL firmada (CU-08/09).
+      operationId: subirPdfRecurso
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [archivo]
+              properties:
+                archivo: { type: string, format: binary }
+      responses:
+        '201':
+          description: PDF subido
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url: { type: string, description: Path dentro del bucket privado (no es una URL pública) }
+        '400': { $ref: '#/components/responses/Problem400' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '413': { $ref: '#/components/responses/Problem413' }
+        '422':
+          description: El archivo no es un PDF
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /admin/resources/{resource_id}:
+    put:
+      tags: [admin-catalogo]
+      summary: Editar recurso (CU-19 A9)
+      operationId: actualizarRecurso
+      parameters:
+        - { $ref: '#/components/parameters/resource_id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecursoAdminInput' }
+      responses:
+        '200':
+          description: Recurso actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecursoAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '422': { $ref: '#/components/responses/Problem422' }
+    delete:
+      tags: [admin-catalogo]
+      summary: Eliminar recurso, baja FÍSICA (CU-19 A9)
+      operationId: eliminarRecurso
+      parameters:
+        - { $ref: '#/components/parameters/resource_id' }
+      responses:
+        '204': { description: Eliminado }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
 components:
   securitySchemes:
     cookieAuth:
@@ -581,6 +1002,22 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    product_id:
+      name: product_id
+      in: path
+      required: true
+      description: Un formato que no es uuid responde 404.
+      schema: { type: string, format: uuid }
+    category_id:
+      name: category_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    resource_id:
+      name: resource_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
 
   headers:
     SetCookieSesion:
@@ -590,6 +1027,16 @@ components:
       schema: { type: string }
 
   responses:
+    Problem400:
+      description: Falta un dato estructural (ej. el archivo en una subida multipart)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Problem413:
+      description: Archivo más grande que el límite (lo corta multer antes del caso de uso)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Problem401:
       description: No autenticado (sin sesión o sesión vencida)
       content:
@@ -845,6 +1292,131 @@ components:
         item_id: { type: string, format: uuid }
         titulo: { type: string }
         creado_en: { type: string, format: date-time }
+
+    ProductoAdminInput:
+      type: object
+      description: >
+        Reglas cruzadas (Zod .refine): `marca_propia = true` ⇒ sin `url_externa`; de terceros ⇒
+        `url_externa` obligatoria (RN-003/004). `umbral_mayorista` y
+        `descuento_mayorista_porcentaje` van los dos o ninguno (RN-005 / CU-22).
+      required: [titulo, descripcion, precio, stock, marca_propia]
+      properties:
+        titulo: { type: string, minLength: 1, maxLength: 200 }
+        descripcion: { type: string, minLength: 1 }
+        precio: { type: number, minimum: 0 }
+        stock: { type: integer, minimum: 0 }
+        marca_propia: { type: boolean }
+        url_externa: { type: [string, 'null'], format: uri }
+        categoria_id: { type: [string, 'null'], format: uuid }
+        umbral_mayorista: { type: [integer, 'null'], minimum: 1, description: Cantidad mínima para el descuento (CU-22) }
+        descuento_mayorista_porcentaje: { type: [number, 'null'], minimum: 0, maximum: 100 }
+        imagen_url: { type: [string, 'null'], format: uri, description: La que devuelve POST /admin/products/imagen }
+
+    ProductoAdmin:
+      type: object
+      required:
+        - id
+        - titulo
+        - descripcion
+        - precio
+        - stock
+        - marca_propia
+        - url_externa
+        - categoria_id
+        - umbral_mayorista
+        - descuento_mayorista_porcentaje
+        - imagen_url
+        - activo
+        - creado_en
+        - actualizado_en
+      properties:
+        id: { type: string, format: uuid }
+        titulo: { type: string }
+        descripcion: { type: string }
+        precio: { type: number }
+        stock: { type: integer }
+        marca_propia: { type: boolean }
+        url_externa: { type: [string, 'null'] }
+        categoria_id: { type: [string, 'null'], format: uuid }
+        umbral_mayorista: { type: [integer, 'null'] }
+        descuento_mayorista_porcentaje: { type: [number, 'null'] }
+        imagen_url: { type: [string, 'null'] }
+        activo: { type: boolean }
+        creado_en: { type: string, format: date-time }
+        actualizado_en: { type: string, format: date-time }
+
+    ProductoAdminFila:
+      type: object
+      required: [id, titulo, precio, stock, activo, tiene_demo, umbral_mayorista, descuento_mayorista_porcentaje, tiene_ordenes]
+      properties:
+        id: { type: string, format: uuid }
+        titulo: { type: string }
+        precio: { type: number }
+        stock: { type: integer }
+        activo: { type: boolean }
+        tiene_demo: { type: boolean }
+        umbral_mayorista: { type: [integer, 'null'], description: 'null = "Sin configuración" (CU-22 A8)' }
+        descuento_mayorista_porcentaje: { type: [number, 'null'] }
+        tiene_ordenes: { type: boolean, description: Para la advertencia no bloqueante de CU-22 A11 }
+
+    ConfiguracionDemo:
+      type: object
+      description: JSON libre; el catálogo público lee estas tres claves.
+      additionalProperties: true
+      properties:
+        tipo: { type: string, enum: [publica, completa] }
+        formato: { type: string, enum: [html5, pdf, video] }
+        contenido_ref: { type: string, description: URL del contenido a embeber }
+        unity_webgl_url: { type: string, format: uri }
+
+    DemoAdminVista:
+      type: object
+      required: [asignada, id, producto_id, configuracion_json]
+      properties:
+        asignada: { type: boolean }
+        id: { type: [string, 'null'], format: uuid }
+        producto_id: { type: string, format: uuid }
+        configuracion_json:
+          oneOf:
+            - $ref: '#/components/schemas/ConfiguracionDemo'
+            - type: 'null'
+
+    Categoria:
+      type: object
+      required: [id, nombre]
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string }
+
+    CategoriaInput:
+      type: object
+      required: [nombre]
+      properties:
+        nombre: { type: string, minLength: 1, maxLength: 100 }
+
+    RecursoAdminInput:
+      type: object
+      required: [titulo, tipo, url, licenciado]
+      properties:
+        titulo: { type: string, minLength: 1, maxLength: 200 }
+        tipo: { type: string, enum: [pdf, link], description: RN-009 }
+        url:
+          type: string
+          minLength: 1
+          description: Para `pdf`, el path de POST /admin/resources/pdf; para `link`, una URL externa (no se valida su formato).
+        licenciado: { type: boolean }
+        producto_id: { type: [string, 'null'], format: uuid }
+
+    RecursoAdmin:
+      type: object
+      required: [id, titulo, tipo, url, licenciado, producto_id]
+      properties:
+        id: { type: string, format: uuid }
+        titulo: { type: string }
+        tipo: { type: string, enum: [pdf, link] }
+        url: { type: string }
+        licenciado: { type: boolean }
+        producto_id: { type: [string, 'null'], format: uuid }
 
     Readiness:
       type: object

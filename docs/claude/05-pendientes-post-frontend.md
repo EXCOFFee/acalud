@@ -194,6 +194,13 @@ documentan. El contrato los describe tal como se comportan HOY.
   (`recursos-autorizacion.pg.ts`: orden paid/shipped/delivered o asignación activa).
   Arreglo probable: `OpcionalAuthGuard` en la ficha + reutilizar ese mismo chequeo. Visto por
   lectura de código, no probado en navegador.
+- **U3 · Inconsistencias de códigos HTTP (para unificar en Fase 2, todas rompen clientes):**
+  `DELETE /admin/products/:id` responde 200 con cuerpo (baja lógica) mientras categorías y
+  recursos responden 204; varios `POST` sin `@HttpCode` responden 201 sin crear nada
+  (`/admin/products/:id/reactivar`, `/catalogo/recursos/:id/descarga`). Elegir una convención.
+- **U3 · Recurso licenciado sin producto (D-19):** el ABM lo permite, pero nunca será
+  descargable. El formulario de `/admin/recursos` podría advertirlo al marcar "requiere
+  licencia" sin producto. El límite de tamaño de subida (413) no tiene test de integración.
 - **U2 · `ContenidoDemo` (demo pública/completa)** responde en camelCase (`urlEmbebido`,
   `juegoId`) a diferencia del resto de la API. Unificar en Fase 2 (rompe el frontend: cambiar
   los dos lados juntos).

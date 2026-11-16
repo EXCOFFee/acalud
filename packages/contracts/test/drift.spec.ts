@@ -24,25 +24,6 @@ const DIR_API = join(RAIZ, 'apps', 'api', 'src');
 const CONTRATO = join(RAIZ, 'docs', '06-contratos', 'openapi.yaml');
 
 const PENDIENTES: readonly string[] = [
-  // U3 · admin de catálogo (productos, categorías, demos, recursos)
-  'POST /admin/products/imagen',
-  'GET /admin/products',
-  'GET /admin/products/{}',
-  'POST /admin/products',
-  'PUT /admin/products/{}',
-  'DELETE /admin/products/{}',
-  'POST /admin/products/{}/reactivar',
-  'GET /admin/categories',
-  'POST /admin/categories',
-  'PUT /admin/categories/{}',
-  'DELETE /admin/categories/{}',
-  'GET /admin/products/{}/demo',
-  'PUT /admin/products/{}/demo',
-  'POST /admin/resources/pdf',
-  'GET /admin/resources',
-  'POST /admin/resources',
-  'PUT /admin/resources/{}',
-  'DELETE /admin/resources/{}',
   // U4 · compras (carrito, checkout, envío, historial)
   'GET /carrito',
   'PUT /carrito/lineas/{}',
