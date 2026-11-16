@@ -174,9 +174,9 @@ documentan. El contrato los describe tal como se comportan HOY.
 - **U1 · `PUT /me` (CU-04):** `nivel_educativo`/`materia` se resuelven por nombre contra
   `levels`/`subjects` con una subconsulta; si el texto no coincide se guarda `NULL` **sin
   error**. Debería responder 422 (o recibir el uuid de `GET /levels`/`GET /subjects`).
-- **U1 · `GET /me`/`PUT /me`:** devuelven `membresias: []` fijo, con un comentario
-  desactualizado ("BC7 Institucional aún no implementado"). La membresía real está en
-  `GET /instituciones/mine`. Quitar el campo o llenarlo.
+- ~~**U1 · `GET /me`/`PUT /me`:** devuelven `membresias: []` fijo~~ — **resuelto
+  (2026-11-16)**: campo quitado (no lo usaba la web ni ningún test). Se eligió quitarlo y no
+  llenarlo para no duplicar la fuente de la membresía, que es `GET /instituciones/mine`.
 - **U1 · `POST /auth/cambio-correo/confirmar` (CU-34):** el mapeo de errores del controller
   no contempla que el correo nuevo haya sido tomado por otra cuenta entre la solicitud y la
   confirmación (violación de unicidad → probable 500). **Sin verificar con un test**:

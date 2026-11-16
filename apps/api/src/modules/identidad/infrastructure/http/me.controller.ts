@@ -44,7 +44,6 @@ interface RespuestaPerfil {
   nivel_educativo: string | null;
   materia: string | null;
   institucion: string | null;
-  membresias: unknown[];
 }
 
 /** GET /me · perfil propio. Demuestra la autenticación dual (cookie o Bearer) del AuthGuard. */
@@ -70,7 +69,6 @@ export class MeController {
       nivel_educativo: perfilPersistido?.nivelEducativo ?? null,
       materia: perfilPersistido?.materia ?? null,
       institucion: perfilPersistido?.institucion ?? null,
-      membresias: [], // BC7 Institucional aún no implementado
     };
   }
 
@@ -97,7 +95,6 @@ export class MeController {
       nivel_educativo: perfil.nivel_educativo ?? null,
       materia: perfil.materia ?? null,
       institucion: perfil.institucion ?? null,
-      membresias: [],
     };
   }
 

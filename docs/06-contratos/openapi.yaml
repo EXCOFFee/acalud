@@ -2492,17 +2492,12 @@ components:
       allOf:
         - $ref: '#/components/schemas/Cuenta'
         - type: object
-          required: [capacidades_limitadas, nivel_educativo, materia, institucion, membresias]
+          required: [capacidades_limitadas, nivel_educativo, materia, institucion]
           properties:
             capacidades_limitadas: { type: boolean }
             nivel_educativo: { type: [string, 'null'] }
             materia: { type: [string, 'null'] }
-            institucion: { type: [string, 'null'], description: Nombre de escuela de texto libre (no la institución registrada) }
-            membresias:
-              type: array
-              maxItems: 0
-              description: Siempre vacío hoy (resto sin limpiar); la membresía real se consulta en GET /instituciones/mine.
-              items: {}
+            institucion: { type: [string, 'null'], description: 'Nombre de escuela de texto libre (no la institución registrada; esa se consulta en GET /instituciones/mine)' }
 
     PerfilInput:
       type: object
