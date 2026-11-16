@@ -28,6 +28,8 @@ tags:
     description: Salud del servicio (monitor de uptime / keep-alive, ADR-005).
   - name: identidad
     description: Cuentas, sesión y perfil (BC Identidad · CU-01..04, CU-34, CU-E01, CU-E02).
+  - name: catalogo
+    description: Catálogo público, demos, descargas, editoriales y favoritos (CU-06..09, CU-17, CU-18).
 
 paths:
   /health:
@@ -310,6 +312,236 @@ paths:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
 
+  # ───────────────────────── CATÁLOGO PÚBLICO ─────────────────────────
+  /catalogo/juegos:
+    get:
+      tags: [catalogo]
+      summary: Listar juegos publicados (CU-06)
+      operationId: listarJuegos
+      security: []
+      parameters:
+        - { name: q, in: query, description: Búsqueda por texto, schema: { type: string, minLength: 1 } }
+        - { name: area, in: query, description: Filtro por área/categoría, schema: { type: string, minLength: 1 } }
+        - { $ref: '#/components/parameters/pagina' }
+        - name: tamanio
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 60, default: 20 }
+      responses:
+        '200':
+          description: Página de juegos activos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListadoJuegos' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /catalogo/juegos/{juego_id}:
+    get:
+      tags: [catalogo]
+      summary: Ver ficha de un juego (CU-06)
+      description: >
+        Endpoint público (sin sesión). `recursos[].desbloqueado` vale `true` solo si el recurso
+        es libre: hoy NO contempla si el usuario compró el juego (ver backlog).
+      operationId: verJuego
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/juego_id' }
+      responses:
+        '200':
+          description: Ficha completa
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JuegoDetalle' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /catalogo/juegos/{juego_id}/demo/publica:
+    get:
+      tags: [catalogo]
+      summary: Probar demo pública (CU-06, sin sesión)
+      operationId: probarDemoPublica
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/juego_id' }
+      responses:
+        '200':
+          description: Datos para embeber la demo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContenidoDemo' }
+        '404':
+          description: El juego no existe o no tiene demo pública
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /catalogo/juegos/{juego_id}/demo/completa:
+    get:
+      tags: [catalogo]
+      summary: Probar demo completa (CU-07, requiere sesión)
+      description: Registra la prueba en `game_progress`.
+      operationId: probarDemoCompleta
+      parameters:
+        - { $ref: '#/components/parameters/juego_id' }
+      responses:
+        '200':
+          description: Datos para embeber la demo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContenidoDemo' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404':
+          description: El juego no existe o no tiene demo completa
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /catalogo/recursos/{recurso_id}/descarga:
+    post:
+      tags: [catalogo]
+      summary: Descargar recurso libre o licenciado (CU-08, CU-09)
+      description: >
+        Sesión opcional. Libre → cualquiera. Licenciado → requiere sesión y que el usuario haya
+        comprado el juego o tenga una licencia institucional asignada. Los PDF devuelven una
+        URL firmada de Supabase Storage válida 5 minutos; los enlaces externos, la URL tal cual
+        (sin `expira_en`). Registra la descarga y suma la métrica.
+      operationId: descargarRecurso
+      security:
+        - {}
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - { $ref: '#/components/parameters/recurso_id' }
+      responses:
+        '201':
+          description: Enlace de descarga
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EnlaceDescarga' }
+        '401':
+          description: Recurso licenciado y no hay sesión
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '403':
+          description: Recurso licenciado sin derecho de acceso (no comprado ni asignado)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /editorial-partners:
+    get:
+      tags: [catalogo]
+      summary: Listar editoriales aliadas (CU-17)
+      operationId: listarEditoriales
+      security: []
+      parameters:
+        - { name: category, in: query, description: Categoría (texto libre), schema: { type: string, minLength: 1 } }
+      responses:
+        '200':
+          description: Editoriales activas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/EditorialResumen' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /editorial-partners/{partner_id}:
+    get:
+      tags: [catalogo]
+      summary: Ver detalle de una editorial (CU-17)
+      description: Sesión opcional. Registra el evento `editorial_partner_viewed`.
+      operationId: verEditorial
+      security:
+        - {}
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - { $ref: '#/components/parameters/partner_id' }
+      responses:
+        '200':
+          description: Detalle
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EditorialDetalle' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /editorial-partners/{partner_id}/click:
+    post:
+      tags: [catalogo]
+      summary: Registrar clic en "Ir al sitio web" (CU-17 RN-007)
+      description: >
+        Sesión opcional. Evento `editorial_partner_clicked` (o `_anonymous`). El frontend lo
+        llama sin esperar la respuesta: nunca bloquea la navegación.
+      operationId: registrarClickEditorial
+      security:
+        - {}
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - { $ref: '#/components/parameters/partner_id' }
+      responses:
+        '204': { description: Registrado }
+        '404': { $ref: '#/components/responses/Problem404' }
+
+  /favorites:
+    get:
+      tags: [catalogo]
+      summary: Ver mis favoritos (CU-18 A9)
+      operationId: verMisFavoritos
+      responses:
+        '200':
+          description: Favoritos del usuario, con el título resuelto
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FavoritoResumen' }
+        '401': { $ref: '#/components/responses/Problem401' }
+    post:
+      tags: [catalogo]
+      summary: Guardar favorito (CU-18)
+      description: Exactamente UNO de `producto_id`, `recurso_id` o `editorial_id`.
+      operationId: guardarFavorito
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FavoritoInput' }
+      responses:
+        '201':
+          description: Favorito guardado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Favorito' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404':
+          description: El producto/recurso/editorial no existe
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          description: Ya estaba en favoritos (RN-001, índice único parcial)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/Problem422' }
+
+  /favorites/{favorito_id}:
+    delete:
+      tags: [catalogo]
+      summary: Quitar favorito (CU-18 A7)
+      operationId: eliminarFavorito
+      parameters:
+        - name: favorito_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Eliminado }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '404': { $ref: '#/components/responses/Problem404' }
+
 components:
   securitySchemes:
     cookieAuth:
@@ -321,6 +553,28 @@ components:
       type: http
       scheme: bearer
       description: El mismo token opaco, enviado por la APK (Capacitor).
+
+  parameters:
+    pagina:
+      name: pagina
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    juego_id:
+      name: juego_id
+      in: path
+      required: true
+      description: Id del producto. Un formato que no es uuid responde 404 (no 422).
+      schema: { type: string, format: uuid }
+    recurso_id:
+      name: recurso_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    partner_id:
+      name: partner_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
 
   headers:
     SetCookieSesion:
@@ -449,6 +703,142 @@ components:
         nivel_educativo: { type: [string, 'null'], description: Nombre del nivel (ej. Primaria) }
         materia: { type: [string, 'null'], description: Nombre de la materia }
         institucion: { type: [string, 'null'] }
+
+    Paginacion:
+      type: object
+      required: [pagina, tamanio, total]
+      properties:
+        pagina: { type: integer }
+        tamanio: { type: integer }
+        total: { type: integer, description: Total de elementos (no de páginas) }
+
+    JuegoResumen:
+      type: object
+      required: [id, nombre, precio_lista, area, imagen_url, tiene_demo_publica]
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string }
+        precio_lista: { type: number, description: ARS }
+        area: { type: [string, 'null'] }
+        imagen_url: { type: [string, 'null'] }
+        tiene_demo_publica: { type: boolean }
+
+    ListadoJuegos:
+      type: object
+      required: [datos, paginacion]
+      properties:
+        datos:
+          type: array
+          items: { $ref: '#/components/schemas/JuegoResumen' }
+        paginacion: { $ref: '#/components/schemas/Paginacion' }
+
+    JuegoDetalle:
+      allOf:
+        - $ref: '#/components/schemas/JuegoResumen'
+        - type: object
+          required: [descripcion, peso_gramos, stock_disponible, imagenes, demos, recursos, tramos]
+          properties:
+            descripcion: { type: string }
+            peso_gramos: { type: [integer, 'null'] }
+            stock_disponible: { type: boolean }
+            imagenes:
+              type: array
+              items: { type: string }
+            demos:
+              type: array
+              items:
+                type: object
+                required: [tipo, formato]
+                properties:
+                  tipo: { type: string, enum: [publica, completa] }
+                  formato: { type: string, enum: [html5, pdf, video] }
+            recursos:
+              type: array
+              items:
+                type: object
+                required: [id, nombre, tipo, desbloqueado]
+                properties:
+                  id: { type: string, format: uuid }
+                  nombre: { type: string }
+                  tipo: { type: string, enum: [libre, licenciado] }
+                  desbloqueado:
+                    type: boolean
+                    description: Hoy equivale a `tipo == libre` (no mira compras del usuario).
+            tramos:
+              type: array
+              description: Descuentos por cantidad (CU-22)
+              items:
+                type: object
+                required: [cantidad_minima, descuento_pct]
+                properties:
+                  cantidad_minima: { type: integer }
+                  descuento_pct: { type: number }
+
+    ContenidoDemo:
+      type: object
+      description: >
+        OJO: en camelCase, a diferencia del resto de la API (snake_case). Se documenta tal
+        cual; unificar es parte de la Fase 2.
+      required: [juegoId, demoId, tipo, formato, urlEmbebido]
+      properties:
+        juegoId: { type: string, format: uuid }
+        demoId: { type: string, format: uuid }
+        tipo: { type: string, enum: [publica, completa] }
+        formato: { type: string, enum: [html5, pdf, video] }
+        urlEmbebido: { type: string, description: URL para iframe/video }
+
+    EnlaceDescarga:
+      type: object
+      required: [url_firmada]
+      properties:
+        url_firmada: { type: string, description: URL firmada (PDF) o URL externa (enlace) }
+        expira_en: { type: string, format: date-time, description: Solo para PDF (5 minutos) }
+
+    EditorialResumen:
+      type: object
+      required: [id, nombre, logo_url, descripcion, sitio_web]
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string }
+        logo_url: { type: [string, 'null'] }
+        descripcion: { type: [string, 'null'] }
+        sitio_web: { type: [string, 'null'] }
+
+    EditorialDetalle:
+      allOf:
+        - $ref: '#/components/schemas/EditorialResumen'
+        - type: object
+          required: [categoria]
+          properties:
+            categoria: { type: [string, 'null'] }
+
+    FavoritoInput:
+      type: object
+      description: Exactamente uno de los tres no nulo (Zod .refine + CHECK en la base)
+      properties:
+        producto_id: { type: [string, 'null'], format: uuid }
+        recurso_id: { type: [string, 'null'], format: uuid }
+        editorial_id: { type: [string, 'null'], format: uuid }
+
+    Favorito:
+      type: object
+      required: [id, producto_id, recurso_id, editorial_id, creado_en]
+      properties:
+        id: { type: string, format: uuid }
+        producto_id: { type: [string, 'null'], format: uuid }
+        recurso_id: { type: [string, 'null'], format: uuid }
+        editorial_id: { type: [string, 'null'], format: uuid }
+        creado_en: { type: string, format: date-time }
+
+    FavoritoResumen:
+      type: object
+      required: [id, tipo, item_id, titulo, creado_en]
+      properties:
+        id: { type: string, format: uuid }
+        tipo: { type: string, enum: [product, resource, editorial_partner] }
+        item_id: { type: string, format: uuid }
+        titulo: { type: string }
+        creado_en: { type: string, format: date-time }
 
     Readiness:
       type: object

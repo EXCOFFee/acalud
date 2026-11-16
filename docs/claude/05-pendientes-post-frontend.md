@@ -181,6 +181,18 @@ documentan. El contrato los describe tal como se comportan HOY.
   no contempla que el correo nuevo haya sido tomado por otra cuenta entre la solicitud y la
   confirmación (violación de unicidad → probable 500). **Sin verificar con un test**:
   confirmar antes de corregir.
+- **U2 · ⚠️ PRIORITARIO · CU-09 inutilizable desde la UI:** `GET /catalogo/juegos/:id` calcula
+  `recursos[].desbloqueado = !is_licensed` (`catalogo.repository.pg.ts`, comentario "el derecho
+  real llega en la Etapa 2", nunca hecho) y el endpoint es público, sin mirar al usuario. La
+  ficha (`app/catalogo/juego/page.tsx`) solo muestra "Descargar" si `desbloqueado` → un docente
+  que COMPRÓ el juego (o tiene licencia asignada) nunca ve el botón de sus recursos
+  licenciados, aunque `POST /catalogo/recursos/:id/descarga` sí lo autorizaría
+  (`recursos-autorizacion.pg.ts`: orden paid/shipped/delivered o asignación activa).
+  Arreglo probable: `OpcionalAuthGuard` en la ficha + reutilizar ese mismo chequeo. Visto por
+  lectura de código, no probado en navegador.
+- **U2 · `ContenidoDemo` (demo pública/completa)** responde en camelCase (`urlEmbebido`,
+  `juegoId`) a diferencia del resto de la API. Unificar en Fase 2 (rompe el frontend: cambiar
+  los dos lados juntos).
 
 ## Notas generales
 

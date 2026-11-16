@@ -24,18 +24,6 @@ const DIR_API = join(RAIZ, 'apps', 'api', 'src');
 const CONTRATO = join(RAIZ, 'docs', '06-contratos', 'openapi.yaml');
 
 const PENDIENTES: readonly string[] = [
-  // U2 · catálogo público (catalogo, editoriales, favoritos)
-  'GET /catalogo/juegos',
-  'GET /catalogo/juegos/{}',
-  'GET /catalogo/juegos/{}/demo/publica',
-  'GET /catalogo/juegos/{}/demo/completa',
-  'POST /catalogo/recursos/{}/descarga',
-  'GET /editorial-partners',
-  'GET /editorial-partners/{}',
-  'POST /editorial-partners/{}/click',
-  'GET /favorites',
-  'POST /favorites',
-  'DELETE /favorites/{}',
   // U3 · admin de catálogo (productos, categorías, demos, recursos)
   'POST /admin/products/imagen',
   'GET /admin/products',
