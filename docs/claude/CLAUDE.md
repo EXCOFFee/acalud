@@ -25,6 +25,14 @@ Mi objetivo es ayudar a refactorizar y mantener el código siguiendo las reglas 
 - **Flujo de trabajo y Gates**: `@docs/claude/04-workflow.md`
 - **Pendientes post-frontend** (gaps de CU conocidos, no bloqueantes): `@docs/claude/05-pendientes-post-frontend.md`
 
+## Modo didáctico (pedido por Santiago, siempre vigente)
+Trabajar con la skill `explicar-didactico` en todo, desde lo más simple hasta lo más complejo. Español rioplatense, sin jerga sin definir, con analogías cuando ayuden.
+- **Cada acción se explica:** qué hago, por qué, qué podría salir mal y qué palabra nueva apareció.
+- **Cada decisión incluye:** las opciones, qué se gana y qué se pierde con cada una, cuándo convendría la otra, y la recomendada con su motivo. Nunca dar solo "la recomendada".
+- **Cada tarea cierra con:** un resumen sin jerga y 2 o 3 preguntas de repaso abiertas.
+- **La documentación nueva lleva:** una sección "En criollo" y un "Cómo explicarlo en una entrevista".
+- **Si no estoy seguro de algo, lo digo.** No invento.
+
 ## Flujo de trabajo
 - Una tarea = una unidad revisable.
 - Al terminar, ejecuta `gate` (tests + lint + typecheck). Si falla 2 veces → PIDE REVISIÓN HUMANA (NO entres en bucle).
