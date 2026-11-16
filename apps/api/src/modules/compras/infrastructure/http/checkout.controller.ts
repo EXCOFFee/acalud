@@ -21,6 +21,7 @@ import {
   CarritoNoCheckouteable,
   PagoIndisponible,
   PedidoPendienteExistente,
+  ProveedorLogisticoNoDisponible,
   SinPermisosInstitucionales,
 } from '../../domain/errores';
 import type { ResultadoPago } from '../../domain/pedido';
@@ -38,6 +39,10 @@ function mapearError(error: unknown): never {
   }
   if (error instanceof PagoIndisponible) {
     throw new HttpException({ title: 'Pago indisponible', detail: error.message }, 503);
+  }
+  // CU-11 A2: el checkout cotiza el envío igual que /shipping/calculate.
+  if (error instanceof ProveedorLogisticoNoDisponible) {
+    throw new HttpException({ title: 'Servicio no disponible', detail: error.message }, 503);
   }
   throw error;
 }

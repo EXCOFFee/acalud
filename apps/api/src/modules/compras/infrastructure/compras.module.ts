@@ -71,9 +71,13 @@ export const TRACKING_REPOSITORY = Symbol('TrackingRepository');
     },
     {
       provide: IniciarCheckout,
-      useFactory: (uow: UnidadDeTrabajoCompras, pagos: PaymentProvider): IniciarCheckout =>
-        new IniciarCheckout(uow, pagos),
-      inject: [UNIDAD_DE_TRABAJO_COMPRAS, PAYMENT_PROVIDER],
+      // CU-11 ↔ CU-12: el checkout cobra la misma cotización que muestra /shipping/calculate.
+      useFactory: (
+        uow: UnidadDeTrabajoCompras,
+        pagos: PaymentProvider,
+        envio: CalcularEnvio,
+      ): IniciarCheckout => new IniciarCheckout(uow, pagos, envio),
+      inject: [UNIDAD_DE_TRABAJO_COMPRAS, PAYMENT_PROVIDER, CalcularEnvio],
     },
     {
       provide: ProcesarPago,

@@ -642,7 +642,8 @@ paths:
         `ShippingProvider` configurado (`SHIPPING_ADAPTER`; en producción hoy `tabla`:
         700 + 300 por kg iniciado, igual para ambas modalidades). Peso por producto con
         fallback a un peso por defecto (A5). Opciones ordenadas de menor a mayor costo. No
-        persiste nada. ⚠️ Hoy NO es el costo que cobra `POST /checkout` (ver backlog).
+        persiste nada. Es exactamente el costo que después cobra `POST /checkout`, que
+        recalcula esta misma cotización en el servidor.
       operationId: calcularEnvio
       security: []
       requestBody:
@@ -686,8 +687,10 @@ paths:
         En una transacción: calcula precios en el servidor, verifica stock y crea el pedido
         `pending` con snapshot de precios (y `billing_data` si es B2B). Fuera de la
         transacción crea la preferencia de Checkout Pro y devuelve su `init_point` para
-        redirigir. Un solo pedido pendiente por carrito (índice único). Costo de envío: tabla
-        fija interna (home_delivery 3000, branch_pickup 1500), NO la cotización de CU-11.
+        redirigir. Un solo pedido pendiente por carrito (índice único). Costo de envío: la
+        MISMA cotización de `POST /shipping/calculate` para la modalidad elegida, recalculada
+        en el servidor ANTES de la transacción (puede ser una llamada externa); adentro se
+        relee el carrito y, si cambió entre medio, responde 422 sin crear el pedido.
       operationId: iniciarCheckout
       requestBody:
         required: true
@@ -732,12 +735,12 @@ paths:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
         '422':
-          description: Entrada inválida, carrito vacío o sin stock suficiente
+          description: Entrada inválida, carrito vacío, sin stock suficiente, o el carrito cambió durante el checkout
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
         '503':
-          description: Mercado Pago no disponible (sin fallback, ADR-006)
+          description: Cotizador de envíos o Mercado Pago no disponibles
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }

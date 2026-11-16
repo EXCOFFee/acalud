@@ -265,3 +265,46 @@ describe('CU-012 · Checkout', () => {
     });
   });
 });
+
+describe('CU-11 ↔ CU-12 · el envío cobrado es el mismo que se cotizó', () => {
+  async function cotizacion(juego: string, cant: number): Promise<Record<string, number>> {
+    const r = await ctx.request
+      .post('/api/v1/shipping/calculate')
+      .send({ codigo_postal: '1900', items: [{ product_id: juego, quantity: cant }] });
+    expect(r.status).toBe(200);
+    return Object.fromEntries(
+      (r.body.opciones as { modalidad: string; costo: number }[]).map((o) => [o.modalidad, o.costo]),
+    );
+  }
+
+  async function pedidoGuardado(pedidoId: string): Promise<{ envio: number; total: number }> {
+    const r = await ctx.pg.query<{ envio: number; total: number }>(
+      `SELECT shipping_cost::float8 AS envio, total_amount::float8 AS total FROM orders WHERE id = $1`,
+      [pedidoId],
+    );
+    return r.rows[0]!;
+  }
+
+  for (const modalidad of ['home_delivery', 'branch_pickup'] as const) {
+    it(`${modalidad}: shipping_cost del pedido = costo de /shipping/calculate (y total = subtotal + envío)`, async () => {
+      const { token } = await usuarioVerificado();
+      const juego = await crearJuego(10000, 10);
+      // 2,5 kg × 2 = 5 kg: un peso que NO da los valores de la vieja tabla fija (3000/1500).
+      await ctx.pg.query(`UPDATE products SET weight_grams = 2500 WHERE id = $1`, [juego]);
+      await agregar(token, juego, 2);
+
+      const cotizado = (await cotizacion(juego, 2))[modalidad]!;
+      expect(cotizado).not.toBe(modalidad === 'home_delivery' ? 3000 : 1500);
+
+      const res = await ctx.request
+        .post('/api/v1/checkout')
+        .set(bearer(token))
+        .send({ modalidad_envio: modalidad, codigo_postal: '1900', domicilio: DOM });
+      expect(res.status).toBe(201);
+
+      const pedido = await pedidoGuardado(res.body.pedido_id as string);
+      expect(pedido.envio).toBe(cotizado);
+      expect(pedido.total).toBe(2 * 10000 + cotizado);
+    });
+  }
+});

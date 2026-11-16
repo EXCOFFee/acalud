@@ -194,7 +194,12 @@ documentan. El contrato los describe tal como se comportan HOY.
   (`recursos-autorizacion.pg.ts`: orden paid/shipped/delivered o asignación activa).
   Arreglo probable: `OpcionalAuthGuard` en la ficha + reutilizar ese mismo chequeo. Visto por
   lectura de código, no probado en navegador.
-- **U4 · ⚠️ PRIORITARIO · el envío que se muestra NO es el que se cobra (CU-11 ↔ CU-12):**
+- ~~**U4 · ⚠️ PRIORITARIO · el envío que se muestra NO es el que se cobra (CU-11 ↔ CU-12)**~~
+  — **resuelto**: `IniciarCheckout` usa `CalcularEnvio` (misma cotización que la pantalla),
+  cotizando FUERA de la transacción y releyendo el carrito adentro (huella juego:cantidad; si
+  cambió → 422). Cotizador caído → 503. Se eliminó `ENVIO_FAKE`. Tests: unitario
+  `iniciar-checkout.spec` (5) + integración (cobrado = cotizado, ambas modalidades). Sin
+  cambios de frontend. Detalle original:
   `/checkout` (`iniciar-checkout.ts`) cobra `ENVIO_FAKE` fijo (home_delivery 3000,
   branch_pickup 1500), mientras la pantalla muestra la cotización de `POST /shipping/calculate`
   (en prod `SHIPPING_ADAPTER=tabla` → 700 + 300/kg, igual para ambas modalidades). Un juego de
