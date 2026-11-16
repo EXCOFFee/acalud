@@ -7,6 +7,8 @@ tabla, columna, tipo ni valor de enumeración queda en español, salvo dos enume
 quedaron pendientes por ambigüedad (§7).
 **Regla que gobierna:** los CU son la fuente de verdad. Todo lo que existe debe estar respaldado
 por un CU; todo lo que un CU exige debe existir. El esquema y los addenda son artefactos derivados.
+**Última actualización:** 2026-11-16 — migraciones 0016 a 0020, afirmaciones vencidas corregidas
+(tachadas, no borradas) y la fila `sin verificar` de `audit_log` resuelta. Ver **§9**.
 
 ---
 
@@ -51,7 +53,7 @@ modifican. `Destino` es el nombre en inglés cuando el renombre está pendiente.
 | Tabla | Propietario | Lectores | Estado |
 |---|---|---|---|
 | `products` | CU-19 | CU-06 … CU-12, CU-24 | Correcta |
-| `resources` | CU-19 | CU-08, CU-09 | Correcta |
+| `resources` | CU-19 | CU-08, CU-09 | Correcta — `product_id` admite nulo desde 0017 (CU-19 A9 "Producto relacionado … opcional"; DER D-19) |
 | `categories` | CU-19 | CU-17 | Correcta |
 | `editorial_partners` | CU-19 | CU-17, CU-18 | Correcta |
 | `favorites` | CU-18 | CU-18 A9 | Correcta — los tres destinos presentes con CHECK de exclusividad |
@@ -65,7 +67,7 @@ modifican. `Destino` es el nombre en inglés cuando el renombre está pendiente.
 |---|---|---|---|
 | `carts` | CU-10 | CU-11, CU-12 | Correcta — conserva `institution_context_id`: CU-24 exige carrito institucional separado del personal |
 | `cart_items` | CU-10 | CU-11, CU-12 | Correcta |
-| `orders` | CU-12 | CU-05, CU-13 | Correcta — `order_number` por renombre; domicilio en cinco columnas; `status` con seis valores |
+| `orders` | CU-12 | CU-05, CU-13, CU-24 | Correcta — `order_number` por renombre; domicilio en cinco columnas; `status` con seis valores; `payment_preference_id`/`payment_id_mp` desde 0018 (CU-12 poscondiciones); `billing_data` desde 0019 (CU-24 RN-007, nombrada literalmente en el CU) |
 | `order_items` | CU-12 | CU-05 | Correcta |
 | `processed_payments` | CU-12 (RNF-002/003) | — | Correcta — conserva `notified_amount` |
 | `stock_movements` | CU-12 | CU-19, CU-24 | Correcta — conserva `movement_type` y `adjustment_reason` por separado |
@@ -80,7 +82,7 @@ modifican. `Destino` es el nombre en inglés cuando el renombre está pendiente.
 | `institutions` | CU-23 | CU-24 … CU-33 | Correcta |
 | `institutional_teachers` | CU-23 | CU-26, CU-27, CU-28 | Correcta |
 | `institutional_inventories` | CU-24 | CU-25 | Correcta |
-| `institutional_assignments` | CU-26 | CU-25, CU-27, CU-28, CU-29 | Creada en 1e |
+| `institutional_assignments` | CU-26 | CU-25, CU-27, CU-28, CU-29 | Creada en 1e; `notes` desde 0016 (CU-26 "Campo de observaciones (opcional)") |
 | `game_sessions` | CU-29 | CU-30, CU-31, CU-32, CU-33 | Correcta |
 
 ### Comunidad y transversal — etapa 1e (cerrada)
@@ -93,7 +95,7 @@ modifican. `Destino` es el nombre en inglés cuando el renombre está pendiente.
 | `poll_responses` | CU-14 | CU-16 | Correcta |
 | `notifications` | CU-26 | CU-15, CU-21, CU-27 | Creada en 1e |
 | `outbox_emails` | CU-12 (RNF) | CU-01, CU-26, CU-27, CU-34 | Correcta |
-| `audit_log` | RNF-SIS-016 | — | Correcta. **Respaldo `sin verificar`**: no localicé el CU o RNF que la exige nominalmente |
+| `audit_log` | RNF-SIS-016 | — | Correcta. ~~Respaldo `sin verificar`~~ **Verificado (2026-11-16):** `docs/03-requisitos/F3-Requerimientos.md` RNF-SIS-016 — *"se asientan en un registro de auditoría con el usuario, la acción, la entidad afectada y el instante"*. Append-only por trigger (0001) y por permisos del rol de la app (0020) |
 
 ---
 
@@ -109,8 +111,13 @@ Estas son las filas de la dirección inversa: el CU lo exige, no existe nada que
 | Almacén de la invitación pendiente | CU-23 A12.8b | El docente sin cuenta recibe *"un correo de invitación con un enlace para registrarse"* cuyo *"enlace incluye un token que identifica a la institución"*, y el vínculo se crea recién al completar el registro. El esquema objetivo define `institutional_teachers` con cinco columnas y ninguna cubre la invitación pendiente | **Abierto**: 1e conservó las columnas de la v1 (`invited_email`, `invitation_token_hash`, `invited_at`, `status`) traducidas. Falta que un addendum decida si viven ahí o en una tabla propia |
 
 **Confirmación negativa (previa a 1e):** no había ninguna aparición de `asignacion` ni
-`assignment` en `infra/migrations/` ni en `apps/api/src`. Las tablas ya existen; **CU-25 a CU-28
-siguen sin una sola línea de aplicación**: 1e entregó el modelo de datos, no los casos de uso.
+`assignment` en `infra/migrations/` ni en `apps/api/src`. Las tablas ya existen; ~~**CU-25 a CU-28
+siguen sin una sola línea de aplicación**: 1e entregó el modelo de datos, no los casos de uso.~~
+**Vencido (2026-11-16):** CU-23 y CU-25 a CU-33 están implementados (backend y frontend) y
+documentados en el contrato `docs/06-contratos/openapi.yaml` (tag `institucional`).
+
+El faltante de la **invitación pendiente (CU-23 A12)** sigue **abierto**: ningún endpoint invita
+docentes; las columnas `invited_email`/`invitation_token_hash` existen sin uso.
 
 ---
 
@@ -186,6 +193,10 @@ No son errores del esquema. Son puntos donde el CU mismo conviene revisar.
 2. **CU-11 no define qué pasa con el envío ya cotizado si el carrito cambia.** El costo se calcula
    antes de finalizar; si el usuario agrega un producto después, el peso cambia y la cotización queda
    vieja. Ningún flujo alternativo lo cubre.
+   **Resuelto en la implementación (2026-11-16, commit `2973d24`); el CU sigue sin decirlo:** el
+   checkout recalcula en el servidor la misma cotización de CU-11 y, si el carrito cambió entre la
+   cotización y la confirmación, rechaza (422) en vez de cobrar un envío sobre otro peso. CU-11 A9
+   solo contempla cambiar la opción de envío, no el carrito.
 
 3. **CU-25 pide el estado "en uso" de una licencia** pero ningún CU define qué lo produce. "Asignada"
    sale de CU-26; "en uso" sugiere una sesión de juego activa, que es CU-29. Falta la regla que los une.
@@ -198,6 +209,16 @@ No son errores del esquema. Son puntos donde el CU mismo conviene revisar.
 5. **CU-04 incluye "preferencias de notificación"** en el perfil. `teacher_profiles.email_notifications`
    es un booleano. Si las notificaciones van a tener vía *dashboard* además de correo (CU-26, CU-27),
    un booleano de correo no alcanza para expresar la preferencia.
+
+6. **CU-16 presupone encuestas "finalizadas" que CU-20 nunca produce** (agregado 2026-11-16).
+   CU-16 ofrece el filtro *"Activas / Finalizadas"* y muestra *"closed_at (si está finalizada)"*.
+   CU-20 solo define *activar / desactivar*, y ningún flujo finaliza una encuesta. La base tiene el
+   valor `closed` en `poll_status`, pero ninguna operación lo escribe, y **no existe `closed_at`**
+   (sí existen `valid_from`/`valid_until`, conservadas sin respaldo en §8). Resultado: el filtro
+   "Finalizadas" de la web siempre está vacío. Hay que decidir en el CU: (a) que "desactivar" de
+   CU-20 signifique *finalizar* (queda visible con resultados), (b) un botón "Cerrar" aparte, o
+   (c) cierre automático por fecha (`valid_until` encontraría ahí su respaldo). Hoy la
+   implementación interpreta "desactivar" como volver a borrador (invisible).
 
 ---
 
@@ -216,17 +237,21 @@ Lo que queda por hacer, en orden: los cuatro arreglos de §4 antes de cerrar 1c;
 de `descargas` que quedó fuera de 1b; y crear en 1e las dos tablas de §2, que no son renombres sino
 funcionalidad ausente.
 
-Una sola fila de esta matriz quedó `sin verificar`: el respaldo nominal de `eventos_auditoria`.
+~~Una sola fila de esta matriz quedó `sin verificar`: el respaldo nominal de `eventos_auditoria`.~~
+**Resuelto (2026-11-16):** RNF-SIS-016 en `docs/03-requisitos/F3-Requerimientos.md`. No quedan
+filas `sin verificar`.
 
 **Actualización al cierre de la etapa 1e.** Todo lo anterior está hecho: los cuatro arreglos de §4,
 el renombre de `descargas`, y las dos tablas de §2 más `institutional_assignments` y
 `notifications`. El refactor de nomenclatura queda cerrado — no hay tablas, columnas, tipos,
 valores de enumeración, restricciones ni índices en español.
 
-Queda una salvedad importante que no es de nomenclatura: **producción tiene aplicadas sólo las
+~~Queda una salvedad importante que no es de nomenclatura: **producción tiene aplicadas sólo las
 migraciones 0001-0003**. Las quince del refactor viven en la cadena local y validada, pero nunca
 se corrieron contra Supabase. Hasta que se apliquen, el código desplegado y la base de producción
-hablan idiomas distintos.
+hablan idiomas distintos.~~
+**Vencido (2026-11-16, verificado en `schema_migrations`):** producción tiene aplicadas las 20
+migraciones del repo (0001 a 0020); el runner las aplica en cada deploy de Render.
 
 ---
 
@@ -272,3 +297,51 @@ se tradujeron al inglés y siguen en la base, esperando decisión:
 **Sin respaldo y además sin lugar para ir:** las *palabras clave o etiquetas* que CU-15 ofrece en
 el formulario de propuesta no tienen columna en el esquema objetivo ni en la base. Es un faltante
 de §2 pendiente de decisión.
+
+---
+
+## 9. Actualización 2026-11-16 — migraciones 0014 a 0020
+
+### En criollo
+
+Esta matriz es la "libreta de respaldos" del esquema: cada tabla o columna tiene que poder decir
+qué caso de uso la pidió. Desde la última revisión se agregaron columnas y un rol de base de
+datos. Acá se anota de dónde sale cada uno, **citando el texto del CU** (leído del `.docx`, no del
+comentario de la migración), para que nada exista "porque sí".
+
+### Respaldo de cada migración posterior a la revisión anterior
+
+| Migración | Qué cambia | Respaldo (texto verificado en la fuente) |
+|---|---|---|
+| 0014 | Refactor de la etapa 1e (`institutional_assignments`, `notifications`, renombres) | Ya registrada en §1, §2 y §7 |
+| 0015 | Solo renombra restricciones e índices al inglés | Sin elementos nuevos: no requiere respaldo |
+| 0016 | `institutional_assignments.notes varchar(500)` | CU-26: *"Campo de observaciones (opcional)"* y *"El encargado (opcionalmente) agrega observaciones o notas sobre la asignación"* |
+| 0017 | `resources.product_id` admite nulo | CU-19 A9: *"Producto relacionado (selector desplegable - opcional)"*; DER D-19 |
+| 0018 | `orders.payment_preference_id`, `orders.payment_id_mp` + índice único parcial | CU-12 poscondiciones: *"Se genera una preferencia de pago en Mercado Pago…"* y *"se guarda el payment_id_mp"* |
+| 0019 | `orders.billing_data jsonb` | CU-24: *"billing_data: datos de facturación institucional (JSON)"* y RN-007 *"Las facturas deben emitirse a nombre de la institución"* |
+| 0020 | Rol `acalud_app` (permisos mínimos; sin UPDATE/DELETE en `audit_log` y `stock_movements`) | Vigente: RNF-SIS-016 (auditoría) en `docs/03-requisitos/F3-Requerimientos.md`. El mecanismo concreto ("append-only sin UPDATE/DELETE por permisos de BD") lo describe NFR-S6 de `docs/_archivo-v1/01-requisitos/1.2-nfr-cuantificados.md`, que es histórico y no vinculante: se cita como origen del diseño, no como respaldo |
+
+### Estado verificado contra producción (2026-11-16)
+
+- 20 de 20 migraciones aplicadas (`schema_migrations`), igual que el repo.
+- 34 tablas de la aplicación (más `schema_migrations`): coinciden con las de §1.
+- 22 tipos enumerados. Siguen en la base los seis huérfanos de §7 (`demo_type`, `demo_format`,
+  `tracking_source`, `membership_role`, `question_type`, `education_level`): la decisión de
+  retirarlos sigue pendiente.
+
+### Abierto después de esta revisión
+
+| Tema | Dónde | Tipo |
+|---|---|---|
+| Encuestas que nunca se finalizan (CU-16 vs CU-20) | §5.6 | Decisión de CU |
+| Invitación pendiente de docentes (CU-23 A12) | §2 | Funcionalidad ausente |
+| Seis enumeraciones huérfanas | §7 | Decisión de retiro |
+| Elementos conservados sin respaldo | §8 | Decisión pendiente |
+
+### Cómo explicarlo en una entrevista
+
+> "Cada elemento del esquema tiene una fila en una matriz de trazabilidad que cita el caso de uso
+> que lo exige, verificado contra el texto del caso de uso y no contra el comentario del
+> desarrollador. Si el esquema y el caso de uso se contradicen, gana el caso de uso y se corrige
+> el esquema con una migración nueva. Mantengo la historia: las afirmaciones que vencieron quedan
+> tachadas con la fecha y la evidencia de la corrección, así se puede auditar cómo evolucionó."

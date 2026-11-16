@@ -216,7 +216,8 @@ documentan. El contrato los describe tal como se comportan HOY.
   encuestas finalizadas, pero ninguna operación escribe `closed` (el toggle de CU-20 solo hace
   draft ↔ active, y no hay fecha de cierre ni job). El filtro "Cerradas" de `/encuestas`
   siempre está vacío. Definir con el CU cómo se cierra una encuesta (botón "Cerrar" del admin,
-  fecha de fin, ambos) antes de implementar.
+  fecha de fin, ambos) antes de implementar. Análisis con las citas de CU-16 (*"closed_at (si
+  está finalizada)"*) y CU-20, y las tres opciones: matriz F6 §5.6.
 - **U6 · Nombres de query params mezclados:** comunidad usa inglés (`status`, `search`,
   `order`, `level_id`) y compras/institucional español (`estado`, `orden`). Fase 2.
 - **U5 · `GET /docentes/me/sesiones-juego` sin validación de query:** es el único listado sin
