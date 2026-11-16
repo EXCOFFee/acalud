@@ -1,0 +1,9 @@
+$kind: http-request
+name: Reactivar Producto (Admin)
+method: POST
+url: '{{baseUrl}}/api/v1/admin/products/{{product_id}}/reactivar'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

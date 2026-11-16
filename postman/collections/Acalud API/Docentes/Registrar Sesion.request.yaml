@@ -1,0 +1,26 @@
+$kind: http-request
+name: 'Registrar Sesión de Juego'
+method: POST
+url: '{{baseUrl}}/api/v1/docentes/me/sesiones-juego'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "producto_id": "{{product_id}}",
+      "fecha_uso": "2024-06-15",
+      "grupo": "3°A",
+      "cantidad_estudiantes": 25,
+      "duracion_minutos": 45,
+      "satisfaccion_docente": 5,
+      "aprendizajes_clave": "Resolución de problemas matemáticos",
+      "dificultades": null,
+      "reutilizaria": true
+    }

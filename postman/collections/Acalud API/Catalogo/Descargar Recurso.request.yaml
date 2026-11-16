@@ -1,0 +1,9 @@
+$kind: http-request
+name: Solicitar Descarga de Recurso
+method: POST
+url: '{{baseUrl}}/api/v1/catalogo/recursos/{{recurso_id}}/descarga'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

@@ -1,0 +1,22 @@
+$kind: http-request
+name: Actualizar Perfil
+method: PUT
+url: '{{baseUrl}}/api/v1/me'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "nombre": "Juan",
+      "apellido": "Pérez",
+      "nivel_educativo": "Primaria",
+      "materia": "Matemáticas",
+      "institucion": "Escuela N°1"
+    }

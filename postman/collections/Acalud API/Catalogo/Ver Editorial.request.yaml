@@ -1,0 +1,4 @@
+$kind: http-request
+name: Ver Detalle de Editorial
+method: GET
+url: '{{baseUrl}}/api/v1/editorial-partners/{{partner_id}}'

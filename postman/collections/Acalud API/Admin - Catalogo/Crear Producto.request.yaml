@@ -1,0 +1,23 @@
+$kind: http-request
+name: Crear Producto (Admin)
+method: POST
+url: '{{baseUrl}}/api/v1/admin/products'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "titulo": "Juego Educativo",
+      "descripcion": "Descripción del juego",
+      "precio": 1500,
+      "stock": 100,
+      "marca_propia": true,
+      "categoria_id": "{{category_id}}"
+    }

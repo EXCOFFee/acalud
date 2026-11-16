@@ -1,0 +1,20 @@
+$kind: http-request
+name: Crear Encuesta (Admin)
+method: POST
+url: '{{baseUrl}}/api/v1/admin/polls'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "pregunta": "¿Qué área educativa prefieren?",
+      "nivel_educativo_id": null,
+      "opciones": ["Matemáticas", "Ciencias", "Lengua"]
+    }

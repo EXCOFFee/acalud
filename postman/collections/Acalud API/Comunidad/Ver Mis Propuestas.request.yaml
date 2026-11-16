@@ -1,0 +1,9 @@
+$kind: http-request
+name: Ver Mis Propuestas de Juego
+method: GET
+url: '{{baseUrl}}/api/v1/proposals'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

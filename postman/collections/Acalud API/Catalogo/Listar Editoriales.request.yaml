@@ -1,0 +1,8 @@
+$kind: http-request
+name: Listar Editoriales Aliadas
+method: GET
+url: '{{baseUrl}}/api/v1/editorial-partners'
+queryParams:
+  - key: category
+    value: ''
+    disabled: true

@@ -1,0 +1,4 @@
+$kind: http-request
+name: Listar Niveles Educativos
+method: GET
+url: '{{baseUrl}}/api/v1/levels'

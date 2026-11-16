@@ -1,0 +1,9 @@
+$kind: http-request
+name: 'Ver Mi Institución'
+method: GET
+url: '{{baseUrl}}/api/v1/instituciones/mine'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

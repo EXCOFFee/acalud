@@ -1,0 +1,4 @@
+$kind: http-request
+name: Ver Detalle de Juego
+method: GET
+url: '{{baseUrl}}/api/v1/catalogo/juegos/{{juego_id}}'

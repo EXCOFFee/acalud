@@ -1,0 +1,14 @@
+$kind: http-request
+name: 'Restablecer Contraseña'
+method: POST
+url: '{{baseUrl}}/api/v1/auth/recuperacion/restablecer'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "token": "{{reset_token}}",
+      "contrasena_nueva": "NuevaContrasena123!"
+    }

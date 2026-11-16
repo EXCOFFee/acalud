@@ -1,0 +1,15 @@
+$kind: http-request
+name: Subir Imagen de Producto (Admin)
+method: POST
+url: '{{baseUrl}}/api/v1/admin/products/imagen'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+body:
+  type: formdata
+  content:
+    - key: archivo
+      type: file
+      src: ''

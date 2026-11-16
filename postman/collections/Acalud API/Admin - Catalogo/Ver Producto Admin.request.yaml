@@ -1,0 +1,9 @@
+$kind: http-request
+name: Ver Detalle de Producto (Admin)
+method: GET
+url: '{{baseUrl}}/api/v1/admin/products/{{product_id}}'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

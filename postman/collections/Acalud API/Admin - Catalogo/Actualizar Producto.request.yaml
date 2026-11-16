@@ -1,0 +1,22 @@
+$kind: http-request
+name: Actualizar Producto (Admin)
+method: PUT
+url: '{{baseUrl}}/api/v1/admin/products/{{product_id}}'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "titulo": "Juego Educativo Actualizado",
+      "descripcion": "Descripción actualizada",
+      "precio": 1800,
+      "stock": 80,
+      "marca_propia": true
+    }

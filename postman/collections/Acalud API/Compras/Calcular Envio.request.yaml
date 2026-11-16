@@ -1,0 +1,16 @@
+$kind: http-request
+name: 'Calcular Costo de Envío'
+method: POST
+url: '{{baseUrl}}/api/v1/shipping/calculate'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "codigo_postal": "1425",
+      "items": [
+        { "product_id": "{{juego_id}}", "quantity": 2 }
+      ]
+    }

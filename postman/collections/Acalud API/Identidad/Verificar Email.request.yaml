@@ -1,0 +1,13 @@
+$kind: http-request
+name: Verificar Email
+method: POST
+url: '{{baseUrl}}/api/v1/auth/verificacion'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "token": "{{verification_token}}"
+    }

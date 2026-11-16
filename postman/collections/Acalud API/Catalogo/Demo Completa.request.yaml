@@ -1,0 +1,9 @@
+$kind: http-request
+name: Probar Demo Completa (Registrado)
+method: GET
+url: '{{baseUrl}}/api/v1/catalogo/juegos/{{juego_id}}/demo/completa'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

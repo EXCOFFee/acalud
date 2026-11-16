@@ -1,0 +1,18 @@
+$kind: http-request
+name: Exportar Reporte (PDF/Excel)
+method: GET
+url: '{{baseUrl}}/api/v1/instituciones/{{institucion_id}}/reportes/uso/exportar'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: formato
+    value: pdf
+  - key: desde
+    value: ''
+    disabled: true
+  - key: hasta
+    value: ''
+    disabled: true

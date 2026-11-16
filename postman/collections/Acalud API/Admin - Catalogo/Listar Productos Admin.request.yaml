@@ -1,0 +1,14 @@
+$kind: http-request
+name: Listar Productos (Admin)
+method: GET
+url: '{{baseUrl}}/api/v1/admin/products'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: pagina
+    value: '1'
+  - key: tamanio
+    value: '20'

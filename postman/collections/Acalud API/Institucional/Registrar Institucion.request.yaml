@@ -1,0 +1,30 @@
+$kind: http-request
+name: 'Registrar Institución'
+method: POST
+url: '{{baseUrl}}/api/v1/instituciones'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "nombre_legal": "Escuela N°1 de Buenos Aires",
+      "identificador_tributario": "30-12345678-9",
+      "email_institucional": "admin@escuela1.edu.ar",
+      "domicilio": {
+        "calle": "Av. Corrientes",
+        "numero": "1234",
+        "localidad": "CABA",
+        "provincia": "Buenos Aires",
+        "codigo_postal": "1043"
+      },
+      "telefono": "+54 11 1234-5678",
+      "nivel_educativo": "Primaria",
+      "cantidad_alumnos": 300
+    }

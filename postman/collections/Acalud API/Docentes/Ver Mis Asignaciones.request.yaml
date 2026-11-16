@@ -1,0 +1,9 @@
+$kind: http-request
+name: Ver Mis Juegos Asignados
+method: GET
+url: '{{baseUrl}}/api/v1/docentes/me/asignaciones'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

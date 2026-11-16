@@ -1,0 +1,18 @@
+$kind: http-request
+name: Guardar Favorito
+method: POST
+url: '{{baseUrl}}/api/v1/favorites'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "producto_id": "{{juego_id}}"
+    }

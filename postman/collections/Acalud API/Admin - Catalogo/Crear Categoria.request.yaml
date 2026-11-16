@@ -1,0 +1,18 @@
+$kind: http-request
+name: 'Crear Categoría (Admin)'
+method: POST
+url: '{{baseUrl}}/api/v1/admin/categories'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "nombre": "Matemáticas"
+    }

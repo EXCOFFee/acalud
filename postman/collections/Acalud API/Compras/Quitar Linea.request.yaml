@@ -1,0 +1,9 @@
+$kind: http-request
+name: 'Quitar Línea del Carrito'
+method: DELETE
+url: '{{baseUrl}}/api/v1/carrito/lineas/{{juego_id}}'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

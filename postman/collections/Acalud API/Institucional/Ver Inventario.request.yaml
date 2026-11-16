@@ -1,0 +1,19 @@
+$kind: http-request
+name: Ver Inventario Institucional
+method: GET
+url: '{{baseUrl}}/api/v1/instituciones/{{institucion_id}}/inventario'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: producto_id
+    value: ''
+    disabled: true
+  - key: orden
+    value: ''
+    disabled: true
+  - key: direccion
+    value: ''
+    disabled: true

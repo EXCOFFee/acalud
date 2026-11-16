@@ -1,0 +1,12 @@
+$kind: http-request
+name: Webhook MercadoPago
+method: POST
+url: '{{baseUrl}}/api/v1/webhooks/mercadopago'
+queryParams:
+  - key: 'data.id'
+    value: '{{mp_payment_id}}'
+headers:
+  - key: x-signature
+    value: '{{mp_signature}}'
+  - key: x-request-id
+    value: '{{mp_request_id}}'

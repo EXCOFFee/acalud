@@ -1,0 +1,4 @@
+$kind: http-request
+name: Listar Materias
+method: GET
+url: '{{baseUrl}}/api/v1/subjects'

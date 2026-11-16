@@ -1,0 +1,22 @@
+$kind: http-request
+name: Asignar Licencias a Docentes
+method: POST
+url: '{{baseUrl}}/api/v1/instituciones/{{institucion_id}}/asignaciones'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "producto_id": "{{product_id}}",
+      "asignaciones": [
+        { "docente_id": "{{docente_id}}", "cantidad": 1 }
+      ],
+      "observaciones": null
+    }

@@ -1,0 +1,4 @@
+$kind: http-request
+name: 'Probar Demo Pública'
+method: GET
+url: '{{baseUrl}}/api/v1/catalogo/juegos/{{juego_id}}/demo/publica'

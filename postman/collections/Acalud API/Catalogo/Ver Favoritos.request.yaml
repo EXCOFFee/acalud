@@ -1,0 +1,9 @@
+$kind: http-request
+name: Ver Mis Favoritos
+method: GET
+url: '{{baseUrl}}/api/v1/favorites'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

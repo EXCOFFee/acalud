@@ -1,0 +1,18 @@
+$kind: http-request
+name: Votar en Encuesta
+method: POST
+url: '{{baseUrl}}/api/v1/polls/{{poll_id}}/responses'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "opcion_id": "{{opcion_id}}"
+    }

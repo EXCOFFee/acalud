@@ -1,0 +1,21 @@
+$kind: http-request
+name: Revocar Licencias de Docente
+method: POST
+url: '{{baseUrl}}/api/v1/instituciones/{{institucion_id}}/revocaciones'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "docente_id": "{{docente_id}}",
+      "producto_id": "{{product_id}}",
+      "cantidad_a_revocar": 1,
+      "observaciones": null
+    }

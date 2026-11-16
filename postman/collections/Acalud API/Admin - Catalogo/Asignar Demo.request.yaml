@@ -1,0 +1,19 @@
+$kind: http-request
+name: 'Asignar Demo a Producto (Admin)'
+method: PUT
+url: '{{baseUrl}}/api/v1/admin/products/{{product_id}}/demo'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "configuracion_json": {},
+      "url_unity_webgl": "https://example.com/demo"
+    }

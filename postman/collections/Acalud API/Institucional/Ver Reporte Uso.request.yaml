@@ -1,0 +1,22 @@
+$kind: http-request
+name: Ver Reporte de Uso Institucional
+method: GET
+url: '{{baseUrl}}/api/v1/instituciones/{{institucion_id}}/reportes/uso'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: desde
+    value: ''
+    disabled: true
+  - key: hasta
+    value: ''
+    disabled: true
+  - key: producto_id
+    value: ''
+    disabled: true
+  - key: docente_id
+    value: ''
+    disabled: true

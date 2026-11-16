@@ -1,0 +1,9 @@
+$kind: http-request
+name: Listar Recursos (Admin)
+method: GET
+url: '{{baseUrl}}/api/v1/admin/resources'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

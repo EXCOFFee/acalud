@@ -1,0 +1,19 @@
+$kind: http-request
+name: Listar Propuestas (Admin)
+method: GET
+url: '{{baseUrl}}/api/v1/admin/proposals'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: status
+    value: ''
+    disabled: true
+  - key: search
+    value: ''
+    disabled: true
+  - key: order
+    value: desc
+    disabled: true

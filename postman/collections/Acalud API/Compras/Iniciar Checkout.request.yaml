@@ -1,0 +1,20 @@
+$kind: http-request
+name: Iniciar Checkout
+method: POST
+url: '{{baseUrl}}/api/v1/checkout'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "modalidad_envio": "standard",
+      "codigo_postal": "1425",
+      "domicilio": "Av. Corrientes 1234, CABA"
+    }

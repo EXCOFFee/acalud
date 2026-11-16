@@ -1,0 +1,9 @@
+$kind: http-request
+name: 'Listar Categorías (Admin)'
+method: GET
+url: '{{baseUrl}}/api/v1/admin/categories'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

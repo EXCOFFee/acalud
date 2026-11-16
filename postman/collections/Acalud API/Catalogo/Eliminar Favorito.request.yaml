@@ -1,0 +1,9 @@
+$kind: http-request
+name: Eliminar Favorito
+method: DELETE
+url: '{{baseUrl}}/api/v1/favorites/{{favorito_id}}'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

@@ -1,0 +1,19 @@
+$kind: http-request
+name: Solicitar Cambio de Email
+method: POST
+url: '{{baseUrl}}/api/v1/me/cambio-correo'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "nuevo_email": "nuevo@example.com",
+      "contrasena": "MiContrasena123!"
+    }

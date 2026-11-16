@@ -1,0 +1,4 @@
+$kind: http-request
+name: Ver Resultados de Encuesta
+method: GET
+url: '{{baseUrl}}/api/v1/polls/{{poll_id}}/results'

@@ -1,0 +1,6 @@
+$kind: collection
+name: Acalud API
+description: 'API collection for the Acalud platform — covers Identity, Catalog, Purchases, Community, and Institutional modules.'
+variables:
+  - key: baseUrl
+    value: 'http://localhost:3000'

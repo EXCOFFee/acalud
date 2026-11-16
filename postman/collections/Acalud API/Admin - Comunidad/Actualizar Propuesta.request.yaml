@@ -1,0 +1,19 @@
+$kind: http-request
+name: Actualizar Estado de Propuesta (Admin)
+method: PUT
+url: '{{baseUrl}}/api/v1/admin/proposals/{{proposal_id}}'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "estado": "aprobada",
+      "feedback": "Excelente propuesta, será considerada."
+    }

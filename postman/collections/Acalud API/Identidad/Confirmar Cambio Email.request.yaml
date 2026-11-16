@@ -1,0 +1,13 @@
+$kind: http-request
+name: Confirmar Cambio de Email
+method: POST
+url: '{{baseUrl}}/api/v1/auth/cambio-correo/confirmar'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "token": "{{email_change_token}}"
+    }

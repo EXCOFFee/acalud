@@ -59,3 +59,6 @@ Thumbs.db
 *.swp
 .vscode/*
 !.vscode/extensions.json
+
+# Postman: metadata local del workspace (ID de la cuenta). La colección en postman/ sí se versiona.
+.postman/

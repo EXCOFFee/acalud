@@ -1,0 +1,14 @@
+$kind: http-request
+name: Login
+method: POST
+url: '{{baseUrl}}/api/v1/auth/sesion'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "email": "docente@example.com",
+      "contrasena": "MiContrasena123!"
+    }

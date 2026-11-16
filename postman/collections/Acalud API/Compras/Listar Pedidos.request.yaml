@@ -1,0 +1,9 @@
+$kind: http-request
+name: Listar Historial de Pedidos
+method: GET
+url: '{{baseUrl}}/api/v1/pedidos'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

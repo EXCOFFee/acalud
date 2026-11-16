@@ -1,0 +1,4 @@
+$kind: http-request
+name: Registrar Click en Editorial
+method: POST
+url: '{{baseUrl}}/api/v1/editorial-partners/{{partner_id}}/click'

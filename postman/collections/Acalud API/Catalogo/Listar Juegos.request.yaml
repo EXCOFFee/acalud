@@ -1,0 +1,15 @@
+$kind: http-request
+name: Listar Juegos
+method: GET
+url: '{{baseUrl}}/api/v1/catalogo/juegos'
+queryParams:
+  - key: q
+    value: ''
+    disabled: true
+  - key: area
+    value: ''
+    disabled: true
+  - key: pagina
+    value: '1'
+  - key: tamanio
+    value: '20'

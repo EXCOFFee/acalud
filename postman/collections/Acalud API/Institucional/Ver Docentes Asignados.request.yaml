@@ -1,0 +1,16 @@
+$kind: http-request
+name: Ver Docentes con Asignaciones
+method: GET
+url: '{{baseUrl}}/api/v1/instituciones/{{institucion_id}}/docentes/asignaciones'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: producto_id
+    value: ''
+    disabled: true
+  - key: buscar
+    value: ''
+    disabled: true

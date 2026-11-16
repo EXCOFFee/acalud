@@ -1,0 +1,9 @@
+$kind: http-request
+name: Listar Encuestas (Admin)
+method: GET
+url: '{{baseUrl}}/api/v1/admin/polls'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

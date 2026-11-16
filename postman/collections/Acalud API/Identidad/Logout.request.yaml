@@ -1,0 +1,9 @@
+$kind: http-request
+name: Logout
+method: DELETE
+url: '{{baseUrl}}/api/v1/auth/sesion'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

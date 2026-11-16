@@ -1,0 +1,9 @@
+$kind: http-request
+name: 'Activar-Desactivar Encuesta (Admin)'
+method: PATCH
+url: '{{baseUrl}}/api/v1/admin/polls/{{poll_id}}/toggle'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

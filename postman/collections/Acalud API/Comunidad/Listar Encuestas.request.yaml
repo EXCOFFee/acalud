@@ -1,0 +1,11 @@
+$kind: http-request
+name: Listar Encuestas
+method: GET
+url: '{{baseUrl}}/api/v1/polls'
+queryParams:
+  - key: status
+    value: ''
+    disabled: true
+  - key: level_id
+    value: ''
+    disabled: true

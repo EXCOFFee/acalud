@@ -1,0 +1,9 @@
+$kind: http-request
+name: Ver Tracking de Pedido
+method: GET
+url: '{{baseUrl}}/api/v1/pedidos/{{pedido_id}}/tracking'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

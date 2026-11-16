@@ -1,0 +1,21 @@
+$kind: http-request
+name: 'Enviar Propuesta de Juego'
+method: POST
+url: '{{baseUrl}}/api/v1/proposals'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "titulo": "Mi Propuesta de Juego",
+      "descripcion": "Descripción detallada de la propuesta",
+      "materia_id": null,
+      "nivel_educativo_id": null
+    }

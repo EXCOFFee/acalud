@@ -1,0 +1,9 @@
+$kind: http-request
+name: 'Ver Detalle de Sesión'
+method: GET
+url: '{{baseUrl}}/api/v1/docentes/me/sesiones-juego/{{sesion_id}}'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

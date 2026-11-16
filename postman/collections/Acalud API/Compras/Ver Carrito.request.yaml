@@ -1,0 +1,13 @@
+$kind: http-request
+name: Ver Carrito
+method: GET
+url: '{{baseUrl}}/api/v1/carrito'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: contexto
+    value: ''
+    disabled: true

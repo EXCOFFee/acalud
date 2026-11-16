@@ -1,0 +1,17 @@
+$kind: http-request
+name: Listar Mis Sesiones de Juego
+method: GET
+url: '{{baseUrl}}/api/v1/docentes/me/sesiones-juego'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: producto_id
+    value: ''
+    disabled: true
+  - key: pagina
+    value: '1'
+  - key: limite
+    value: '20'

@@ -1,0 +1,9 @@
+$kind: http-request
+name: Ver Demo de Producto (Admin)
+method: GET
+url: '{{baseUrl}}/api/v1/admin/products/{{product_id}}/demo'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

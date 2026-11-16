@@ -1,0 +1,18 @@
+$kind: http-request
+name: 'Agregar/Actualizar Línea en Carrito'
+method: PUT
+url: '{{baseUrl}}/api/v1/carrito/lineas/{{juego_id}}'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "cantidad": 2
+    }

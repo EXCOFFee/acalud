@@ -1,0 +1,22 @@
+$kind: http-request
+name: Crear Recurso (Admin)
+method: POST
+url: '{{baseUrl}}/api/v1/admin/resources'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "titulo": "Guía Docente",
+      "tipo": "pdf",
+      "url": "https://storage.example.com/guia.pdf",
+      "licenciado": false,
+      "producto_id": null
+    }
