@@ -843,6 +843,8 @@ export interface EncuestaAdminResumen {
   estado: EstadoEncuestaAdmin;
   nivel_educativo_id: string | null;
   creada_en: string;
+  /** Fecha de cierre (D5); null salvo estado 'closed'. */
+  finalizada_en: string | null;
   total_votos: number;
 }
 
@@ -857,6 +859,8 @@ export interface EncuestaAdminDetalle {
   estado: EstadoEncuestaAdmin;
   nivel_educativo_id: string | null;
   creada_en: string;
+  /** Fecha de cierre (D5); null salvo estado 'closed'. */
+  finalizada_en: string | null;
   opciones: OpcionEncuestaAdmin[];
 }
 
@@ -1227,10 +1231,13 @@ export const api = {
   crearEncuestaAdmin: (d: EncuestaAdminInput) => pedir<EncuestaAdminDetalle>('POST', '/admin/polls', d),
   actualizarEncuestaAdmin: (id: string, d: EncuestaAdminInput) =>
     pedir<EncuestaAdminDetalle>('PUT', `/admin/polls/${id}`, d),
-  // CU-20 A1: solo alterna draft↔active — una encuesta 'closed' no tiene transición definida hoy.
+  // CU-20 A1: alterna draft↔active. 409 si la activa ya tiene votos (D4) o si está finalizada (D3).
   alternarEstadoEncuestaAdmin: (id: string) => pedir<EncuestaAdminDetalle>('PATCH', `/admin/polls/${id}/toggle`),
   // CU-20 A3: baja física con cascada a opciones y respuestas (RN-006).
   eliminarEncuestaAdmin: (id: string) => pedir<void>('DELETE', `/admin/polls/${id}`),
+  // D2/D3: active → closed, definitivo (CU-20 A11 propuesto).
+  finalizarEncuestaAdmin: (id: string) =>
+    pedir<EncuestaAdminDetalle>('POST', `/admin/polls/${id}/finalizar`),
   // CU-21 (admin): revisar propuestas.
   listarPropuestasAdmin: (filtro?: FiltroPropuestasAdmin) => {
     const qs = new URLSearchParams();

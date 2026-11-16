@@ -24,8 +24,13 @@ import { api, ApiError, type EncuestaAdminResumen, type NivelEducativo } from '@
 const ESTADO: Record<string, { etiqueta: string; variante: 'default' | 'ok' | 'off' | 'neutra' }> = {
   draft: { etiqueta: 'Borrador', variante: 'default' },
   active: { etiqueta: 'Activa', variante: 'ok' },
-  closed: { etiqueta: 'Cerrada', variante: 'off' },
+  closed: { etiqueta: 'Finalizada', variante: 'off' }, // CU-16 RN-004
 };
+
+/** El detalle de un 409 viene armado por el backend (ej. "La encuesta ya recibió votos…"). */
+function motivo(err: unknown, porDefecto: string): string {
+  return err instanceof ApiError && err.status === 409 ? (err.problema.detail ?? porDefecto) : porDefecto;
+}
 
 const MIN_OPCIONES = 2;
 const MAX_OPCIONES = 10;
@@ -50,6 +55,8 @@ export default function AdminEncuestasPage() {
   const [aEliminar, setAEliminar] = useState<EncuestaAdminResumen | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const [alternando, setAlternando] = useState<string | null>(null);
+  const [aFinalizar, setAFinalizar] = useState<EncuestaAdminResumen | null>(null);
+  const [finalizando, setFinalizando] = useState(false);
 
   function cargar(): void {
     setEstado('cargando');
@@ -181,9 +188,31 @@ export default function AdminEncuestasPage() {
         router.replace('/login?volver=/admin/encuestas');
         return;
       }
-      notificar('No pudimos cambiar el estado de la encuesta.', 'error');
+      notificar(motivo(err, 'No pudimos cambiar el estado de la encuesta.'), 'error');
+      cargar(); // el 409 puede deberse a un voto recién llegado: refrescar los botones
     } finally {
       setAlternando(null);
+    }
+  }
+
+  async function confirmarFinalizar(): Promise<void> {
+    if (!aFinalizar) return;
+    setFinalizando(true);
+    try {
+      await api.finalizarEncuestaAdmin(aFinalizar.id);
+      notificar('Encuesta finalizada. Sus resultados quedan publicados como definitivos.', 'ok');
+      setAFinalizar(null);
+      cargar();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.replace('/login?volver=/admin/encuestas');
+        return;
+      }
+      notificar(motivo(err, 'No pudimos finalizar la encuesta.'), 'error');
+      setAFinalizar(null);
+      cargar();
+    } finally {
+      setFinalizando(false);
     }
   }
 
@@ -200,7 +229,7 @@ export default function AdminEncuestasPage() {
         router.replace('/login?volver=/admin/encuestas');
         return;
       }
-      notificar('No pudimos eliminar la encuesta.', 'error');
+      notificar(motivo(err, 'No pudimos eliminar la encuesta.'), 'error');
       setAEliminar(null);
     } finally {
       setEliminando(false);
@@ -226,25 +255,43 @@ export default function AdminEncuestasPage() {
     { clave: 'votos', encabezado: 'Votos', alinear: 'derecha', render: (e) => e.total_votos },
     { clave: 'creada', encabezado: 'Creada', render: (e) => fechaCorta(e.creada_en) },
     {
+      clave: 'finalizada',
+      encabezado: 'Finalizada',
+      render: (e) => (e.finalizada_en ? fechaCorta(e.finalizada_en) : '—'),
+    },
+    {
       clave: 'acciones',
       encabezado: '',
-      render: (e) => (
-        <span style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-          {e.estado !== 'closed' ? (
-            <Boton variante="fantasma" onClick={() => alternar(e)} cargando={alternando === e.id}>
-              {e.estado === 'draft' ? 'Activar' : 'Desactivar'}
-            </Boton>
-          ) : null}
-          {e.estado !== 'active' ? (
-            <Boton variante="fantasma" onClick={() => abrirEditar(e)}>
-              Editar
-            </Boton>
-          ) : null}
-          <Boton variante="peligro" onClick={() => setAEliminar(e)}>
-            Eliminar
-          </Boton>
-        </span>
-      ),
+      // Solo se ofrecen las acciones que el backend permite en cada estado (decisiones D2-D4):
+      // borrador → activar/editar/eliminar · activa → finalizar (y desactivar si no tiene votos)
+      // · finalizada → solo eliminar. Con votos no se edita ni vuelve a borrador.
+      render: (e) => {
+        const conVotos = e.total_votos > 0;
+        return (
+          <span style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            {e.estado === 'draft' || (e.estado === 'active' && !conVotos) ? (
+              <Boton variante="fantasma" onClick={() => alternar(e)} cargando={alternando === e.id}>
+                {e.estado === 'draft' ? 'Activar' : 'Desactivar'}
+              </Boton>
+            ) : null}
+            {e.estado === 'draft' && !conVotos ? (
+              <Boton variante="fantasma" onClick={() => abrirEditar(e)}>
+                Editar
+              </Boton>
+            ) : null}
+            {e.estado === 'active' ? (
+              <Boton variante="primario" onClick={() => setAFinalizar(e)}>
+                Finalizar
+              </Boton>
+            ) : null}
+            {e.estado !== 'active' ? (
+              <Boton variante="peligro" onClick={() => setAEliminar(e)}>
+                Eliminar
+              </Boton>
+            ) : null}
+          </span>
+        );
+      },
     },
   ];
 
@@ -382,6 +429,28 @@ export default function AdminEncuestasPage() {
         <p>
           Vas a eliminar <strong>{aEliminar?.pregunta}</strong> de forma permanente, junto con sus
           opciones y los votos ya registrados.
+        </p>
+      </Dialogo>
+
+      {/* Finalizar es irreversible (D3): se confirma igual que eliminar. <dialog> nativo. */}
+      <Dialogo
+        abierto={aFinalizar !== null}
+        onCerrar={() => setAFinalizar(null)}
+        titulo="¿Finalizar encuesta?"
+        acciones={
+          <>
+            <Boton variante="fantasma" onClick={() => setAFinalizar(null)} disabled={finalizando}>
+              No, cancelar
+            </Boton>
+            <Boton variante="primario" onClick={confirmarFinalizar} cargando={finalizando}>
+              Sí, finalizar
+            </Boton>
+          </>
+        }
+      >
+        <p>
+          <strong>{aFinalizar?.pregunta}</strong> dejará de recibir votos y sus resultados quedarán
+          publicados como definitivos. Esta acción no se puede deshacer.
         </p>
       </Dialogo>
     </>
