@@ -20,9 +20,10 @@ export class EncuestasRepositoryPg implements EncuestasRepository {
       status: EstadoEncuestaPublica;
       target_level_id: string | null;
       created_at: Date;
+      closed_at: Date | null;
       total_votes: number;
     }>(
-      `SELECT p.id, p.question, p.status, p.target_level_id, p.created_at,
+      `SELECT p.id, p.question, p.status, p.target_level_id, p.created_at, p.closed_at,
               (SELECT count(*)::int FROM poll_responses r WHERE r.poll_id = p.id) AS total_votes
          FROM polls p
         WHERE p.status <> 'draft'
@@ -38,12 +39,13 @@ export class EncuestasRepositoryPg implements EncuestasRepository {
       targetLevelId: f.target_level_id,
       totalVotes: f.total_votes,
       createdAt: f.created_at,
+      closedAt: f.closed_at,
     }));
   }
 
   async obtenerResultados(pollId: string, usuarioId: string | null): Promise<ResultadosEncuesta | null> {
-    const poll = await this.db.query<{ question: string; status: EstadoEncuestaPublica }>(
-      `SELECT question, status FROM polls WHERE id = $1 AND status <> 'draft'`,
+    const poll = await this.db.query<{ question: string; status: EstadoEncuestaPublica; closed_at: Date | null }>(
+      `SELECT question, status, closed_at FROM polls WHERE id = $1 AND status <> 'draft'`,
       [pollId],
     );
     const fila = poll.rows[0];
@@ -73,6 +75,7 @@ export class EncuestasRepositoryPg implements EncuestasRepository {
       pollId,
       question: fila.question,
       status: fila.status,
+      closedAt: fila.closed_at,
       totalVotes,
       // RN-006: redondeo a 1 decimal. Sin votos, 0 % para todas (RN-007).
       opciones: opciones.rows.map((o) => ({

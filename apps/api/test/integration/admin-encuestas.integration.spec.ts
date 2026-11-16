@@ -304,6 +304,74 @@ describe('CU-20 · ABM de Encuestas (admin)', () => {
     });
   });
 
+  // Decisiones D2/D3 (2026-11-16): botón "Finalizar" explícito; finalizar es definitivo.
+  describe('Finalizar (D2/D3)', () => {
+    const B = () => ({ Cookie: `acalud_sesion=${adminToken}` });
+    async function nueva(activa: boolean): Promise<string> {
+      const id = (await ctx.request.post('/api/v1/admin/polls').set(B()).send(encuestaValida)).body.id as string;
+      if (activa) await ctx.request.patch(`/api/v1/admin/polls/${id}/toggle`).set(B());
+      return id;
+    }
+    const finalizar = (id: string) => ctx.request.post(`/api/v1/admin/polls/${id}/finalizar`).set(B());
+
+    it('activa → finalizada: 200, guarda la fecha de cierre y audita "close"', async () => {
+      const id = await nueva(true);
+      const res = await finalizar(id);
+      expect(res.status).toBe(200);
+      expect(res.body.estado).toBe('closed');
+      expect(res.body.finalizada_en).toBeTruthy();
+      const fila = (await ctx.pg.query(`SELECT status, closed_at FROM polls WHERE id = $1`, [id])).rows[0];
+      expect(fila.status).toBe('closed');
+      expect(fila.closed_at).not.toBeNull();
+      const audit = await ctx.pg.query(
+        `SELECT 1 FROM audit_log WHERE entity_type = 'poll' AND entity_id = $1 AND action = 'close'`,
+        [id],
+      );
+      expect(audit.rows).toHaveLength(1);
+    });
+
+    it('un borrador no se puede finalizar (nunca se publicó) → 409', async () => {
+      expect((await finalizar(await nueva(false))).status).toBe(409);
+    });
+
+    it('finalizar dos veces → 409', async () => {
+      const id = await nueva(true);
+      await finalizar(id);
+      expect((await finalizar(id)).status).toBe(409);
+    });
+
+    it('D3: una finalizada no se reabre (toggle → 409) ni se edita (→ 409)', async () => {
+      const id = await nueva(true);
+      await finalizar(id);
+      expect((await ctx.request.patch(`/api/v1/admin/polls/${id}/toggle`).set(B())).status).toBe(409);
+      expect((await ctx.request.put(`/api/v1/admin/polls/${id}`).set(B()).send(encuestaValida)).status).toBe(409);
+      expect((await ctx.pg.query(`SELECT status FROM polls WHERE id = $1`, [id])).rows[0].status).toBe('closed');
+    });
+
+    it('una finalizada SÍ se puede eliminar (solo las activas están protegidas)', async () => {
+      const id = await nueva(true);
+      await finalizar(id);
+      expect((await ctx.request.delete(`/api/v1/admin/polls/${id}`).set(B())).status).toBe(204);
+    });
+
+    it('una finalizada sigue pública con su fecha y ya no admite votos', async () => {
+      const id = await nueva(true);
+      await finalizar(id);
+      const listado = await ctx.request.get('/api/v1/polls?status=closed');
+      const fila = listado.body.find((e: { id: string }) => e.id === id);
+      expect(fila?.estado).toBe('closed');
+      expect(fila?.finalizada_en).toBeTruthy();
+      const resultados = await ctx.request.get(`/api/v1/polls/${id}/results`);
+      expect(resultados.body.finalizada_en).toBeTruthy();
+      const opcionId = (await ctx.pg.query(`SELECT id FROM poll_options WHERE poll_id = $1 LIMIT 1`, [id])).rows[0].id;
+      const voto = await ctx.request
+        .post(`/api/v1/polls/${id}/responses`)
+        .set('Cookie', `acalud_sesion=${docenteToken}`)
+        .send({ opcion_id: opcionId });
+      expect(voto.status).toBe(404); // CU-14 A2: "Esta encuesta ya no está disponible"
+    });
+  });
+
   // Decisión D4 (2026-11-16): una encuesta con votos no se edita ni vuelve a borrador. Regresión
   // del bug verificado: editar reemplazaba las opciones y los votos se borraban en cascada.
   describe('Protección de votos (D4)', () => {

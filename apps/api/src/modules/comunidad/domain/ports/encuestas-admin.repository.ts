@@ -14,4 +14,9 @@ export interface EncuestasAdminRepository {
   eliminar(id: string): Promise<boolean>;
   /** Cantidad de votos registrados (D4: con votos, la encuesta queda protegida). */
   contarVotos(id: string): Promise<number>;
+  /**
+   * D2: active → closed con `closed_at = now()`, con guard de estado (`WHERE status = 'active'`,
+   * ADR-002). null si no estaba activa (o no existe).
+   */
+  finalizar(id: string): Promise<EncuestaAdmin | null>;
 }

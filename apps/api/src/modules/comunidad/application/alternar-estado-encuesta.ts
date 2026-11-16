@@ -1,4 +1,4 @@
-import { EncuestaAdminNoEncontrada, EncuestaConVotos } from '../domain/errores';
+import { EncuestaAdminNoEncontrada, EncuestaConVotos, EncuestaFinalizada } from '../domain/errores';
 import type { UnidadDeTrabajoComunidadAdmin } from '../domain/ports/comunidad-admin.uow';
 import type { EncuestaAdmin } from '../domain/encuesta-admin';
 
@@ -11,6 +11,8 @@ export class AlternarEstadoEncuesta {
       // D4: una activa con votos no vuelve a borrador (ahí podría editarse y perder los votos).
       const actual = await repos.encuestas.obtener(id);
       if (actual === null) throw new EncuestaAdminNoEncontrada();
+      // D3: finalizar es definitivo — antes el toggle sobre una 'closed' respondía 200 sin hacer nada.
+      if (actual.status === 'closed') throw new EncuestaFinalizada();
       if (actual.status === 'active' && (await repos.encuestas.contarVotos(id)) > 0) {
         throw new EncuestaConVotos();
       }

@@ -13,6 +13,8 @@ export interface EncuestaResumen {
   targetLevelId: string | null;
   totalVotes: number;
   createdAt: Date;
+  /** Instante de finalización (D5); null salvo status = closed. */
+  closedAt: Date | null;
 }
 
 export interface OpcionResultado {
@@ -27,6 +29,8 @@ export interface ResultadosEncuesta {
   pollId: string;
   question: string;
   status: EstadoEncuestaPublica;
+  /** CU-16 RN-004: las finalizadas se muestran con su indicador (y su fecha). */
+  closedAt: Date | null;
   totalVotes: number;
   opciones: OpcionResultado[];
   hasUserVoted: boolean;

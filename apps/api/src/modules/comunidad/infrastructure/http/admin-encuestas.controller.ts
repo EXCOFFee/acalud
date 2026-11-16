@@ -26,8 +26,11 @@ import {
   EncuestaActivaNoEliminable,
   EncuestaAdminNoEncontrada,
   EncuestaConVotos,
+  EncuestaFinalizada,
+  EncuestaNoFinalizable,
   NivelEducativoInvalido,
 } from '../../domain/errores';
+import { FinalizarEncuesta } from '../../application/finalizar-encuesta';
 import type { EncuestaAdmin } from '../../domain/encuesta-admin';
 import { type EncuestaAdminBody, encuestaAdminSchema } from './admin-encuestas.esquemas';
 
@@ -40,7 +43,9 @@ function mapearError(error: unknown): never {
   if (
     error instanceof EncuestaActivaNoEditable ||
     error instanceof EncuestaConVotos ||
-    error instanceof EncuestaActivaNoEliminable
+    error instanceof EncuestaActivaNoEliminable ||
+    error instanceof EncuestaFinalizada ||
+    error instanceof EncuestaNoFinalizable
   ) {
     throw new HttpException({ title: 'Conflicto', detail: error.message }, 409);
   }
@@ -65,6 +70,7 @@ function aRespuesta(e: EncuestaAdmin) {
     estado: e.status,
     nivel_educativo_id: e.targetLevelId,
     creada_en: e.createdAt,
+    finalizada_en: e.closedAt,
     opciones: e.opciones.map((o) => ({ id: o.id, texto: o.text })),
   };
 }
@@ -79,6 +85,7 @@ export class AdminEncuestasController {
     private readonly actualizarEncuesta: ActualizarEncuesta,
     private readonly alternarEstado: AlternarEstadoEncuesta,
     private readonly eliminarEncuesta: EliminarEncuesta,
+    private readonly finalizarEncuesta: FinalizarEncuesta,
   ) {}
 
   @Get()
@@ -90,6 +97,7 @@ export class AdminEncuestasController {
       estado: e.status,
       nivel_educativo_id: e.targetLevelId,
       creada_en: e.createdAt,
+      finalizada_en: e.closedAt,
       total_votos: e.totalVotes,
     }));
   }
@@ -145,6 +153,19 @@ export class AdminEncuestasController {
     try {
       if (!UUID_RE.test(pollId)) throw new EncuestaAdminNoEncontrada();
       const encuesta = await this.alternarEstado.ejecutar(pollId, req.autenticado!.id);
+      return aRespuesta(encuesta);
+    } catch (error) {
+      mapearError(error);
+    }
+  }
+
+  // D2/D3: active → closed, definitivo. 200 (no 201: no crea un recurso, cambia el estado).
+  @Post(':poll_id/finalizar')
+  @HttpCode(200)
+  async finalizar(@Param('poll_id') pollId: string, @Req() req: RequestAutenticada) {
+    try {
+      if (!UUID_RE.test(pollId)) throw new EncuestaAdminNoEncontrada();
+      const encuesta = await this.finalizarEncuesta.ejecutar(pollId, req.autenticado!.id);
       return aRespuesta(encuesta);
     } catch (error) {
       mapearError(error);

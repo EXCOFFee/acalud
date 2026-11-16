@@ -3,7 +3,7 @@ import type { EncuestasAdminRepository } from './encuestas-admin.repository';
 /** Auditoría propia del BC (RN-007/RNF-002, CU-20). Cada contexto declara la suya: ADR-002. */
 export interface AuditoriaComunidad {
   registrar(evento: {
-    tipo: 'create' | 'update' | 'activate' | 'deactivate' | 'delete';
+    tipo: 'create' | 'update' | 'activate' | 'deactivate' | 'close' | 'delete';
     sujetoTipo: 'poll';
     sujetoId: string;
     actorId: string;

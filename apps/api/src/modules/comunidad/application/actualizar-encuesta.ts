@@ -2,6 +2,7 @@ import {
   EncuestaActivaNoEditable,
   EncuestaAdminNoEncontrada,
   EncuestaConVotos,
+  EncuestaFinalizada,
   NivelEducativoInvalido,
 } from '../domain/errores';
 import type { UnidadDeTrabajoComunidadAdmin } from '../domain/ports/comunidad-admin.uow';
@@ -20,6 +21,7 @@ export class ActualizarEncuesta {
       const actual = await repos.encuestas.obtener(id);
       if (actual === null) throw new EncuestaAdminNoEncontrada();
       if (actual.status === 'active') throw new EncuestaActivaNoEditable(); // A2.2/A2.3
+      if (actual.status === 'closed') throw new EncuestaFinalizada(); // D3: definitiva
       // D4: editar reemplaza las opciones → los votos se borrarían en cascada.
       if ((await repos.encuestas.contarVotos(id)) > 0) throw new EncuestaConVotos();
 

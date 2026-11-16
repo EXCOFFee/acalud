@@ -19,6 +19,22 @@ export class EncuestaConVotos extends ErrorDeDominio {
   }
 }
 
+/** D2: solo se finaliza una encuesta activa (un borrador nunca se publicó). → 409. */
+export class EncuestaNoFinalizable extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Solo se puede finalizar una encuesta activa');
+  }
+}
+
+/** D3: una encuesta finalizada es definitiva — no se reabre ni se edita. → 409. */
+export class EncuestaFinalizada extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('La encuesta está finalizada: sus resultados son definitivos y no puede modificarse');
+  }
+}
+
 /** CU-20 A3.4: solo se eliminan encuestas que no están activas. → 409. */
 export class EncuestaActivaNoEliminable extends ErrorDeDominio {
   readonly clase = 'BUSINESS_RULE' as const;

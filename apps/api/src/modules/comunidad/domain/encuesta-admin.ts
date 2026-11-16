@@ -19,6 +19,8 @@ export interface EncuestaAdmin {
   status: EstadoEncuesta;
   targetLevelId: string | null;
   createdAt: Date;
+  /** Instante de finalización (D5); null salvo status = closed. */
+  closedAt: Date | null;
   opciones: OpcionEncuesta[];
 }
 
@@ -29,5 +31,7 @@ export interface EncuestaAdminResumen {
   status: EstadoEncuesta;
   targetLevelId: string | null;
   createdAt: Date;
+  /** Instante de finalización (D5); null salvo status = closed. */
+  closedAt: Date | null;
   totalVotes: number;
 }

@@ -13,6 +13,7 @@ interface FilaEncuesta {
   status: EstadoEncuesta;
   target_level_id: string | null;
   created_at: Date;
+  closed_at: Date | null;
   opciones: { id: string; text: string }[];
 }
 
@@ -23,12 +24,13 @@ function aEncuestaAdmin(fila: FilaEncuesta): EncuestaAdmin {
     status: fila.status,
     targetLevelId: fila.target_level_id,
     createdAt: fila.created_at,
+    closedAt: fila.closed_at,
     opciones: fila.opciones,
   };
 }
 
 const SELECT_CON_OPCIONES = `
-  SELECT p.id, p.question, p.status, p.target_level_id, p.created_at,
+  SELECT p.id, p.question, p.status, p.target_level_id, p.created_at, p.closed_at,
          COALESCE(
            (SELECT json_agg(json_build_object('id', o.id, 'text', o.text) ORDER BY o.id)
               FROM poll_options o WHERE o.poll_id = p.id),
@@ -46,9 +48,10 @@ export class EncuestasAdminRepositoryPg implements EncuestasAdminRepository {
       status: EstadoEncuesta;
       target_level_id: string | null;
       created_at: Date;
+      closed_at: Date | null;
       total_votes: number;
     }>(
-      `SELECT p.id, p.question, p.status, p.target_level_id, p.created_at,
+      `SELECT p.id, p.question, p.status, p.target_level_id, p.created_at, p.closed_at,
               (SELECT count(*)::int FROM poll_responses r WHERE r.poll_id = p.id) AS total_votes
          FROM polls p
         ORDER BY p.created_at DESC`,
@@ -59,6 +62,7 @@ export class EncuestasAdminRepositoryPg implements EncuestasAdminRepository {
       status: f.status,
       targetLevelId: f.target_level_id,
       createdAt: f.created_at,
+      closedAt: f.closed_at,
       totalVotes: f.total_votes,
     }));
   }
@@ -126,6 +130,18 @@ export class EncuestasAdminRepositoryPg implements EncuestasAdminRepository {
       [id],
     );
     return r.rows[0]?.n ?? 0;
+  }
+
+  async finalizar(id: string): Promise<EncuestaAdmin | null> {
+    // Guard de estado (ADR-002): solo pasa si sigue activa. Dos "Finalizar" simultáneos → uno gana.
+    const r = await this.client.query(
+      `UPDATE polls SET status = 'closed', closed_at = now()
+        WHERE id = $1 AND status = 'active'
+        RETURNING id`,
+      [id],
+    );
+    if (r.rowCount === 0) return null;
+    return this.obtener(id);
   }
 
   private async insertarOpciones(pollId: string, opciones: string[]): Promise<void> {

@@ -22,6 +22,7 @@ function aRespuestaResultados(r: ResultadosEncuesta) {
     poll_id: r.pollId,
     pregunta: r.question,
     estado: r.status,
+    finalizada_en: r.closedAt,
     total_votos: r.totalVotes,
     opciones: r.opciones.map((o) => ({
       id: o.id,
@@ -58,6 +59,7 @@ export class EncuestasController {
       nivel_educativo_id: e.targetLevelId,
       total_votos: e.totalVotes,
       creada_en: e.createdAt,
+      finalizada_en: e.closedAt,
     }));
   }
 

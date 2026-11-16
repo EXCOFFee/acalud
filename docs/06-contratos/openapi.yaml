@@ -1457,13 +1457,14 @@ paths:
                 type: array
                 items:
                   type: object
-                  required: [id, pregunta, estado, nivel_educativo_id, total_votos, creada_en]
+                  required: [id, pregunta, estado, nivel_educativo_id, total_votos, creada_en, finalizada_en]
                   properties:
                     id: { type: string, format: uuid }
                     pregunta: { type: string }
                     estado: { type: string, enum: [active, closed] }
                     nivel_educativo_id: { type: [string, 'null'], format: uuid }
                     total_votos: { type: integer }
+                    finalizada_en: { type: [string, 'null'], format: date-time, description: 'Fecha de cierre (D5); null salvo estado closed' }
                     creada_en: { type: string, format: date-time }
         '422': { $ref: '#/components/responses/Problem422' }
 
@@ -1618,13 +1619,14 @@ paths:
                 type: array
                 items:
                   type: object
-                  required: [id, pregunta, estado, nivel_educativo_id, creada_en, total_votos]
+                  required: [id, pregunta, estado, nivel_educativo_id, creada_en, finalizada_en, total_votos]
                   properties:
                     id: { type: string, format: uuid }
                     pregunta: { type: string }
                     estado: { $ref: '#/components/schemas/EstadoEncuesta' }
                     nivel_educativo_id: { type: [string, 'null'], format: uuid }
                     creada_en: { type: string, format: date-time }
+                    finalizada_en: { type: [string, 'null'], format: date-time, description: 'Fecha de cierre (D5); null salvo estado closed' }
                     total_votos: { type: integer }
         '401': { $ref: '#/components/responses/Problem401' }
         '403': { $ref: '#/components/responses/Problem403' }
@@ -1721,7 +1723,8 @@ paths:
       summary: Activar o desactivar encuesta (CU-20)
       description: >
         Solo alterna `draft` ↔ `active`. Una encuesta `active` con votos no puede volver a
-        `draft` (409, D4): ahí se podría editar y perder los votos.
+        `draft` (409, D4): ahí se podría editar y perder los votos. Una `closed` no se reabre
+        (409, D3).
       operationId: alternarEstadoEncuesta
       parameters:
         - { $ref: '#/components/parameters/poll_id' }
@@ -1735,7 +1738,34 @@ paths:
         '403': { $ref: '#/components/responses/Problem403' }
         '404': { $ref: '#/components/responses/Problem404' }
         '409':
-          description: La encuesta activa ya tiene votos
+          description: La encuesta activa ya tiene votos, o está finalizada
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /admin/polls/{poll_id}/finalizar:
+    post:
+      tags: [comunidad]
+      summary: Finalizar encuesta (CU-20 A11 propuesto · decisiones D2/D3)
+      description: >
+        `active` → `closed` con `finalizada_en` = ahora y auditoría `close`. Definitivo: una
+        finalizada no se reabre ni se edita, pero sigue pública con sus resultados (CU-16
+        "Finalizada") y ya no admite votos. Guard de estado (WHERE status = 'active'): dos
+        "Finalizar" simultáneos → uno gana. Responde 200 (cambia el estado, no crea nada).
+      operationId: finalizarEncuesta
+      parameters:
+        - { $ref: '#/components/parameters/poll_id' }
+      responses:
+        '200':
+          description: Encuesta finalizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EncuestaAdmin' }
+        '401': { $ref: '#/components/responses/Problem401' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '409':
+          description: La encuesta no está activa (borrador o ya finalizada)
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -2787,7 +2817,7 @@ components:
     EstadoEncuesta:
       type: string
       enum: [draft, active, closed]
-      description: '`closed` existe en la base pero hoy ninguna operación la alcanza'
+      description: 'draft ↔ active (sin votos); active → closed vía /finalizar (definitivo)'
 
     EstadoPropuesta:
       type: string
@@ -2795,11 +2825,12 @@ components:
 
     ResultadosEncuesta:
       type: object
-      required: [poll_id, pregunta, estado, total_votos, opciones, ya_voto, opcion_votada_id]
+      required: [poll_id, pregunta, estado, finalizada_en, total_votos, opciones, ya_voto, opcion_votada_id]
       properties:
         poll_id: { type: string, format: uuid }
         pregunta: { type: string }
         estado: { type: string, enum: [active, closed] }
+        finalizada_en: { type: [string, 'null'], format: date-time, description: 'Fecha de cierre (D5); null salvo estado closed' }
         total_votos: { type: integer }
         opciones:
           type: array
@@ -2829,13 +2860,14 @@ components:
 
     EncuestaAdmin:
       type: object
-      required: [id, pregunta, estado, nivel_educativo_id, creada_en, opciones]
+      required: [id, pregunta, estado, nivel_educativo_id, creada_en, finalizada_en, opciones]
       properties:
         id: { type: string, format: uuid }
         pregunta: { type: string }
         estado: { $ref: '#/components/schemas/EstadoEncuesta' }
         nivel_educativo_id: { type: [string, 'null'], format: uuid }
         creada_en: { type: string, format: date-time }
+        finalizada_en: { type: [string, 'null'], format: date-time, description: 'Fecha de cierre (D5); null salvo estado closed' }
         opciones:
           type: array
           items:

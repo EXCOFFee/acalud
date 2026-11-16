@@ -5,6 +5,7 @@ import { ActualizarEncuesta } from '../application/actualizar-encuesta';
 import { AlternarEstadoEncuesta } from '../application/alternar-estado-encuesta';
 import { CrearEncuesta } from '../application/crear-encuesta';
 import { EliminarEncuesta } from '../application/eliminar-encuesta';
+import { FinalizarEncuesta } from '../application/finalizar-encuesta';
 import { ListarEncuestasAdmin } from '../application/listar-encuestas-admin';
 import {
   UOW_COMUNIDAD_ADMIN,
@@ -70,6 +71,11 @@ import { CatalogoPedagogicoController } from './http/catalogo-pedagogico.control
     {
       provide: AlternarEstadoEncuesta,
       useFactory: (uow: UnidadDeTrabajoComunidadAdmin): AlternarEstadoEncuesta => new AlternarEstadoEncuesta(uow),
+      inject: [UOW_COMUNIDAD_ADMIN],
+    },
+    {
+      provide: FinalizarEncuesta,
+      useFactory: (uow: UnidadDeTrabajoComunidadAdmin): FinalizarEncuesta => new FinalizarEncuesta(uow),
       inject: [UOW_COMUNIDAD_ADMIN],
     },
     {
