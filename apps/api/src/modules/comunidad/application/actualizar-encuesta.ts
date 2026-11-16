@@ -1,4 +1,9 @@
-import { EncuestaActivaNoEditable, EncuestaAdminNoEncontrada, NivelEducativoInvalido } from '../domain/errores';
+import {
+  EncuestaActivaNoEditable,
+  EncuestaAdminNoEncontrada,
+  EncuestaConVotos,
+  NivelEducativoInvalido,
+} from '../domain/errores';
 import type { UnidadDeTrabajoComunidadAdmin } from '../domain/ports/comunidad-admin.uow';
 import type { DatosEncuesta, EncuestaAdmin } from '../domain/encuesta-admin';
 
@@ -15,6 +20,8 @@ export class ActualizarEncuesta {
       const actual = await repos.encuestas.obtener(id);
       if (actual === null) throw new EncuestaAdminNoEncontrada();
       if (actual.status === 'active') throw new EncuestaActivaNoEditable(); // A2.2/A2.3
+      // D4: editar reemplaza las opciones → los votos se borrarían en cascada.
+      if ((await repos.encuestas.contarVotos(id)) > 0) throw new EncuestaConVotos();
 
       if (input.targetLevelId !== null) {
         const existe = await repos.encuestas.existeNivel(input.targetLevelId);

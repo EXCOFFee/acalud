@@ -287,5 +287,65 @@ describe('CU-20 · ABM de Encuestas (admin)', () => {
         .set('Cookie', `acalud_sesion=${adminToken}`);
       expect(res.status).toBe(404);
     });
+
+    it('A3.4: eliminar una encuesta ACTIVA responde 409 y no borra nada', async () => {
+      const alta = await ctx.request
+        .post('/api/v1/admin/polls')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send(encuestaValida);
+      const id = alta.body.id as string;
+      await ctx.request.patch(`/api/v1/admin/polls/${id}/toggle`).set('Cookie', `acalud_sesion=${adminToken}`);
+
+      const res = await ctx.request
+        .delete(`/api/v1/admin/polls/${id}`)
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      expect(res.status).toBe(409);
+      expect((await ctx.pg.query('SELECT 1 FROM polls WHERE id = $1', [id])).rows).toHaveLength(1);
+    });
+  });
+
+  // Decisión D4 (2026-11-16): una encuesta con votos no se edita ni vuelve a borrador. Regresión
+  // del bug verificado: editar reemplazaba las opciones y los votos se borraban en cascada.
+  describe('Protección de votos (D4)', () => {
+    async function encuestaActivaConUnVoto(): Promise<{ id: string; opcionId: string }> {
+      const alta = await ctx.request
+        .post('/api/v1/admin/polls')
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send(encuestaValida);
+      const id = alta.body.id as string;
+      const opcionId = alta.body.opciones[0].id as string;
+      await ctx.request.patch(`/api/v1/admin/polls/${id}/toggle`).set('Cookie', `acalud_sesion=${adminToken}`);
+      const voto = await ctx.request
+        .post(`/api/v1/polls/${id}/responses`)
+        .set('Cookie', `acalud_sesion=${docenteToken}`)
+        .send({ opcion_id: opcionId });
+      expect(voto.status).toBe(201);
+      return { id, opcionId };
+    }
+    const votos = async (id: string) =>
+      (await ctx.pg.query(`SELECT count(*)::int AS n FROM poll_responses WHERE poll_id = $1`, [id])).rows[0].n;
+
+    it('activa con votos: desactivar (volver a borrador) responde 409 y conserva los votos', async () => {
+      const { id } = await encuestaActivaConUnVoto();
+      const res = await ctx.request
+        .patch(`/api/v1/admin/polls/${id}/toggle`)
+        .set('Cookie', `acalud_sesion=${adminToken}`);
+      expect(res.status).toBe(409);
+      expect(await votos(id)).toBe(1);
+      expect((await ctx.pg.query('SELECT status FROM polls WHERE id = $1', [id])).rows[0].status).toBe('active');
+    });
+
+    it('borrador con votos (dato heredado): editar responde 409 y NO borra los votos', async () => {
+      const { id } = await encuestaActivaConUnVoto();
+      // Simula una encuesta que llegó a borrador con votos antes de esta regla.
+      await ctx.pg.query(`UPDATE polls SET status = 'draft' WHERE id = $1`, [id]);
+
+      const res = await ctx.request
+        .put(`/api/v1/admin/polls/${id}`)
+        .set('Cookie', `acalud_sesion=${adminToken}`)
+        .send({ ...encuestaValida, pregunta: 'Pregunta corregida' });
+      expect(res.status).toBe(409);
+      expect(await votos(id)).toBe(1);
+    });
   });
 });

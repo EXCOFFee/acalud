@@ -12,4 +12,6 @@ export interface EncuestasAdminRepository {
   alternarEstado(id: string): Promise<EncuestaAdmin | null>;
   /** Física con cascada (poll_options y poll_responses ya tienen ON DELETE CASCADE, RN-006). */
   eliminar(id: string): Promise<boolean>;
+  /** Cantidad de votos registrados (D4: con votos, la encuesta queda protegida). */
+  contarVotos(id: string): Promise<number>;
 }

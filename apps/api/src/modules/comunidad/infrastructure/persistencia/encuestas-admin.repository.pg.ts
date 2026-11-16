@@ -120,6 +120,14 @@ export class EncuestasAdminRepositoryPg implements EncuestasAdminRepository {
     return (r.rowCount ?? 0) > 0;
   }
 
+  async contarVotos(id: string): Promise<number> {
+    const r = await this.client.query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM poll_responses WHERE poll_id = $1`,
+      [id],
+    );
+    return r.rows[0]?.n ?? 0;
+  }
+
   private async insertarOpciones(pollId: string, opciones: string[]): Promise<void> {
     for (const texto of opciones) {
       await this.client.query(`INSERT INTO poll_options (poll_id, text) VALUES ($1, $2)`, [

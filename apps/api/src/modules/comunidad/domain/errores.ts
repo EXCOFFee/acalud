@@ -8,6 +8,25 @@ export class EncuestaAdminNoEncontrada extends ErrorDeDominio {
   }
 }
 
+/**
+ * Decisión D4 (2026-11-16): una encuesta con al menos un voto no se edita ni vuelve a borrador.
+ * Editar reemplaza las opciones y los votos se borrarían en cascada. → 409.
+ */
+export class EncuestaConVotos extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('La encuesta ya recibió votos: no puede editarse ni volver a borrador. Podés finalizarla');
+  }
+}
+
+/** CU-20 A3.4: solo se eliminan encuestas que no están activas. → 409. */
+export class EncuestaActivaNoEliminable extends ErrorDeDominio {
+  readonly clase = 'BUSINESS_RULE' as const;
+  constructor() {
+    super('Las encuestas activas no pueden eliminarse. Desactivala o finalizala primero');
+  }
+}
+
 /** CU-20 A2.2/A2.3 / RN-005: las encuestas activas no pueden editarse. → 409. */
 export class EncuestaActivaNoEditable extends ErrorDeDominio {
   readonly clase = 'BUSINESS_RULE' as const;

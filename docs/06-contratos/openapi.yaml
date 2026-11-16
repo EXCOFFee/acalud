@@ -1671,7 +1671,9 @@ paths:
     put:
       tags: [comunidad]
       summary: Editar encuesta (CU-20 A2)
-      description: Reemplaza pregunta, nivel y opciones. Una encuesta `active` no se puede editar (409).
+      description: >
+        Reemplaza pregunta, nivel y opciones. No se puede editar una encuesta `active` ni una que
+        ya tenga votos (409): reemplazar las opciones borraría los votos en cascada (D4).
       operationId: actualizarEncuesta
       parameters:
         - { $ref: '#/components/parameters/poll_id' }
@@ -1690,7 +1692,7 @@ paths:
         '403': { $ref: '#/components/responses/Problem403' }
         '404': { $ref: '#/components/responses/Problem404' }
         '409':
-          description: La encuesta está activa
+          description: La encuesta está activa o ya tiene votos
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -1698,6 +1700,7 @@ paths:
     delete:
       tags: [comunidad]
       summary: Eliminar encuesta, baja FÍSICA con sus opciones y votos (CU-20)
+      description: Solo si no está `active` (CU-20 A3.4).
       operationId: eliminarEncuesta
       parameters:
         - { $ref: '#/components/parameters/poll_id' }
@@ -1706,12 +1709,19 @@ paths:
         '401': { $ref: '#/components/responses/Problem401' }
         '403': { $ref: '#/components/responses/Problem403' }
         '404': { $ref: '#/components/responses/Problem404' }
+        '409':
+          description: La encuesta está activa
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
 
   /admin/polls/{poll_id}/toggle:
     patch:
       tags: [comunidad]
       summary: Activar o desactivar encuesta (CU-20)
-      description: Solo alterna `draft` ↔ `active`. No existe transición hacia ni desde `closed`.
+      description: >
+        Solo alterna `draft` ↔ `active`. Una encuesta `active` con votos no puede volver a
+        `draft` (409, D4): ahí se podría editar y perder los votos.
       operationId: alternarEstadoEncuesta
       parameters:
         - { $ref: '#/components/parameters/poll_id' }
@@ -1724,6 +1734,11 @@ paths:
         '401': { $ref: '#/components/responses/Problem401' }
         '403': { $ref: '#/components/responses/Problem403' }
         '404': { $ref: '#/components/responses/Problem404' }
+        '409':
+          description: La encuesta activa ya tiene votos
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
 
   /admin/proposals:
     get:

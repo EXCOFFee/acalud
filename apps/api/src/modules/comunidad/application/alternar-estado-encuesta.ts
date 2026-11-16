@@ -1,4 +1,4 @@
-import { EncuestaAdminNoEncontrada } from '../domain/errores';
+import { EncuestaAdminNoEncontrada, EncuestaConVotos } from '../domain/errores';
 import type { UnidadDeTrabajoComunidadAdmin } from '../domain/ports/comunidad-admin.uow';
 import type { EncuestaAdmin } from '../domain/encuesta-admin';
 
@@ -8,6 +8,13 @@ export class AlternarEstadoEncuesta {
 
   async ejecutar(id: string, adminId: string): Promise<EncuestaAdmin> {
     return this.uow.transaccion(async (repos) => {
+      // D4: una activa con votos no vuelve a borrador (ahí podría editarse y perder los votos).
+      const actual = await repos.encuestas.obtener(id);
+      if (actual === null) throw new EncuestaAdminNoEncontrada();
+      if (actual.status === 'active' && (await repos.encuestas.contarVotos(id)) > 0) {
+        throw new EncuestaConVotos();
+      }
+
       const encuesta = await repos.encuestas.alternarEstado(id);
       if (encuesta === null) throw new EncuestaAdminNoEncontrada();
 

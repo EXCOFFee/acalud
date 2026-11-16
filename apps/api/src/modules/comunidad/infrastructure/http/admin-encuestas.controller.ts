@@ -21,7 +21,13 @@ import { AlternarEstadoEncuesta } from '../../application/alternar-estado-encues
 import { CrearEncuesta } from '../../application/crear-encuesta';
 import { EliminarEncuesta } from '../../application/eliminar-encuesta';
 import { ListarEncuestasAdmin } from '../../application/listar-encuestas-admin';
-import { EncuestaActivaNoEditable, EncuestaAdminNoEncontrada, NivelEducativoInvalido } from '../../domain/errores';
+import {
+  EncuestaActivaNoEditable,
+  EncuestaActivaNoEliminable,
+  EncuestaAdminNoEncontrada,
+  EncuestaConVotos,
+  NivelEducativoInvalido,
+} from '../../domain/errores';
 import type { EncuestaAdmin } from '../../domain/encuesta-admin';
 import { type EncuestaAdminBody, encuestaAdminSchema } from './admin-encuestas.esquemas';
 
@@ -31,7 +37,11 @@ function mapearError(error: unknown): never {
   if (error instanceof EncuestaAdminNoEncontrada) {
     throw new HttpException({ title: 'No encontrado', detail: error.message }, 404);
   }
-  if (error instanceof EncuestaActivaNoEditable) {
+  if (
+    error instanceof EncuestaActivaNoEditable ||
+    error instanceof EncuestaConVotos ||
+    error instanceof EncuestaActivaNoEliminable
+  ) {
     throw new HttpException({ title: 'Conflicto', detail: error.message }, 409);
   }
   if (error instanceof NivelEducativoInvalido) {
