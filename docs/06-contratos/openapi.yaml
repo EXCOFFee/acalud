@@ -1330,8 +1330,9 @@ paths:
         '401': { $ref: '#/components/responses/Problem401' }
         '403':
           description: >
-            El docente no tiene asignado ese juego (JuegoNoAsignado). OJO: responde 403 con
-            `title: "No encontrado"` — inconsistente con la convención "ajeno = 404".
+            El docente no tiene asignado ese juego (CU-29 A7.3: 403, no 404 — el juego existe,
+            falta la asignación). `title: "No tenés asignado este producto"`; `detail` con el
+            mensaje para el usuario de A7.4.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }

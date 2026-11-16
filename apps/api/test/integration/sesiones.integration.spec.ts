@@ -226,9 +226,10 @@ describe('CU-029 y CU-030 · Sesiones de Juego', () => {
       reutilizaria: false
     });
 
-    // Como no está asignado, esperamos un 403 (JuegoNoAsignado mapped to 403)
+    // CU-29 A7.3: 403 con "No tenés asignado este producto"; A7.4: el mensaje para el usuario.
     expect(res.status).toBe(403);
-    expect(res.body.title).toBe('No encontrado'); // Wait, mapped error in docentes.controller is 'No encontrado', 403
+    expect(res.body.title).toBe('No tenés asignado este producto');
+    expect(res.body.detail).toContain('Contactá a tu encargado institucional');
   });
 });
 

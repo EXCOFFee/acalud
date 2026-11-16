@@ -228,8 +228,11 @@ documentan. El contrato los describe tal como se comportan HOY.
   repositorio caía en silencio a la página 1), ahora responde 422. Detalle original: era el
   único listado sin Zod — `pagina`/`limite` con `parseInt`, `limite` sin tope y `producto_id`
   sin validar uuid; tampoco se validaba el uuid de `GET /docentes/me/sesiones-juego/:id`.
-- **U5 · `POST /docentes/me/sesiones-juego` con juego no asignado** responde **403** con
-  `title: "No encontrado"` (contradictorio y fuera de la convención "ajeno = 404").
+- ~~**U5 · `POST /docentes/me/sesiones-juego` con juego no asignado** responde **403** con
+  `title: "No encontrado"`~~ — **resuelto (2026-11-16)**: CU-29 A7.3 pide explícitamente **403**
+  (el CU le gana a la convención "ajeno = 404": el juego existe, falta la asignación), así que
+  el código se mantuvo y solo se corrigió el `title` → "No tenés asignado este producto" (A7.3);
+  `detail` ya era el mensaje de A7.4. El test que congelaba el título equivocado se corrigió.
 - **U5 · `GET /instituciones/mine`** devuelve `datos_facturacion_envio` (razón social, CUIT,
   domicilio) a cualquier docente vinculado, no solo al encargado que lo usa en el checkout B2B.
   No es PII, pero es más de lo necesario: evaluar devolverlo solo si `es_encargado`.

@@ -19,8 +19,10 @@ function mapearErrorLocal(error: unknown): never {
   if (error instanceof DocenteNoVinculado) {
     throw new HttpException({ title: 'Dato inválido', detail: error.message }, 422);
   }
+  // CU-29 A7.3: 403 (no 404) — el juego existe y el docente lo eligió de su lista; lo que falta
+  // es la asignación. title = mensaje de A7.3; detail = mensaje para el usuario de A7.4.
   if (error instanceof JuegoNoAsignado) {
-    throw new HttpException({ title: 'No encontrado', detail: error.message }, 403);
+    throw new HttpException({ title: 'No tenés asignado este producto', detail: error.message }, 403);
   }
   if (error instanceof SesionNoEncontrada) {
     throw new HttpException({ title: 'No encontrado', detail: error.message }, 404);
